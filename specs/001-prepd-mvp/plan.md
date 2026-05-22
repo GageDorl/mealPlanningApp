@@ -117,3 +117,19 @@ mealPlan/
 ## Complexity Tracking
 
 > No constitution violations to justify. All gates pass.
+
+## Post-Design Constitution Re-Check
+
+*Re-evaluated after Phase 1 design artifacts (data-model.md, contracts/, quickstart.md).*
+
+| # | Principle | Status | Post-Design Notes |
+|---|-----------|--------|-------------------|
+| I | Local-First | ✅ PASS | Data model defines PowerSync sync rules with `user_id` row-level filtering. All 12 tables sync bidirectionally. All service contracts write to local SQLite first. Only `recipeService.search()`, `nutritionService.lookupIngredient()`, and `calendarService.*` require network. |
+| II | Cross-Platform Parity | ✅ PASS | Calendar service has platform split: `calendar.ts` (native via expo-calendar) + `calendar.web.ts` (Google Calendar REST API). All other services are platform-agnostic. Data model is identical across platforms. |
+| III | Schema-First Data | ✅ PASS | Recipe entity explicitly maps to schema.org fields (see data-model.md field comments). `schema-import.ts` service handles JSON-LD → app model mapping. Data model defined before implementation. |
+| IV | No Unreviewed Data Entry | ✅ PASS | `recipeService.importFromUrl()` returns `Partial<RecipeFormData>` — never persists. `recipeService.save()` is the only write path and requires explicit user action. Same flow for API results. |
+| V | Minimal Navigation | ✅ PASS | Route structure: Dashboard (index) → feature detail screens via stack. Max depth: Dashboard → Recipe Search → Recipe Detail (3 levels). No tab bar in route structure. |
+| VI | Flexible Over Rigid | ✅ PASS | `MealSlot.label` is user-defined string. `MacroGoal` table allows arbitrary macro names with `is_active` toggle. Notification settings are independent booleans. Onboarding has `onboarding_completed` / `tutorial_completed` tracking for skip behavior. |
+| VII | Simplicity (YAGNI) | ✅ PASS | `user.tier` is present but has no associated logic. `ingredient.price` is nullable with no computation. No budget, social, shared plans, or AI suggestion entities in the data model. |
+
+**POST-DESIGN GATE RESULT: ALL PASS — ready for Phase 2 task generation via `/speckit.tasks`.**
