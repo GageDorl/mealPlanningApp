@@ -29,12 +29,12 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 **Purpose**: Project initialization, dependencies, and configuration. **One developer** completes this before parallel work begins.
 
-- [ ] T001 Install PowerSync, Supabase, Redux Toolkit, and auth dependencies per mealPlan/specs/001-prepd-mvp/quickstart.md
-- [ ] T002 Configure Babel with async-generator plugin in mealPlan/babel.config.js
-- [ ] T003 Create environment config with .env loading in mealPlan/.env.example and mealPlan/src/constants/env.ts
-- [ ] T004 [P] Update mealPlan/src/constants/theme.ts with Prepd design tokens (bright orange accent #FF6B2C, Futura-style font stack, updated spacing)
-- [ ] T005 [P] Create dietary tag constants in mealPlan/src/constants/dietary-tags.ts
-- [ ] T006 [P] Create default macro definitions in mealPlan/src/constants/macros.ts
+- [x] T001 Install PowerSync, Supabase, Redux Toolkit, and auth dependencies per mealPlan/specs/001-prepd-mvp/quickstart.md
+- [x] T002 Configure Babel with async-generator plugin in mealPlan/babel.config.js
+- [x] T003 Create environment config with .env loading in mealPlan/.env.example and mealPlan/src/constants/env.ts
+- [x] T004 [P] Update mealPlan/src/constants/theme.ts with Prepd design tokens (bright orange accent #FF6B2C, Futura-style font stack, updated spacing)
+- [x] T005 [P] Create dietary tag constants in mealPlan/src/constants/dietary-tags.ts
+- [x] T006 [P] Create default macro definitions in mealPlan/src/constants/macros.ts
 
 ---
 
