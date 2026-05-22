@@ -34,7 +34,9 @@
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "@journeyapps/react-native-quick-sqlite",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
