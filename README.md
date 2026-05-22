@@ -26,7 +26,7 @@ A cross-platform meal planning app built with Expo and React Native.
 ```bash
 cd mealPlan
 npm install
-npx expo start
+npm start
 ```
 
 ## Project Layout
