@@ -172,18 +172,18 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 4
 
-- [ ] T060 [US4] Implement calendarService.connect, getEvents, createMealEvent, deleteMealEvent for native in mealPlan/src/services/calendar.ts
-- [ ] T061 [US4] Implement calendarService for web (Google Calendar REST API) in mealPlan/src/services/calendar.web.ts
-- [ ] T062 [US4] Implement mealPlanService (getWeek, createSlot, assignRecipe, removeRecipe, deleteSlot, reorderSlots) in mealPlan/src/services/meal-plan-service.ts
-- [ ] T063 [US4] Create useMealPlan hook with PowerSync watched query in mealPlan/src/hooks/use-meal-plan.ts
-- [ ] T064 [US4] Create useCalendar hook for external events in mealPlan/src/hooks/use-calendar.ts
-- [ ] T065 [US4] Create weekly planner screen with 7-day grid in mealPlan/src/app/calendar/index.tsx
-- [ ] T066 [P] [US4] Create DayColumn component with meal slots and external event blocks in mealPlan/src/components/calendar/day-column.tsx
-- [ ] T067 [P] [US4] Create MealSlotCard component (label, assigned recipe preview, empty state) in mealPlan/src/components/calendar/meal-slot-card.tsx
-- [ ] T068 [P] [US4] Create ExternalEventBlock component for calendar busy blocks in mealPlan/src/components/calendar/external-event-block.tsx
-- [ ] T069 [US4] Create AddMealSlot modal (label input, time picker) in mealPlan/src/components/calendar/add-meal-slot-modal.tsx
-- [ ] T070 [US4] Create recipe picker modal for assigning recipes to meal slots in mealPlan/src/components/calendar/recipe-picker-modal.tsx
-- [ ] T071 [US4] Wire meal slot assignment to calendarService.createMealEvent for calendar write-back in mealPlan/src/services/meal-plan-service.ts
+- [x] T060 [US4] Implement calendarService.connect, getEvents, createMealEvent, deleteMealEvent for native in mealPlan/src/services/calendar.ts
+- [x] T061 [US4] Implement calendarService for web (Google Calendar REST API) in mealPlan/src/services/calendar.web.ts
+- [x] T062 [US4] Implement mealPlanService (getWeek, createSlot, assignRecipe, removeRecipe, deleteSlot, reorderSlots) in mealPlan/src/services/meal-plan-service.ts
+- [x] T063 [US4] Create useMealPlan hook with PowerSync watched query in mealPlan/src/hooks/use-meal-plan.ts
+- [x] T064 [US4] Create useCalendar hook for external events in mealPlan/src/hooks/use-calendar.ts
+- [x] T065 [US4] Create weekly planner screen with 7-day grid in mealPlan/src/app/calendar/index.tsx
+- [x] T066 [P] [US4] Create DayColumn component with meal slots and external event blocks in mealPlan/src/components/calendar/day-column.tsx
+- [x] T067 [P] [US4] Create MealSlotCard component (label, assigned recipe preview, empty state) in mealPlan/src/components/calendar/meal-slot-card.tsx
+- [x] T068 [P] [US4] Create ExternalEventBlock component for calendar busy blocks in mealPlan/src/components/calendar/external-event-block.tsx
+- [x] T069 [US4] Create AddMealSlot modal (label input, time picker) in mealPlan/src/components/calendar/add-meal-slot-modal.tsx
+- [x] T070 [US4] Create recipe picker modal for assigning recipes to meal slots in mealPlan/src/components/calendar/recipe-picker-modal.tsx
+- [x] T071 [US4] Wire meal slot assignment to calendarService.createMealEvent for calendar write-back in mealPlan/src/services/meal-plan-service.ts
 
 **Checkpoint**: Weekly planner works with calendar integration end-to-end.
 
