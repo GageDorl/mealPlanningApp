@@ -44,22 +44,22 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T007 Initialize Supabase client with auth in mealPlan/src/services/supabase.ts
-- [ ] T008 Initialize PowerSync with sync rules and table definitions in mealPlan/src/services/powersync.ts
-- [ ] T009 [P] Define User TypeScript model and PowerSync table in mealPlan/src/models/user.ts
-- [ ] T010 [P] Define Recipe and RecipeIngredient TypeScript models and PowerSync tables in mealPlan/src/models/recipe.ts
-- [ ] T011 [P] Define Ingredient TypeScript model and PowerSync table in mealPlan/src/models/ingredient.ts
-- [ ] T012 [P] Define MealPlan and MealSlot TypeScript models and PowerSync tables in mealPlan/src/models/meal-slot.ts and mealPlan/src/models/meal-plan.ts
-- [ ] T013 [P] Define GroceryList, GroceryItem, and PantryStaple TypeScript models and PowerSync tables in mealPlan/src/models/grocery.ts
-- [ ] T014 Configure Redux Toolkit store with slices structure in mealPlan/src/store/index.ts
-- [ ] T015 [P] Create UI slice (selectedDate, dashboardModuleStates, activeFilters) in mealPlan/src/store/slices/ui-slice.ts
-- [ ] T016 [P] Create search slice (searchQuery, filters, loading, results cache) in mealPlan/src/store/slices/search-slice.ts
-- [ ] T017 [P] Create recipe form slice (in-progress form state for create/import) in mealPlan/src/store/slices/recipe-form-slice.ts
-- [ ] T018 [P] Create onboarding slice (step progress, skipped steps tracking) in mealPlan/src/store/slices/onboarding-slice.ts
-- [ ] T019 Create shared UI primitives (Button, Card, Input, ProgressRing, ProgressBar) in mealPlan/src/components/ui/
-- [ ] T020 Remove existing Expo boilerplate screens and components (explore.tsx, hint-row.tsx, animated-icon.tsx, web-badge.tsx, app-tabs.tsx)
-- [ ] T021 Set up root layout with auth gate and PowerSync provider in mealPlan/src/app/_layout.tsx
-- [ ] T022 Create Supabase Postgres migration SQL for all 12 tables per data-model.md (output to specs/001-prepd-mvp/migrations/001_initial_schema.sql)
+- [x] T007 Initialize Supabase client with auth in mealPlan/src/services/supabase.ts
+- [x] T008 Initialize PowerSync with sync rules and table definitions in mealPlan/src/services/powersync.ts
+- [x] T009 [P] Define User TypeScript model and PowerSync table in mealPlan/src/models/user.ts
+- [x] T010 [P] Define Recipe and RecipeIngredient TypeScript models and PowerSync tables in mealPlan/src/models/recipe.ts
+- [x] T011 [P] Define Ingredient TypeScript model and PowerSync table in mealPlan/src/models/ingredient.ts
+- [x] T012 [P] Define MealPlan and MealSlot TypeScript models and PowerSync tables in mealPlan/src/models/meal-slot.ts and mealPlan/src/models/meal-plan.ts
+- [x] T013 [P] Define GroceryList, GroceryItem, and PantryStaple TypeScript models and PowerSync tables in mealPlan/src/models/grocery.ts
+- [x] T014 Configure Redux Toolkit store with slices structure in mealPlan/src/store/index.ts
+- [x] T015 [P] Create UI slice (selectedDate, dashboardModuleStates, activeFilters) in mealPlan/src/store/slices/ui-slice.ts
+- [x] T016 [P] Create search slice (searchQuery, filters, loading, results cache) in mealPlan/src/store/slices/search-slice.ts
+- [x] T017 [P] Create recipe form slice (in-progress form state for create/import) in mealPlan/src/store/slices/recipe-form-slice.ts
+- [x] T018 [P] Create onboarding slice (step progress, skipped steps tracking) in mealPlan/src/store/slices/onboarding-slice.ts
+- [x] T019 Create shared UI primitives (Button, Card, Input, ProgressRing, ProgressBar) in mealPlan/src/components/ui/
+- [x] T020 Remove existing Expo boilerplate screens and components (explore.tsx, hint-row.tsx, animated-icon.tsx, web-badge.tsx, app-tabs.tsx)
+- [x] T021 Set up root layout with auth gate and PowerSync provider in mealPlan/src/app/_layout.tsx
+- [x] T022 Create Supabase Postgres migration SQL for all 12 tables per data-model.md (output to specs/001-prepd-mvp/migrations/001_initial_schema.sql)
 
 **Checkpoint**: Foundation ready — 3 developers can now work in parallel on separate branches.
 
