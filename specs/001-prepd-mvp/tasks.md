@@ -200,12 +200,12 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 5
 
-- [ ] T072 [US5] Implement macroService.getDailyProgress and getWeeklyProgress in mealPlan/src/services/macro-service.ts
-- [ ] T073 [US5] Create useMacros hook for daily progress computation in mealPlan/src/hooks/use-macros.ts
-- [ ] T074 [P] [US5] Create ProgressRing component for compact macro display in mealPlan/src/components/macros/progress-ring.tsx
-- [ ] T075 [P] [US5] Create MacroProgressBar component for expanded macro display in mealPlan/src/components/macros/macro-progress-bar.tsx
-- [ ] T076 [US5] Create macro detail screen with per-meal breakdown in mealPlan/src/app/macros/index.tsx
-- [ ] T077 [P] [US5] Create MealMacroBreakdown component (per-meal macro contributions) in mealPlan/src/components/macros/meal-macro-breakdown.tsx
+- [x] T072 [US5] Implement macroService.getDailyProgress and getWeeklyProgress in mealPlan/src/services/macro-service.ts
+- [x] T073 [US5] Create useMacros hook for daily progress computation in mealPlan/src/hooks/use-macros.ts
+- [x] T074 [P] [US5] Create ProgressRing component for compact macro display in mealPlan/src/components/macros/progress-ring.tsx
+- [x] T075 [P] [US5] Create MacroProgressBar component for expanded macro display in mealPlan/src/components/macros/macro-progress-bar.tsx
+- [x] T076 [US5] Create macro detail screen with per-meal breakdown in mealPlan/src/app/macros/index.tsx
+- [x] T077 [P] [US5] Create MealMacroBreakdown component (per-meal macro contributions) in mealPlan/src/components/macros/meal-macro-breakdown.tsx
 
 **Checkpoint**: Macro tracking displays accurately on dashboard and detail screen.
 
