@@ -69,8 +69,8 @@ export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerMo
           {item.title}
         </Text>
         <Text style={[styles.recipeMeta, { color: theme.textSecondary }]}>
-          {item.calories ? `${item.calories} kcal` : ''}
-          {item.prepTimeMinutes ? ` · ${item.prepTimeMinutes} min` : ''}
+          {item.calories_per_serving ? `${item.calories_per_serving} kcal` : ''}
+          {item.prep_minutes ? ` · ${item.prep_minutes} min` : ''}
         </Text>
       </View>
     </Pressable>

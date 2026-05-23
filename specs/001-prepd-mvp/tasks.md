@@ -184,6 +184,7 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 - [x] T069 [US4] Create AddMealSlot modal (label input, time picker) in mealPlan/src/components/calendar/add-meal-slot-modal.tsx
 - [x] T070 [US4] Create recipe picker modal for assigning recipes to meal slots in mealPlan/src/components/calendar/recipe-picker-modal.tsx
 - [x] T071 [US4] Wire meal slot assignment to calendarService.createMealEvent for calendar write-back in mealPlan/src/services/meal-plan-service.ts
+- [x] T071b [US4] Persist Google Calendar OAuth token in localStorage with expiry tracking; add isConnected()/restoreSession() to calendar.web.ts and calendar.ts; hydrate useCalendar hook on mount in mealPlan/src/hooks/use-calendar.ts
 
 **Checkpoint**: Weekly planner works with calendar integration end-to-end.
 

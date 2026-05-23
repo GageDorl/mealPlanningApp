@@ -59,6 +59,7 @@ interface DayColumnProps {
   onAddSlot: (time: string) => void;
   onSlotPress: (slotId: string) => void;
   onAssignRecipe: (slotId: string) => void;
+  onDeleteSlot: (slotId: string) => void;
   isToday: boolean;
   isNarrow?: boolean;
 }
@@ -93,6 +94,7 @@ export function DayColumn({
   onAddSlot,
   onSlotPress,
   onAssignRecipe,
+  onDeleteSlot,
   isToday,
   isNarrow,
 }: DayColumnProps) {
@@ -110,8 +112,8 @@ export function DayColumn({
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
   // Separate timed vs untimed items
-  const timedSlots = slots.filter((s) => parseTimeToMinutes(s.time) != null);
-  const untimed = slots.filter((s) => parseTimeToMinutes(s.time) == null);
+  const timedSlots = slots.filter((s) => parseTimeToMinutes(s.time_of_day) != null);
+  const untimed = slots.filter((s) => parseTimeToMinutes(s.time_of_day) == null);
   const allDayEvents = externalEvents.filter((e) => e.isAllDay);
   const timedEvents = externalEvents.filter((e) => !e.isAllDay);
 
@@ -136,6 +138,7 @@ export function DayColumn({
               slot={slot}
               onPress={() => onSlotPress(slot.id)}
               onAssignRecipe={() => onAssignRecipe(slot.id)}
+              onDelete={() => onDeleteSlot(slot.id)}
             />
           ))}
         </View>
@@ -170,50 +173,54 @@ export function DayColumn({
         )}
 
         {/* Absolutely-positioned external events */}
-        {timedEvents.map((event) => {
-          const startMin = event.startDate.getHours() * 60 + event.startDate.getMinutes();
-          const endMin = event.endDate.getHours() * 60 + event.endDate.getMinutes();
-          const clippedStart = clampMinutes(startMin);
-          const clippedEnd = clampMinutes(Math.max(endMin, startMin + 30));
-          const visibleDuration = Math.max(clippedEnd - clippedStart, 30);
-          const top = minutesToY(clippedStart);
-          const height = (visibleDuration / 60) * HOUR_HEIGHT;
+        {/* When both events and meal slots exist, split the column so they don't overlap */}
+        {(() => {
+          const split = timedSlots.length > 0 && timedEvents.length > 0;
+          return timedEvents.map((event) => {
+            const startMin = event.startDate.getHours() * 60 + event.startDate.getMinutes();
+            const endMin = event.endDate.getHours() * 60 + event.endDate.getMinutes();
+            const clippedStart = clampMinutes(startMin);
+            const clippedEnd = clampMinutes(Math.max(endMin, startMin + 30));
+            const visibleDuration = Math.max(clippedEnd - clippedStart, 30);
+            const top = minutesToY(clippedStart);
+            const height = (visibleDuration / 60) * HOUR_HEIGHT;
 
-          if (clippedEnd <= clippedStart) {
-            return null;
-          }
+            if (clippedEnd <= clippedStart) return null;
 
-          return (
-            <View key={event.id} style={[styles.absoluteItem, { top, height, left: 30, right: 2 }]}>
-              <ExternalEventBlock event={event} compact={height < 56} />
-            </View>
-          );
-        })}
+            return (
+              <View key={event.id} style={[styles.absoluteItem, { top, height, left: 30, right: split ? '52%' : 2 }]}>
+                <ExternalEventBlock event={event} compact={height < 56} />
+              </View>
+            );
+          });
+        })()}
 
         {/* Absolutely-positioned meal slots */}
-        {timedSlots.map((slot) => {
-          const startMin = parseTimeToMinutes(slot.time)!;
-          const clippedStart = clampMinutes(startMin);
-          const clippedEnd = clampMinutes(startMin + DEFAULT_SLOT_DURATION);
-          const visibleDuration = Math.max(clippedEnd - clippedStart, 30);
-          const top = minutesToY(clippedStart);
-          const height = (visibleDuration / 60) * HOUR_HEIGHT;
+        {(() => {
+          const split = timedSlots.length > 0 && timedEvents.length > 0;
+          return timedSlots.map((slot) => {
+            const startMin = parseTimeToMinutes(slot.time_of_day)!;
+            const clippedStart = clampMinutes(startMin);
+            const clippedEnd = clampMinutes(startMin + DEFAULT_SLOT_DURATION);
+            const visibleDuration = Math.max(clippedEnd - clippedStart, 30);
+            const top = minutesToY(clippedStart);
+            const height = (visibleDuration / 60) * HOUR_HEIGHT;
 
-          if (clippedEnd <= clippedStart) {
-            return null;
-          }
+            if (clippedEnd <= clippedStart) return null;
 
-          return (
-            <View key={slot.id} style={[styles.absoluteItem, { top, height, left: 30, right: 2 }]}>
-              <MealSlotCard
-                slot={slot}
-                compact={height < 56}
-                onPress={() => onSlotPress(slot.id)}
-                onAssignRecipe={() => onAssignRecipe(slot.id)}
-              />
-            </View>
-          );
-        })}
+            return (
+              <View key={slot.id} style={[styles.absoluteItem, { top, height, left: split ? '50%' : 30, right: 2 }]}>
+                <MealSlotCard
+                  slot={slot}
+                  compact={height < 56}
+                  onPress={() => onSlotPress(slot.id)}
+                  onAssignRecipe={() => onAssignRecipe(slot.id)}
+                  onDelete={() => onDeleteSlot(slot.id)}
+                />
+              </View>
+            );
+          });
+        })()}
       </View>
     </View>
   );

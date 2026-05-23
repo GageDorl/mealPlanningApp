@@ -48,7 +48,7 @@ export function useMealPlan(weekStart: Date) {
       return {
         ...prev,
         slots: prev.slots.map((s) =>
-          s.id === slotId ? { ...s, assignedRecipeId: undefined, recipe: null } : s,
+          s.id === slotId ? { ...s, recipe_id: null, recipe: null } : s,
         ),
       };
     });

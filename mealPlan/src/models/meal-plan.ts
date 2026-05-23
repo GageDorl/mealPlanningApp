@@ -1,23 +1,19 @@
 export interface MealPlan {
   id: string;
-  userId: string;
-  startDate: string;
-  endDate: string;
-  title?: string;
-  createdAt: string;
-  updatedAt: string;
+  user_id: string | null;
+  week_start: string; // 'YYYY-MM-DD'
+  created_at: string;
+  updated_at: string;
 }
 
 export const mealPlanTable = {
   name: 'meal_plans',
   columns: {
     id: 'text',
-    userId: 'text',
-    startDate: 'text',
-    endDate: 'text',
-    title: 'text',
-    createdAt: 'text',
-    updatedAt: 'text',
+    user_id: 'text',
+    week_start: 'text',
+    created_at: 'text',
+    updated_at: 'text',
   },
   primaryKey: 'id',
 } as const;

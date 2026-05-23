@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, Platform, useWindowDimensions, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -54,7 +54,7 @@ export default function WeeklyPlannerScreen() {
   const currentWeekEnd = addDays(currentWeekStart, 6);
 
   const { weekPlan, loading, createSlot, assignRecipe, deleteSlot, refresh } = useMealPlan(currentWeekStart);
-  const { connected, events, connect, loadEvents, createMealEvent } = useCalendar();
+  const { connected, events, connectError, connect, loadEvents, createMealEvent } = useCalendar();
 
   // Add-slot modal state
   const [addSlotVisible, setAddSlotVisible] = useState(false);
@@ -131,16 +131,16 @@ export default function WeeklyPlannerScreen() {
         await createMealEvent({
           title: recipe.title,
           date: slot.date,
-          timeOfDay: slot.time || null,
+          timeOfDay: slot.time_of_day || null,
           slotId: activeSlotId,
         });
       }
     }
   };
 
-  const handleSlotPress = (slotId: string) => {
-    // Future: navigate to recipe detail
-  };
+  const handleDeleteSlot = useCallback(async (slotId: string) => {
+    await deleteSlot(slotId);
+  }, [deleteSlot]);
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const dayDate = addDays(currentWeekStart, i);
@@ -191,9 +191,12 @@ export default function WeeklyPlannerScreen() {
       {/* Calendar connect banner */}
       {!connected && (
         <View style={styles.connectRow}>
-          <Pressable style={styles.connectBanner} onPress={connect}>
+          <Pressable style={styles.connectBanner} onPress={connect} accessibilityRole="button" accessibilityLabel="Connect your calendar">
             <Text style={styles.connectText}>Connect Calendar</Text>
           </Pressable>
+          {connectError ? (
+            <Text style={[styles.connectErrorText, { color: theme.textSecondary }]}>{connectError}</Text>
+          ) : null}
         </View>
       )}
 
@@ -232,7 +235,8 @@ export default function WeeklyPlannerScreen() {
                       slots={day.slots}
                       externalEvents={day.events}
                       onAddSlot={(time: string) => handleAddSlot(day.date, time)}
-                      onSlotPress={handleSlotPress}
+                      onSlotPress={() => {}}
+                      onDeleteSlot={handleDeleteSlot}
                       onAssignRecipe={handleAssignRecipe}
                       isToday={day.isToday}
                       isNarrow
@@ -267,7 +271,8 @@ export default function WeeklyPlannerScreen() {
                     slots={day.slots}
                     externalEvents={day.events}
                     onAddSlot={(time: string) => handleAddSlot(day.date, time)}
-                    onSlotPress={handleSlotPress}
+                    onSlotPress={() => {}}
+                    onDeleteSlot={handleDeleteSlot}
                     onAssignRecipe={handleAssignRecipe}
                     isToday={day.isToday}
                   />
@@ -350,8 +355,10 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm,
   } as ViewStyle,
   connectRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: 'column',
+    alignSelf: 'center',
+    alignItems: 'center',
+    gap: Spacing.xs,
     marginBottom: Spacing.sm,
   } as ViewStyle,
   connectBanner: {
@@ -364,6 +371,11 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: '600',
     color: '#FFFFFF',
+  } as TextStyle,
+  connectErrorText: {
+    fontSize: FontSizes.xs,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   } as TextStyle,
   scrollArea: {
     flex: 1,

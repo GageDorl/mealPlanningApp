@@ -22,6 +22,16 @@ async function getDefaultCalendarId(): Promise<string | null> {
   return primary?.id ?? writable[0]?.id ?? null;
 }
 
+export function isConnected(): boolean {
+  // Sync check not available on native; use restoreSession() on mount instead.
+  return false;
+}
+
+export async function restoreSession(): Promise<boolean> {
+  const { status } = await Calendar.getCalendarPermissionsAsync();
+  return status === 'granted';
+}
+
 export async function connect(): Promise<{ granted: boolean }> {
   const granted = await requestPermissions();
   return { granted };
