@@ -10,6 +10,7 @@ export interface GroceryItemRow {
   unit: string | null;
   category: string | null;
   is_checked: boolean;
+  deficit_note: string | null;
 }
 
 export interface GroceryListRow {
@@ -23,6 +24,8 @@ export interface PantryStapleRow {
   id: string;
   user_id: string;
   ingredient_name: string;
+  quantity: number | null;
+  unit: string | null;
 }
 
 export interface GroceryDisplayGroup {
@@ -167,13 +170,13 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
 
   const { data: staplesData } = await supabase
     .from('pantry_staples')
-    .select('ingredient_name')
+    .select('ingredient_name, quantity, unit')
     .eq('user_id', userId);
-  const stapleNames = ((staplesData ?? []) as Array<{ ingredient_name: string }>).map(
-    (s) => s.ingredient_name
+  const pantryItems = ((staplesData ?? []) as Array<{ ingredient_name: string; quantity: number | null; unit: string | null }>).map(
+    (s) => ({ name: s.ingredient_name, quantity: s.quantity, unit: s.unit })
   );
 
-  const categoryGroups = aggregateIngredients(rawInputs, stapleNames);
+  const categoryGroups = aggregateIngredients(rawInputs, pantryItems);
   const allAggregated = categoryGroups.flatMap((g) => g.items);
 
   const now = new Date().toISOString();
@@ -217,6 +220,7 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
         quantity: item.quantity,
         unit: item.unit,
         category: item.category,
+        deficit_note: item.deficitNote ?? null,
         is_checked: false,
         created_at: now,
         updated_at: now,
@@ -295,17 +299,35 @@ export async function toggleItemChecked(itemId: string, checked: boolean): Promi
     .eq('id', itemId);
 }
 
-export async function addPantryStaple(userId: string, ingredientName: string): Promise<PantryStapleRow> {
+export async function addPantryStaple(
+  userId: string,
+  ingredientName: string,
+  quantity: number | null = null,
+  unit: string | null = null
+): Promise<PantryStapleRow> {
   const { data } = await supabase
     .from('pantry_staples')
     .insert({
       user_id: userId,
       ingredient_name: ingredientName.toLowerCase().trim(),
+      quantity,
+      unit: unit ? unit.toLowerCase().trim() : null,
       created_at: new Date().toISOString(),
     })
     .select('*')
     .single();
   return data as PantryStapleRow;
+}
+
+export async function updatePantryStaple(
+  stapleId: string,
+  quantity: number | null,
+  unit: string | null
+): Promise<void> {
+  await supabase
+    .from('pantry_staples')
+    .update({ quantity, unit: unit ? unit.toLowerCase().trim() : null })
+    .eq('id', stapleId);
 }
 
 export async function removePantryStaple(stapleId: string): Promise<void> {

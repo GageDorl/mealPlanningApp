@@ -9,9 +9,10 @@ interface GroceryItemRowProps {
   unit: string | null;
   isChecked: boolean;
   onToggle: (id: string, checked: boolean) => void;
+  deficitNote?: string | null;
 }
 
-export function GroceryItemRow({ id, name, quantity, unit, isChecked, onToggle }: GroceryItemRowProps) {
+export function GroceryItemRow({ id, name, quantity, unit, isChecked, onToggle, deficitNote }: GroceryItemRowProps) {
   const theme = useTheme();
 
   const quantityText = quantity !== null
@@ -31,12 +32,17 @@ export function GroceryItemRow({ id, name, quantity, unit, isChecked, onToggle }
         {isChecked && <Text style={styles.checkmark}>✓</Text>}
       </View>
 
-      <Text
-        style={[styles.name, { color: isChecked ? theme.textSecondary : theme.text }, isChecked && styles.strikethrough]}
-        numberOfLines={1}
-      >
-        {name}
-      </Text>
+      <View style={styles.nameContainer}>
+        <Text
+          style={[styles.name, { color: isChecked ? theme.textSecondary : theme.text }, isChecked && styles.strikethrough]}
+          numberOfLines={1}
+        >
+          {name}
+        </Text>
+        {deficitNote && !isChecked && (
+          <Text style={[styles.deficitNote, { color: theme.textSecondary }]}>{deficitNote}</Text>
+        )}
+      </View>
 
       {quantityText && (
         <Text style={[styles.quantity, { color: theme.textSecondary }]}>{quantityText}</Text>
@@ -70,13 +76,20 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     fontWeight: '700',
   } as TextStyle,
-  name: {
+  nameContainer: {
     flex: 1,
+    gap: 2,
+  } as ViewStyle,
+  name: {
     fontSize: FontSizes.sm,
     fontWeight: '500',
   } as TextStyle,
   strikethrough: {
     textDecorationLine: 'line-through',
+  } as TextStyle,
+  deficitNote: {
+    fontSize: FontSizes.xs,
+    fontStyle: 'italic',
   } as TextStyle,
   quantity: {
     fontSize: FontSizes.xs,

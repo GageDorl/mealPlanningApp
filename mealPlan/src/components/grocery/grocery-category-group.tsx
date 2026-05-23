@@ -46,6 +46,7 @@ export function GroceryCategoryGroup({ displayLabel, items, onToggleItem }: Groc
               unit={item.unit}
               isChecked={item.is_checked}
               onToggle={onToggleItem}
+              deficitNote={item.deficit_note}
             />
           ))}
         </View>

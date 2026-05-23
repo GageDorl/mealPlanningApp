@@ -108,13 +108,14 @@ export default function SignInScreen() {
         style={authStyles.socialButton}
         disabled={loading}
       />
+      {/* Apple sign-in requires paid Apple Developer account ($99/yr) — re-enable if that changes
       <Button
         label="Continue with Apple"
         onPress={() => handleProviderSignIn('apple')}
         variant="secondary"
         style={authStyles.socialButton}
         disabled={loading}
-      />
+      /> */}
     </AuthScreen>
   );
 }
