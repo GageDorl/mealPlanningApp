@@ -16,7 +16,24 @@ export function isConnected(): boolean {
 }
 
 export async function restoreSession(): Promise<boolean> {
-  return isConnected();
+  // Fast path: localStorage cache avoids a network call on every mount
+  if (isConnected()) return true;
+
+  // Auth required — can't check Recal without a session
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) return false;
+
+  try {
+    const result = await callFunction('recal-calendar', { action: 'isConnected' });
+    if (result?.connected) {
+      try { localStorage.setItem(CONNECTED_KEY, 'true'); } catch {}
+      return true;
+    }
+  } catch {
+    // Network or Edge Function error — treat as not connected
+  }
+
+  return false;
 }
 
 export async function connect(): Promise<{ granted: boolean }> {
@@ -91,4 +108,10 @@ export async function deleteMealEvent(eventId: string): Promise<void> {
 
 export async function disconnect(): Promise<void> {
   try { localStorage.removeItem(CONNECTED_KEY); } catch {}
+
+  try {
+    await callFunction('recal-calendar', { action: 'revokeConnection', provider: 'google' });
+  } catch {
+    // Best effort — local state is already cleared
+  }
 }

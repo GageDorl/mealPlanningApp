@@ -1,4 +1,4 @@
-import { StyleSheet, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
+import { StyleSheet, TextInput, View, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
 import { Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -34,5 +34,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     fontSize: 16,
-  } as ViewStyle,
+  } as TextStyle,
 });

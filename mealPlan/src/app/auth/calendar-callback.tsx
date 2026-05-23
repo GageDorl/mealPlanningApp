@@ -22,7 +22,6 @@ export default function CalendarCallback() {
       }
 
       try {
-        // TODO: revert — dev bypass; Phase 3 auth will provide a real session
         const { data, error } = await supabase.functions.invoke('recal-oauth-verify', {
           body: { provider: 'google', code, state, scope },
         });

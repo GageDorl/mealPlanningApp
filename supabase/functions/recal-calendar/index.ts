@@ -36,9 +36,10 @@ Deno.serve(async (req) => {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  // TODO: revert — dev bypass so calendar can be tested before auth is wired (Phase 3)
-  const DEV_TEST_USER_ID = 'dev-test-00000000-0000-0000-0000-000000000000'
-  const userId = user?.id ?? DEV_TEST_USER_ID
+  if (!user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: cors })
+  }
+  const userId = user.id
 
   const body = await req.json()
 
@@ -75,6 +76,14 @@ Deno.serve(async (req) => {
       const result = await recal(`/users/${userId}/oauth`)
       const connections: unknown[] = result.data ?? []
       return new Response(JSON.stringify({ connected: connections.length > 0 }), {
+        headers: { ...cors, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (body.action === 'revokeConnection') {
+      const { provider = 'google' } = body
+      await recal(`/users/${userId}/oauth/${provider}`, { method: 'DELETE' })
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }

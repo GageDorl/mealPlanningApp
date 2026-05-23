@@ -37,9 +37,10 @@ Deno.serve(async (req) => {
     )
 
     const { data: { user } } = await supabase.auth.getUser()
-    // TODO: revert — dev bypass so calendar OAuth can be tested before auth is wired (Phase 3)
-    const DEV_TEST_USER_ID = 'dev-test-00000000-0000-0000-0000-000000000000'
-    const userId = user?.id ?? DEV_TEST_USER_ID
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: cors })
+    }
+    const userId = user.id
 
     const { provider = 'google', redirectUrl } = await req.json()
 

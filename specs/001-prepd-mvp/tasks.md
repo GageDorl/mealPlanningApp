@@ -75,19 +75,19 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 1
 
-- [ ] T023 [US1] Create sign-in screen with email/password form in mealPlan/src/app/(auth)/sign-in.tsx
-- [ ] T024 [US1] Create sign-up screen with email/password form in mealPlan/src/app/(auth)/sign-up.tsx
-- [ ] T025 [US1] Implement Google OAuth sign-in flow using expo-auth-session in mealPlan/src/services/supabase.ts (extend auth methods)
-- [ ] T026 [US1] Implement Apple sign-in flow using expo-auth-session in mealPlan/src/services/supabase.ts (extend auth methods)
-- [ ] T027 [US1] Create auth layout with redirect logic in mealPlan/src/app/(auth)/_layout.tsx
-- [ ] T028 [US1] Create onboarding layout with step navigation and skip buttons in mealPlan/src/app/(onboarding)/_layout.tsx
-- [ ] T029 [P] [US1] Create macro goals onboarding step screen in mealPlan/src/app/(onboarding)/macro-goals.tsx
-- [ ] T030 [P] [US1] Create dietary preferences onboarding step screen in mealPlan/src/app/(onboarding)/dietary-preferences.tsx
-- [ ] T031 [P] [US1] Create calendar connection onboarding step screen in mealPlan/src/app/(onboarding)/calendar-connect.tsx
-- [ ] T032 [US1] Implement userService.getProfile and userService.updateMacroGoals in mealPlan/src/services/user-service.ts
-- [ ] T033 [US1] Implement userService.updateDietaryPreferences and userService.updateNotificationSettings in mealPlan/src/services/user-service.ts
-- [ ] T034 [US1] Create useUserProfile hook with PowerSync watched query in mealPlan/src/hooks/use-user-profile.ts
-- [ ] T035 [US1] Create profile/settings screen with macro goals editor, dietary preferences, and account info in mealPlan/src/app/profile/index.tsx
+- [x] T023 [US1] Create sign-in screen with email/password form in mealPlan/src/app/(auth)/sign-in.tsx
+- [x] T024 [US1] Create sign-up screen with email/password form in mealPlan/src/app/(auth)/sign-up.tsx
+- [x] T025 [US1] Implement Google OAuth sign-in flow using expo-auth-session in mealPlan/src/services/supabase.ts (extend auth methods)
+- [x] T026 [US1] Implement Apple sign-in flow using expo-auth-session in mealPlan/src/services/supabase.ts (extend auth methods)
+- [x] T027 [US1] Create auth layout with redirect logic in mealPlan/src/app/(auth)/_layout.tsx
+- [x] T028 [US1] Create onboarding layout with step navigation and skip buttons in mealPlan/src/app/(onboarding)/_layout.tsx
+- [x] T029 [P] [US1] Create macro goals onboarding step screen in mealPlan/src/app/(onboarding)/macro-goals.tsx
+- [x] T030 [P] [US1] Create dietary preferences onboarding step screen in mealPlan/src/app/(onboarding)/dietary-preferences.tsx
+- [x] T031 [P] [US1] Create calendar connection onboarding step screen in mealPlan/src/app/(onboarding)/calendar-connect.tsx
+- [x] T032 [US1] Implement userService.getProfile and userService.updateMacroGoals in mealPlan/src/services/user-service.ts
+- [x] T033 [US1] Implement userService.updateDietaryPreferences and userService.updateNotificationSettings in mealPlan/src/services/user-service.ts
+- [x] T034 [US1] Create useUserProfile hook with PowerSync watched query in mealPlan/src/hooks/use-user-profile.ts
+- [x] T035 [US1] Create profile/settings screen with macro goals editor, dietary preferences, and account info in mealPlan/src/app/profile/index.tsx
 
 **Checkpoint**: User Story 1 complete — users can create accounts and configure profiles.
 
