@@ -35,7 +35,7 @@ export default function HomeScreen() {
         <ThemedText type="default" style={styles.subtitle}>
           Your profile is ready. Continue to plan meals, adjust goals, and personalize your preferences.
         </ThemedText>
-        <Button label="View profile" onPress={() => router.push('/profile')} />
+        <Button label="Update goals" onPress={() => router.push('/macro-goals')} />
         <Link href="/macro-goals">
           <ThemedText type="linkPrimary" style={styles.link}>Update onboarding</ThemedText>
         </Link>
@@ -49,20 +49,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.five,
+    padding: Spacing.xl,
   },
   card: {
     width: '100%',
     maxWidth: MaxContentWidth,
-    gap: Spacing.four,
+    gap: Spacing.lg,
   },
   title: {
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.md,
   },
   subtitle: {
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.xl,
   },
   link: {
-    marginTop: Spacing.four,
+    marginTop: Spacing.lg,
   },
 });

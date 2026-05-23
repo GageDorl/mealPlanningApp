@@ -23,15 +23,16 @@ export function Button({ label, onPress, variant = 'primary', disabled = false, 
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.accent,
     minHeight: 48,
   } as ViewStyle,
   primary: {
-    backgroundColor: Colors.light.accent,
+    backgroundColor: Colors.accent,
   } as ViewStyle,
   secondary: {
     backgroundColor: Colors.light.backgroundElement,

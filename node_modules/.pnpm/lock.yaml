@@ -1,0 +1,24 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      uv:
+        specifier: ^1.4.0
+        version: 1.4.0
+
+packages:
+
+  uv@1.4.0:
+    resolution: {integrity: sha512-l5HfbQEbCBJwO536Do930OmcZFMr9detnT/8jPLmzX/fm+aGx2/UTRsHOkra1SEm6NkXi7FyiROa/oGH8Eo87g==}
+    engines: {node: '>=6.0'}
+    deprecated: Use NodeBuffer.isUtf8() instead, it is faster
+
+snapshots:
+
+  uv@1.4.0: {}
