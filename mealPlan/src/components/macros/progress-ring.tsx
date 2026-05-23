@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, FontSizes, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 interface ProgressRingProps {
   current: number;
@@ -18,6 +19,7 @@ export function ProgressRing({
   color = Colors.accent,
   size = 96,
 }: ProgressRingProps) {
+  const theme = useTheme();
   const percentage = goal > 0 ? Math.min(100, Math.round((current / goal) * 100)) : 0;
   const isOver = current > goal;
 
@@ -30,18 +32,18 @@ export function ProgressRing({
             width: size,
             height: size,
             borderRadius: size / 2,
-            borderColor: isOver ? Colors.light.error : color,
+            borderColor: isOver ? theme.error : color,
           },
         ]}
       >
-        <Text style={[styles.percentage, { color: isOver ? Colors.light.error : Colors.light.text }]}>
+        <Text style={[styles.percentage, { color: isOver ? theme.error : theme.text }]}>
           {percentage}%
         </Text>
       </View>
-      <Text style={styles.values} numberOfLines={1}>
+      <Text style={[styles.values, { color: theme.textSecondary }]} numberOfLines={1}>
         {Math.round(current)} / {Math.round(goal)} {unit}
       </Text>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? <Text style={[styles.label, { color: theme.text }]}>{label}</Text> : null}
     </View>
   );
 }
@@ -63,13 +65,11 @@ const styles = StyleSheet.create({
   } as TextStyle,
   values: {
     fontSize: FontSizes.xs,
-    color: Colors.light.textSecondary,
     textAlign: 'center',
   } as TextStyle,
   label: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
-    color: Colors.light.text,
     textAlign: 'center',
   } as TextStyle,
 });

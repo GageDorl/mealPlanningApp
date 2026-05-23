@@ -182,6 +182,26 @@ A first-time user sees an interactive tutorial that walks them through connectin
 
 ---
 
+### User Story 11 - Ad-Hoc Food Logging (Priority: Future)
+
+A user eats something they didn't plan — a coffee shop muffin, a friend's dinner, fast food between classes. They open the app and quickly log the food directly against the current day without creating a meal plan entry. The macro totals for the day update to reflect the unplanned item. This keeps the macro tracking screen accurate even when reality diverges from the plan.
+
+**Why this priority**: Prepd targets busy people and college students who will regularly eat off-plan. Without a fallback logging path, the macro screen becomes inaccurate and loses trust the moment a user eats something unplanned. This feature is intentionally deferred from MVP to keep the initial build focused, but must be added before macro tracking is considered reliable.
+
+**Dependency**: Requires a food/ingredient lookup source (USDA FoodData Central or similar) and a separate log entry data model that is distinct from planned meal slots.
+
+**Independent Test**: Can be tested by having no meals planned for the day, logging an off-plan food item with a known calorie count, and verifying the daily macro totals update correctly.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user did not plan a meal, **When** they tap "Log Food" on the macros screen, **Then** a food search or quick-entry form opens.
+2. **Given** a user searches for "banana", **When** results appear, **Then** each result shows the food name, serving size, and calorie count.
+3. **Given** a user selects a food and confirms a serving size, **When** they tap "Log", **Then** the item is added to the day's macro totals and appears in the per-meal breakdown as an ad-hoc entry.
+4. **Given** a user has both planned meals and logged ad-hoc items for a day, **When** they view the macro detail screen, **Then** planned meals and ad-hoc entries are shown as separate sections with a combined total.
+5. **Given** a user logs an item by mistake, **When** they tap to delete it, **Then** the item is removed and macro totals update accordingly.
+
+---
+
 ### Edge Cases
 
 - What happens when a user searches for recipes with no internet connection? The app shows a clear offline message and suggests browsing saved/downloaded recipes instead.
@@ -231,6 +251,14 @@ A first-time user sees an interactive tutorial that walks them through connectin
 - **FR-022**: System MUST auto-calculate daily macro totals from planned meals.
 - **FR-023**: System MUST display macro progress on the dashboard with compact (progress ring + calorie count) and expanded (individual progress bars per macro) views.
 - **FR-024**: System MUST provide a detail screen showing per-meal macro contributions for a selected day.
+
+*Future (US11 — Ad-Hoc Food Logging)*
+
+- **FR-024a** *(Future)*: System MUST allow users to log off-plan food items directly against a day without creating a meal plan entry.
+- **FR-024b** *(Future)*: System MUST support food search (USDA FoodData Central or equivalent) for ad-hoc log entries.
+- **FR-024c** *(Future)*: System MUST include ad-hoc logged items in daily macro totals alongside planned meal macros.
+- **FR-024d** *(Future)*: The macro detail screen MUST display planned meals and ad-hoc entries as distinct sections with a combined total.
+- **FR-024e** *(Future)*: Users MUST be able to delete individual ad-hoc log entries with immediate macro total recalculation.
 
 **Grocery List**
 
