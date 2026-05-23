@@ -1,4 +1,4 @@
-import { StyleSheet, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
+import { StyleSheet, TextInput, View, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 
 interface InputProps extends TextInputProps {
@@ -26,5 +26,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.light.text,
     backgroundColor: Colors.light.background,
-  } as ViewStyle,
+  } as TextStyle,
 });

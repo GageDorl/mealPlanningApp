@@ -1,68 +1,68 @@
-import { SafeAreaView, ScrollView, StyleSheet } from 'react-native';
-import { Card } from '@/components/ui/card';
+import { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Link, useRouter } from 'expo-router';
+
 import { Button } from '@/components/ui/button';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { ThemedView } from '@/components/themed-view';
+import { useUserProfile } from '@/hooks/use-user-profile';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const { profile, loading } = useUserProfile();
+
+  useEffect(() => {
+    if (!loading && !profile) {
+      router.replace('/sign-in');
+    }
+  }, [loading, profile, router]);
+
+  if (loading || !profile) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText type="default">Loading your dashboard…</ThemedText>
+      </ThemedView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
+    <ThemedView style={styles.container}>
+      <View style={styles.card}>
         <ThemedText type="title" style={styles.title}>
-          Prepd Dashboard
+          Welcome back, {profile.user.display_name ?? 'Prepd user'}
         </ThemedText>
-        <ThemedText type="subtitle" style={styles.subtitle}>
-          Get started by building your weekly meal plan, tracking macros, and generating grocery lists.
+        <ThemedText type="default" style={styles.subtitle}>
+          Your profile is ready. Continue to plan meals, adjust goals, and personalize your preferences.
         </ThemedText>
-
-        <Card style={styles.card}>
-          <ThemedText type="subtitle" style={styles.cardTitle}>
-            Foundational setup complete
-          </ThemedText>
-          <ThemedText type="default" style={styles.cardBody}>
-            Supabase auth, PowerSync sync, data models, and Redux store are initialized for the Prepd MVP.
-          </ThemedText>
-        </Card>
-
-        <Button label="Build a meal plan" onPress={() => undefined} />
-      </ScrollView>
-    </SafeAreaView>
+        <Button label="Update goals" onPress={() => router.push('/macro-goals')} />
+        <Link href="/macro-goals">
+          <ThemedText type="linkPrimary" style={styles.link}>Update onboarding</ThemedText>
+        </Link>
+      </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-  },
   container: {
-    flexGrow: 1,
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.xl,
-    gap: Spacing.lg,
-    maxWidth: MaxContentWidth,
-    width: '100%',
-  },
-  title: {
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
-    color: Colors.light.text,
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: Colors.light.textSecondary,
-    textAlign: 'center',
-    maxWidth: 620,
+    padding: Spacing.xl,
   },
   card: {
     width: '100%',
+    maxWidth: MaxContentWidth,
+    gap: Spacing.lg,
   },
-  cardTitle: {
-    marginBottom: Spacing.sm,
+  title: {
+    marginBottom: Spacing.md,
   },
-  cardBody: {
-    color: Colors.light.textSecondary,
+  subtitle: {
+    marginBottom: Spacing.xl,
+  },
+  link: {
+    marginTop: Spacing.lg,
   },
 });
