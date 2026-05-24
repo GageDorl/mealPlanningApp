@@ -646,11 +646,15 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0px 3px 8px rgba(0,0,0,0.18)' }
+      : {
+          shadowColor: '#000000',
+          shadowOpacity: 0.18,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 4,
+        }),
   } as ViewStyle,
   scrollToNowText: {
     color: '#FFFFFF',

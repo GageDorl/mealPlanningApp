@@ -1,4 +1,4 @@
-import { Modal, View, Text, Pressable, ScrollView, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { Modal, View, Text, Pressable, ScrollView, StyleSheet, Platform, type ViewStyle, type TextStyle } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import type { CalendarEvent } from '@/services/calendar.types';
@@ -119,11 +119,15 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0px 6px 16px rgba(0,0,0,0.2)' }
+      : {
+          shadowColor: '#000',
+          shadowOpacity: 0.2,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 8,
+        }),
   } as ViewStyle,
   strip: {
     height: 4,

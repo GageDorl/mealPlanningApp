@@ -53,7 +53,7 @@ export function WeekEventsOverlay({
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   return (
-    <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="box-none">
+    <View style={[StyleSheet.absoluteFill, styles.overlay, styles.boxNonePointerEvents]}>
       {days.map((day) => (
         <DayEventsColumn
           key={day.date}
@@ -91,7 +91,7 @@ function DayEventsColumn({
   onEventPress: (event: CalendarEvent) => void;
 }) {
   return (
-    <View style={[styles.dayCol, { height: gridHeight }]} pointerEvents="box-none">
+    <View style={[styles.dayCol, { height: gridHeight }, styles.boxNonePointerEvents]}>
       {/* Single Pressable replaces 96 quarter-hour targets — time computed from locationY */}
       <Pressable
         style={StyleSheet.absoluteFill}
@@ -150,6 +150,9 @@ const styles = StyleSheet.create({
   overlay: {
     flexDirection: 'row',
     gap: 2,
+  } as ViewStyle,
+  boxNonePointerEvents: {
+    pointerEvents: 'box-none',
   } as ViewStyle,
   dayCol: {
     flex: 1,
