@@ -49,6 +49,7 @@ Deno.serve(async (req) => {
       const result = await recal(
         `/users/${userId}/calendar/events?start=${start}&end=${end}`
       )
+      console.log('[recal-calendar] getEvents raw:', JSON.stringify(result))
       return new Response(JSON.stringify(result.data ?? []), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })

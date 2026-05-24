@@ -7,7 +7,10 @@ const webTheme = {
   backgroundSelected: 'var(--color-background-selected)',
   textSecondary: 'var(--color-text-secondary)',
   border: 'var(--color-border)',
-} satisfies typeof Colors.light;
+  success: 'var(--color-success)',
+  warning: 'var(--color-warning)',
+  error: 'var(--color-error)',
+} satisfies Record<keyof typeof Colors.light, string>;
 
 export function useTheme() {
   return webTheme;

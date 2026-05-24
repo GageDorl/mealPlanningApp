@@ -9,6 +9,7 @@ import { DefaultMacros, type MacroDefinition } from '@/constants/macros';
 import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUserProfile } from '@/hooks/use-user-profile';
+import { useCalendar } from '@/hooks/use-calendar';
 import { signOut } from '@/services/supabase';
 import { updateDietaryPreferences, updateMacroGoals, updateNotificationSettings } from '@/services/user-service';
 
@@ -16,6 +17,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { profile, loading, reload } = useUserProfile();
+  const { connected, disconnect } = useCalendar();
   const [displayName, setDisplayName] = useState('');
   const [macros, setMacros] = useState<MacroDefinition[]>(DefaultMacros);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -168,6 +170,14 @@ export default function ProfileScreen() {
               />
             </View>
           ))}
+
+          {/* Calendar */}
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Calendar</Text>
+          {connected ? (
+            <Button label="Disconnect Google Calendar" onPress={disconnect} variant="secondary" />
+          ) : (
+            <Text style={[styles.fieldValue, { color: theme.textSecondary }]}>No calendar connected</Text>
+          )}
 
           {/* Actions */}
           <View style={styles.actions}>

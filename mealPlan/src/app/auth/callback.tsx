@@ -50,7 +50,7 @@ export default function AuthCallbackScreen() {
         }
 
         if (!cancelled) {
-          router.replace('/macro-goals');
+          router.replace(existingProfile?.user.onboarding_completed ? '/' : '/macro-goals');
         }
       } catch (callbackError) {
         if (!cancelled) {

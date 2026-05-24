@@ -7,6 +7,7 @@ export function useCalendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     calendarService.restoreSession().then((restored) => {
@@ -34,11 +35,15 @@ export function useCalendar() {
   const loadEvents = useCallback(async (start: Date, end: Date) => {
     if (!connected) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const calendarEvents = await calendarService.getEvents(start, end);
       setEvents(calendarEvents);
-    } catch {
+    } catch (e) {
       setEvents([]);
+      setLoadError('Could not load calendar events. Your connection may have expired.');
+      setConnected(false);
+      await calendarService.disconnect();
     } finally {
       setLoading(false);
     }
@@ -70,6 +75,7 @@ export function useCalendar() {
     events,
     loading,
     connectError,
+    loadError,
     connect,
     loadEvents,
     createMealEvent,

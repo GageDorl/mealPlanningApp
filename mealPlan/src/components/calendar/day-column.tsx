@@ -85,6 +85,20 @@ export function DayHeader({ dayIndex, date, isToday, isNarrow }: Pick<DayColumnP
   );
 }
 
+/** Pinned all-day cell — rendered in the all-day row above the scroll area. */
+export function AllDayCell({ events }: { events: CalendarEvent[] }) {
+  const theme = useTheme();
+  return (
+    <View style={[styles.allDayCell, { borderBottomColor: theme.border, borderRightColor: theme.border }]}>
+      {events.map((event) => (
+        <View key={event.id} style={styles.allDayChip}>
+          <Text numberOfLines={1} style={styles.allDayChipText}>{event.title}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /** Time-grid body of a day — rendered inside the shared scroll area. */
 export function DayColumn({
   dayIndex,
@@ -315,4 +329,26 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: Colors.accent,
   } as ViewStyle,
+  allDayCell: {
+    flex: 1,
+    minWidth: 120,
+    minHeight: 24,
+    padding: Spacing.xs,
+    gap: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+  } as ViewStyle,
+  allDayChip: {
+    backgroundColor: 'rgba(74, 144, 217, 0.15)',
+    borderLeftWidth: 2,
+    borderLeftColor: '#4A90D9',
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 1,
+  } as ViewStyle,
+  allDayChipText: {
+    fontSize: 9,
+    fontWeight: '500',
+    color: '#4A90D9',
+  } as TextStyle,
 });

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, Platform, useWindowDimensions, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { View, Text, ScrollView, Pressable, Platform, ActivityIndicator, useWindowDimensions, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMealPlan } from '@/hooks/use-meal-plan';
 import { useCalendar } from '@/hooks/use-calendar';
-import { DayColumn, DayHeader, START_HOUR, HOUR_HEIGHT } from '@/components/calendar/day-column';
+import { DayColumn, DayHeader, AllDayCell, START_HOUR, HOUR_HEIGHT } from '@/components/calendar/day-column';
 import { AddMealSlotModal } from '@/components/calendar/add-meal-slot-modal';
 import { RecipePickerModal } from '@/components/calendar/recipe-picker-modal';
 import type { CalendarEvent } from '@/services/calendar.types';
@@ -47,14 +47,14 @@ export default function WeeklyPlannerScreen() {
   const [viewportHeight, setViewportHeight] = useState(0);
   const [scrollX, setScrollX] = useState(0);
   const [horizontalViewportWidth, setHorizontalViewportWidth] = useState(0);
-  const isNarrow = windowWidth < 7 * 130;
+  const isNarrow = windowWidth > 0 && windowWidth < 7 * 130;
 
   const today = new Date();
   const currentWeekStart = getSunday(addDays(today, weekOffset * 7));
-  const currentWeekEnd = addDays(currentWeekStart, 6);
+  const currentWeekEnd = addDays(currentWeekStart, 7);
 
   const { weekPlan, loading, createSlot, assignRecipe, deleteSlot, refresh } = useMealPlan(currentWeekStart);
-  const { connected, events, connectError, connect, loadEvents, createMealEvent } = useCalendar();
+  const { connected, events, loading: calendarLoading, connectError, loadError, connect, loadEvents, createMealEvent } = useCalendar();
 
   // Add-slot modal state
   const [addSlotVisible, setAddSlotVisible] = useState(false);
@@ -152,6 +152,8 @@ export default function WeeklyPlannerScreen() {
     return { dayIndex: i, date: dayStr, slots: daySlots, events: dayEvents, isToday };
   });
 
+  const hasAllDayEvents = days.some((d) => d.events.some((e) => e.isAllDay));
+
   const now = new Date();
   const isCurrentWeek = weekOffset === 0;
   const nowIndicatorY = ((now.getHours() * 60 + now.getMinutes() - START_HOUR * 60) / 60) * HOUR_HEIGHT;
@@ -188,17 +190,30 @@ export default function WeeklyPlannerScreen() {
         </Pressable>
       </View>
 
-      {/* Calendar connect banner */}
-      {!connected && (
-        <View style={styles.connectRow}>
-          <Pressable style={styles.connectBanner} onPress={connect} accessibilityRole="button" accessibilityLabel="Connect your calendar">
-            <Text style={styles.connectText}>Connect Calendar</Text>
-          </Pressable>
-          {connectError ? (
-            <Text style={[styles.connectErrorText, { color: theme.textSecondary }]}>{connectError}</Text>
-          ) : null}
-        </View>
-      )}
+      {/* Calendar connect / connected banner */}
+      <View style={styles.connectRow}>
+        {connected ? (
+          <View style={styles.connectedBadge}>
+            {calendarLoading ? (
+              <ActivityIndicator size="small" color={theme.textSecondary} />
+            ) : (
+              <View style={[styles.connectedDot, { backgroundColor: theme.success }]} />
+            )}
+            <Text style={[styles.connectedText, { color: theme.textSecondary }]}>
+              {calendarLoading ? 'Loading events…' : 'Google Calendar connected'}
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Pressable style={styles.connectBanner} onPress={connect} accessibilityRole="button" accessibilityLabel="Connect your calendar">
+              <Text style={styles.connectText}>Connect Calendar</Text>
+            </Pressable>
+            {(loadError || connectError) ? (
+              <Text style={[styles.connectErrorText, { color: theme.textSecondary }]}>{loadError ?? connectError}</Text>
+            ) : null}
+          </>
+        )}
+      </View>
 
       <View style={styles.calendarShell}>
         {isNarrow ? (
@@ -218,6 +233,14 @@ export default function WeeklyPlannerScreen() {
                 ))}
               </View>
 
+              {hasAllDayEvents && (
+                <View style={styles.dayHeaderRow}>
+                  {days.map((day) => (
+                    <AllDayCell key={day.date} events={day.events.filter((e) => e.isAllDay)} />
+                  ))}
+                </View>
+              )}
+
               <ScrollView
                 ref={verticalScrollRef}
                 style={styles.scrollArea}
@@ -233,7 +256,7 @@ export default function WeeklyPlannerScreen() {
                       dayIndex={day.dayIndex}
                       date={day.date}
                       slots={day.slots}
-                      externalEvents={day.events}
+                      externalEvents={day.events.filter((e) => !e.isAllDay)}
                       onAddSlot={(time: string) => handleAddSlot(day.date, time)}
                       onSlotPress={() => {}}
                       onDeleteSlot={handleDeleteSlot}
@@ -254,6 +277,14 @@ export default function WeeklyPlannerScreen() {
               ))}
             </View>
 
+            {hasAllDayEvents && (
+              <View style={styles.dayHeaderRow}>
+                {days.map((day) => (
+                  <AllDayCell key={day.date} events={day.events.filter((e) => e.isAllDay)} />
+                ))}
+              </View>
+            )}
+
             <ScrollView
               ref={verticalScrollRef}
               style={styles.scrollArea}
@@ -269,7 +300,7 @@ export default function WeeklyPlannerScreen() {
                     dayIndex={day.dayIndex}
                     date={day.date}
                     slots={day.slots}
-                    externalEvents={day.events}
+                    externalEvents={day.events.filter((e) => !e.isAllDay)}
                     onAddSlot={(time: string) => handleAddSlot(day.date, time)}
                     onSlotPress={() => {}}
                     onDeleteSlot={handleDeleteSlot}
@@ -376,6 +407,20 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     marginTop: Spacing.xs,
     textAlign: 'center',
+  } as TextStyle,
+  connectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  } as ViewStyle,
+  connectedDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  } as ViewStyle,
+  connectedText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
   } as TextStyle,
   scrollArea: {
     flex: 1,
