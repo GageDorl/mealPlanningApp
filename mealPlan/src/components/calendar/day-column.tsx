@@ -60,6 +60,7 @@ interface DayColumnProps {
   onSlotPress: (slotId: string) => void;
   onAssignRecipe: (slotId: string) => void;
   onDeleteSlot: (slotId: string) => void;
+  onEventPress?: (event: CalendarEvent) => void;
   isToday: boolean;
   isNarrow?: boolean;
 }
@@ -86,14 +87,14 @@ export function DayHeader({ dayIndex, date, isToday, isNarrow }: Pick<DayColumnP
 }
 
 /** Pinned all-day cell — rendered in the all-day row above the scroll area. */
-export function AllDayCell({ events }: { events: CalendarEvent[] }) {
+export function AllDayCell({ events, onEventPress }: { events: CalendarEvent[]; onEventPress?: (event: CalendarEvent) => void }) {
   const theme = useTheme();
   return (
     <View style={[styles.allDayCell, { borderBottomColor: theme.border, borderRightColor: theme.border }]}>
       {events.map((event) => (
-        <View key={event.id} style={styles.allDayChip}>
+        <Pressable key={event.id} style={styles.allDayChip} onPress={() => onEventPress?.(event)}>
           <Text numberOfLines={1} style={styles.allDayChipText}>{event.title}</Text>
-        </View>
+        </Pressable>
       ))}
     </View>
   );
@@ -109,6 +110,7 @@ export function DayColumn({
   onSlotPress,
   onAssignRecipe,
   onDeleteSlot,
+  onEventPress,
   isToday,
   isNarrow,
 }: DayColumnProps) {
@@ -192,9 +194,9 @@ export function DayColumn({
           const split = timedSlots.length > 0 && timedEvents.length > 0;
           return timedEvents.map((event) => {
             const startMin = event.startDate.getHours() * 60 + event.startDate.getMinutes();
-            const endMin = event.endDate.getHours() * 60 + event.endDate.getMinutes();
+            const durationMin = (event.endDate.getTime() - event.startDate.getTime()) / 60000;
             const clippedStart = clampMinutes(startMin);
-            const clippedEnd = clampMinutes(Math.max(endMin, startMin + 30));
+            const clippedEnd = clampMinutes(startMin + Math.max(durationMin, 30));
             const visibleDuration = Math.max(clippedEnd - clippedStart, 30);
             const top = minutesToY(clippedStart);
             const height = (visibleDuration / 60) * HOUR_HEIGHT;
@@ -203,7 +205,7 @@ export function DayColumn({
 
             return (
               <View key={event.id} style={[styles.absoluteItem, { top, height, left: 30, right: split ? '52%' : 2 }]}>
-                <ExternalEventBlock event={event} compact={height < 56} />
+                <ExternalEventBlock event={event} compact={height < 56} onPress={() => onEventPress?.(event)} />
               </View>
             );
           });
@@ -309,6 +311,7 @@ const styles = StyleSheet.create({
   } as TextStyle,
   absoluteItem: {
     position: 'absolute',
+    overflow: 'hidden',
   } as ViewStyle,
   nowLine: {
     position: 'absolute',

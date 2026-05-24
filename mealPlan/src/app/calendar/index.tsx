@@ -7,6 +7,8 @@ import { useCalendar } from '@/hooks/use-calendar';
 import { DayColumn, DayHeader, AllDayCell, START_HOUR, HOUR_HEIGHT } from '@/components/calendar/day-column';
 import { AddMealSlotModal } from '@/components/calendar/add-meal-slot-modal';
 import { RecipePickerModal } from '@/components/calendar/recipe-picker-modal';
+import { CalendarPickerModal } from '@/components/calendar/calendar-picker-modal';
+import { EventDetailModal } from '@/components/calendar/event-detail-modal';
 import type { CalendarEvent } from '@/services/calendar.types';
 import type { Recipe } from '@/models/recipe';
 
@@ -54,7 +56,24 @@ export default function WeeklyPlannerScreen() {
   const currentWeekEnd = addDays(currentWeekStart, 7);
 
   const { weekPlan, loading, createSlot, assignRecipe, deleteSlot, refresh } = useMealPlan(currentWeekStart);
-  const { connected, events, loading: calendarLoading, connectError, loadError, connect, loadEvents, createMealEvent } = useCalendar();
+  const {
+    connected, events, loading: calendarLoading, connectError, loadError,
+    availableCalendars, selectedCalendarIds, connectedCalendarTitle,
+    connect, selectCalendars, loadEvents, createMealEvent,
+  } = useCalendar();
+
+  // Calendar picker modal state
+  const [calPickerVisible, setCalPickerVisible] = useState(false);
+
+  // Auto-show picker when connected but no calendar selected yet
+  useEffect(() => {
+    if (connected && availableCalendars.length > 0 && selectedCalendarIds.length === 0) {
+      setCalPickerVisible(true);
+    }
+  }, [connected, availableCalendars.length, selectedCalendarIds.length]);
+
+  // Event detail modal state
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   // Add-slot modal state
   const [addSlotVisible, setAddSlotVisible] = useState(false);
@@ -95,7 +114,7 @@ export default function WeeklyPlannerScreen() {
     if (connected) {
       loadEvents(currentWeekStart, currentWeekEnd);
     }
-  }, [connected, currentWeekStart.toISOString()]);
+  }, [connected, currentWeekStart.toISOString(), selectedCalendarIds.join(',')]);
 
   const weekLabel = `${currentWeekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${currentWeekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 
@@ -200,8 +219,13 @@ export default function WeeklyPlannerScreen() {
               <View style={[styles.connectedDot, { backgroundColor: theme.success }]} />
             )}
             <Text style={[styles.connectedText, { color: theme.textSecondary }]}>
-              {calendarLoading ? 'Loading events…' : 'Google Calendar connected'}
+              {calendarLoading ? 'Loading events…' : `${connectedCalendarTitle} connected`}
             </Text>
+            {!calendarLoading && availableCalendars.length > 1 && (
+              <Pressable onPress={() => setCalPickerVisible(true)}>
+                <Text style={[styles.changeCalendarText, { color: Colors.accent }]}>Change</Text>
+              </Pressable>
+            )}
           </View>
         ) : (
           <>
@@ -236,7 +260,7 @@ export default function WeeklyPlannerScreen() {
               {hasAllDayEvents && (
                 <View style={styles.dayHeaderRow}>
                   {days.map((day) => (
-                    <AllDayCell key={day.date} events={day.events.filter((e) => e.isAllDay)} />
+                    <AllDayCell key={day.date} events={day.events.filter((e) => e.isAllDay)} onEventPress={setSelectedEvent} />
                   ))}
                 </View>
               )}
@@ -261,6 +285,7 @@ export default function WeeklyPlannerScreen() {
                       onSlotPress={() => {}}
                       onDeleteSlot={handleDeleteSlot}
                       onAssignRecipe={handleAssignRecipe}
+                      onEventPress={setSelectedEvent}
                       isToday={day.isToday}
                       isNarrow
                     />
@@ -336,6 +361,18 @@ export default function WeeklyPlannerScreen() {
           setActiveSlotId(null);
         }}
         onSelect={handleRecipeSelected}
+      />
+
+      <CalendarPickerModal
+        visible={calPickerVisible}
+        calendars={availableCalendars}
+        selectedIds={selectedCalendarIds}
+        onDone={(ids) => { selectCalendars(ids); setCalPickerVisible(false); }}
+      />
+
+      <EventDetailModal
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
       />
     </View>
   );
@@ -421,6 +458,11 @@ const styles = StyleSheet.create({
   connectedText: {
     fontSize: FontSizes.xs,
     fontWeight: '600',
+  } as TextStyle,
+  changeCalendarText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    marginLeft: Spacing.xs,
   } as TextStyle,
   scrollArea: {
     flex: 1,

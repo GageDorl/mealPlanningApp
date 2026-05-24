@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/button';
 import { OnboardingScreen } from '@/components/onboarding-screen';
+import { CalendarPickerModal } from '@/components/calendar/calendar-picker-modal';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useCalendar } from '@/hooks/use-calendar';
 import { useTheme } from '@/hooks/use-theme';
@@ -13,7 +15,8 @@ export default function CalendarConnectScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { profile, loading } = useUserProfile();
-  const { connected, connectError, connect } = useCalendar();
+  const { connected, connectError, availableCalendars, selectedCalendarIds, connectedCalendarTitle, connect, selectCalendars } = useCalendar();
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   const finish = async () => {
     if (profile) {
@@ -23,19 +26,22 @@ export default function CalendarConnectScreen() {
   };
 
   const handleConnect = async () => {
-    await connect();
+    const granted = await connect();
+    if (granted) {
+      setPickerVisible(true);
+    }
   };
 
   return (
     <OnboardingScreen title="Connect your calendar" loading={loading} loadingText="Checking your account…">
       <Text style={[styles.copy, { color: theme.text }]}>
-        Connect your Google Calendar to sync meal plans with the dates and reminders you already use.
+        Connect your calendar to sync meal plans with the dates and reminders you already use.
       </Text>
 
       {connected ? (
         <View style={[styles.successBadge, { backgroundColor: theme.backgroundElement }]}>
           <View style={[styles.successDot, { backgroundColor: theme.success }]} />
-          <Text style={[styles.successText, { color: theme.text }]}>Google Calendar connected</Text>
+          <Text style={[styles.successText, { color: theme.text }]}>{connectedCalendarTitle} connected</Text>
         </View>
       ) : null}
 
@@ -44,13 +50,25 @@ export default function CalendarConnectScreen() {
       ) : null}
 
       {connected ? (
-        <Button label="Continue" onPress={finish} />
+        <>
+          {availableCalendars.length > 1 && (
+            <Button label={`Using: ${connectedCalendarTitle} · Change`} onPress={() => setPickerVisible(true)} variant="secondary" />
+          )}
+          <Button label="Continue" onPress={finish} />
+        </>
       ) : (
         <>
-          <Button label="Connect Google Calendar" onPress={handleConnect} />
+          <Button label="Connect Calendar" onPress={handleConnect} />
           <Button label="Skip for now" onPress={finish} variant="secondary" />
         </>
       )}
+
+      <CalendarPickerModal
+        visible={pickerVisible}
+        calendars={availableCalendars}
+        selectedIds={selectedCalendarIds}
+        onDone={(ids) => { selectCalendars(ids); setPickerVisible(false); }}
+      />
     </OnboardingScreen>
   );
 }

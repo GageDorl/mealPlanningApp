@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { CalendarEvent } from '@/services/calendar.types';
+import type { CalendarEvent, CalendarInfo } from '@/services/calendar.types';
 import * as calendarService from '@/services/calendar';
 
 export function useCalendar() {
@@ -8,10 +8,24 @@ export function useCalendar() {
   const [loading, setLoading] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [availableCalendars, setAvailableCalendars] = useState<CalendarInfo[]>([]);
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([]);
+
+  const loadCalendarMeta = useCallback(async () => {
+    const [ids, cals] = await Promise.all([
+      calendarService.getSelectedCalendarIds(),
+      calendarService.getAvailableCalendars(),
+    ]);
+    setSelectedCalendarIds(ids);
+    setAvailableCalendars(cals);
+  }, []);
 
   useEffect(() => {
-    calendarService.restoreSession().then((restored) => {
-      if (restored) setConnected(true);
+    calendarService.restoreSession().then(async (restored) => {
+      if (restored) {
+        setConnected(true);
+        await loadCalendarMeta();
+      }
     });
   }, []);
 
@@ -19,7 +33,10 @@ export function useCalendar() {
     setConnectError(null);
     try {
       const result = await calendarService.connect();
-      setConnected(result.granted);
+      if (result.granted) {
+        setConnected(true);
+        await loadCalendarMeta();
+      }
       return result.granted;
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -30,6 +47,11 @@ export function useCalendar() {
       );
       return false;
     }
+  }, [loadCalendarMeta]);
+
+  const selectCalendars = useCallback(async (ids: string[]) => {
+    await calendarService.setSelectedCalendarIds(ids);
+    setSelectedCalendarIds(ids);
   }, []);
 
   const loadEvents = useCallback(async (start: Date, end: Date) => {
@@ -68,7 +90,17 @@ export function useCalendar() {
     await calendarService.disconnect();
     setConnected(false);
     setEvents([]);
+    setAvailableCalendars([]);
+    setSelectedCalendarIds([]);
   }, []);
+
+  const connectedCalendarTitle = (() => {
+    if (!connected) return null;
+    if (selectedCalendarIds.length === 0) return 'Calendar';
+    if (selectedCalendarIds.length > 1) return `${selectedCalendarIds.length} calendars`;
+    const cal = availableCalendars.find((c) => c.id === selectedCalendarIds[0]);
+    return cal?.title ?? 'Calendar';
+  })();
 
   return {
     connected,
@@ -76,7 +108,11 @@ export function useCalendar() {
     loading,
     connectError,
     loadError,
+    availableCalendars,
+    selectedCalendarIds,
+    connectedCalendarTitle,
     connect,
+    selectCalendars,
     loadEvents,
     createMealEvent,
     deleteMealEvent,

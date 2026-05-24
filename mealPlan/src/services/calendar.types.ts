@@ -13,3 +13,9 @@ export interface MealEventInput {
   timeOfDay: string | null;
   slotId: string;
 }
+
+export interface CalendarInfo {
+  id: string;
+  title: string;
+  source: string;
+}

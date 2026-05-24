@@ -1,7 +1,11 @@
 import { supabase } from './supabase';
-import type { CalendarEvent, MealEventInput } from './calendar.types';
+import type { CalendarEvent, CalendarInfo, MealEventInput } from './calendar.types';
 
-export type { CalendarEvent, MealEventInput };
+export type { CalendarEvent, CalendarInfo, MealEventInput };
+
+export async function getAvailableCalendars(): Promise<CalendarInfo[]> { return []; }
+export async function getSelectedCalendarIds(): Promise<string[]> { return []; }
+export async function setSelectedCalendarIds(_ids: string[]): Promise<void> {}
 
 const CONNECTED_KEY = 'prepd_calendar_connected';
 

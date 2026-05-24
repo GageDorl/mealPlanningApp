@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ThemedText } from '@/components/themed-text';
 import { OnboardingScreen } from '@/components/onboarding-screen';
 import { DefaultMacros, type MacroDefinition } from '@/constants/macros';
 import { updateMacroGoals } from '@/services/user-service';
 import { useUserProfile } from '@/hooks/use-user-profile';
-import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { FontSizes, Spacing } from '@/constants/theme';
 
 export default function MacroGoalsScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { profile, loading } = useUserProfile();
   const [goals, setGoals] = useState<MacroDefinition[]>(DefaultMacros);
 
@@ -51,7 +52,7 @@ export default function MacroGoalsScreen() {
       {goals.map((macro, index) => (
         <View key={macro.key} style={styles.fieldRow}>
           <View style={styles.label}>
-            <ThemedText type="default">{macro.label}</ThemedText>
+            <Text style={[styles.labelText, { color: theme.text }]}>{macro.label}</Text>
           </View>
           <Input
             value={String(macro.defaultGoal)}
@@ -73,11 +74,15 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginBottom: Spacing.sm,
     maxWidth: '100%',
-  },
+  } as ViewStyle,
   label: {
     flex: 1,
-  },
+  } as ViewStyle,
+  labelText: {
+    fontSize: FontSizes.md,
+    fontWeight: '500',
+  } as TextStyle,
   numericInput: {
     flex: 3,
-  },
+  } as ViewStyle,
 });
