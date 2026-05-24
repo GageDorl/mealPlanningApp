@@ -69,8 +69,6 @@ export async function getEvents(start: Date, end: Date): Promise<CalendarEvent[]
     end: end.toISOString(),
   });
 
-  console.log('[calendar] getEvents raw response:', JSON.stringify(raw));
-
   const events = Array.isArray(raw) ? raw : (raw?.events ?? raw?.items ?? []);
 
   return events.map((e: any) => {

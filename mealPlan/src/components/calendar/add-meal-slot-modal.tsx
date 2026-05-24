@@ -71,8 +71,8 @@ export function AddMealSlotModal({ visible, date, initialTime, onClose, onAdd }:
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={[styles.sheet, { backgroundColor: theme.background }]}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={[styles.sheet, { backgroundColor: theme.background }]} onPress={()=>{}}>
           <Text style={[styles.title, { color: theme.text }]}>Add Meal Slot</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{formattedDate}</Text>
 
@@ -132,8 +132,8 @@ export function AddMealSlotModal({ visible, date, initialTime, onClose, onAdd }:
             <Button label="Cancel" onPress={onClose} variant="secondary" />
             <Button label="Add Slot" onPress={handleAdd} disabled={!label.trim()} />
           </View>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

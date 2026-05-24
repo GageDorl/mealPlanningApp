@@ -27,7 +27,7 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
 
   return (
     <Pressable
-      style={[styles.card, compact && styles.cardCompact, { backgroundColor: theme.background, borderColor: theme.border }]}
+      style={[styles.block, compact && styles.blockCompact, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
       onPress={hasRecipe ? onPress : onAssignRecipe}
     >
       <View style={styles.cardHeader}>
@@ -64,6 +64,17 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
 }
 
 const styles = StyleSheet.create({
+  block: {
+    backgroundColor: 'rgba(74, 144, 217, 0.15)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#4A90D9',
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.xs,
+    flex: 1,
+  } as ViewStyle,
+  blockCompact: {
+    justifyContent: 'center',
+  } as ViewStyle,
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -77,16 +88,6 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     fontWeight: '400',
   } as TextStyle,
-  card: {
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    padding: Spacing.xs,
-    gap: 2,
-    minHeight: '100%',
-  } as ViewStyle,
-  cardCompact: {
-    justifyContent: 'center',
-  } as ViewStyle,
   label: {
     fontSize: FontSizes.xs,
     fontWeight: '600',
