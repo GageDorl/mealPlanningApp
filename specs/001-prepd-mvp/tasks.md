@@ -125,16 +125,16 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 2
 
-- [ ] T043 [US2] Implement Spoonacular API client (search, getDetail) with caching in mealPlan/src/services/spoonacular.ts
-- [ ] T044 [US2] Implement recipeService.save, toggleFavorite, delete in mealPlan/src/services/recipe-service.ts
-- [ ] T045 [US2] Create useRecipes hook with PowerSync watched query for saved recipes in mealPlan/src/hooks/use-recipes.ts
-- [ ] T046 [US2] Create recipe search screen with keyword input and filter chips in mealPlan/src/app/recipes/search.tsx
-- [ ] T047 [P] [US2] Create RecipeCard component (title, image, prep time, calories) in mealPlan/src/components/recipes/recipe-card.tsx
-- [ ] T048 [US2] Create recipe detail screen (ingredients, steps, macros, difficulty, cuisine, save button) in mealPlan/src/app/recipes/[id].tsx
-- [ ] T049 [P] [US2] Create RecipeDetailView component with serving size adjuster in mealPlan/src/components/recipes/recipe-detail-view.tsx
-- [ ] T050 [US2] Implement serving scaler utility (recalculate ingredients + macros) in mealPlan/src/utils/serving-scaler.ts
-- [ ] T051 [US2] Create saved recipes list screen (user's collection, offline indicator) in mealPlan/src/app/recipes/saved.tsx
-- [ ] T052 [US2] Create useOffline hook for network status detection in mealPlan/src/hooks/use-offline.ts
+- [x] T043 [US2] Implement Spoonacular API client (search, getDetail) with caching in mealPlan/src/services/spoonacular.ts
+- [x] T044 [US2] Implement recipeService.save, toggleFavorite, delete in mealPlan/src/services/recipe-service.ts
+- [x] T045 [US2] Create useRecipes hook with PowerSync watched query for saved recipes in mealPlan/src/hooks/use-recipes.ts
+- [x] T046 [US2] Create recipe search screen with keyword input and filter chips in mealPlan/src/app/recipes/search.tsx
+- [x] T047 [P] [US2] Create RecipeCard component (title, image, prep time, calories) in mealPlan/src/components/recipes/recipe-card.tsx
+- [x] T048 [US2] Create recipe detail screen (ingredients, steps, macros, difficulty, cuisine, save button) in mealPlan/src/app/recipes/[id].tsx
+- [x] T049 [P] [US2] Create RecipeDetailView component with serving size adjuster in mealPlan/src/components/recipes/recipe-detail-view.tsx
+- [x] T050 [US2] Implement serving scaler utility (recalculate ingredients + macros) in mealPlan/src/utils/serving-scaler.ts
+- [x] T051 [US2] Create saved recipes list screen (user's collection, offline indicator) in mealPlan/src/app/recipes/saved.tsx
+- [x] T052 [US2] Create useOffline hook for network status detection in mealPlan/src/hooks/use-offline.ts
 
 **Checkpoint**: Recipe browsing and saving works end-to-end with offline support.
 

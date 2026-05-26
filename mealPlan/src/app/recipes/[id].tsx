@@ -1,0 +1,293 @@
+import { useEffect, useState } from 'react';
+import { View, Text, Pressable, ActivityIndicator, Alert, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { RecipeDetailView, type RecipeDetailData } from '@/components/recipes/recipe-detail-view';
+import { getRecipeDetail } from '@/services/spoonacular';
+import { getRecipeById, isRecipeSaved, saveRecipe } from '@/services/recipe-service';
+import { supabase } from '@/services/supabase';
+import type { Recipe } from '@/models/recipe';
+
+function isUUID(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+}
+
+function spoonacularToDetailData(raw: Awaited<ReturnType<typeof getRecipeDetail>>): RecipeDetailData {
+  return {
+    title: raw.title,
+    description: raw.description,
+    image: raw.image,
+    prepMinutes: raw.prepMinutes,
+    cookMinutes: raw.cookMinutes,
+    servings: raw.servings,
+    difficulty: raw.difficulty,
+    cuisineType: raw.cuisineType,
+    ingredients: raw.ingredients.map((ing) => ({
+      name: ing.name,
+      quantity: ing.quantity,
+      unit: ing.unit,
+      raw_text: ing.rawText,
+    })),
+    instructions: raw.instructions,
+    macros: {
+      calories_per_serving: raw.nutrition.calories,
+      protein_per_serving: raw.nutrition.protein,
+      carbs_per_serving: raw.nutrition.carbs,
+      fat_per_serving: raw.nutrition.fat,
+      fiber_per_serving: raw.nutrition.fiber,
+      sugar_per_serving: raw.nutrition.sugar,
+      sodium_per_serving: raw.nutrition.sodium,
+    },
+    dietaryTags: raw.dietaryTags,
+  };
+}
+
+function savedRecipeToDetailData(recipe: Recipe): RecipeDetailData {
+  const instructions: string[] = (() => {
+    if (!recipe.instructions) return [];
+    if (Array.isArray(recipe.instructions)) return recipe.instructions as string[];
+    try { return JSON.parse(recipe.instructions as unknown as string) as string[]; } catch { return []; }
+  })();
+
+  const dietaryTags: string[] = (() => {
+    if (!recipe.dietary_tags) return [];
+    if (Array.isArray(recipe.dietary_tags)) return recipe.dietary_tags as string[];
+    try { return JSON.parse(recipe.dietary_tags as unknown as string) as string[]; } catch { return []; }
+  })();
+
+  return {
+    title: recipe.title,
+    description: recipe.description ?? undefined,
+    image: recipe.image_url ?? undefined,
+    prepMinutes: recipe.prep_minutes ?? undefined,
+    cookMinutes: recipe.cook_minutes ?? undefined,
+    servings: recipe.servings,
+    difficulty: recipe.difficulty,
+    cuisineType: recipe.cuisine_type,
+    ingredients: [],
+    instructions,
+    macros: {
+      calories_per_serving: recipe.calories_per_serving ?? null,
+      protein_per_serving: recipe.protein_per_serving ?? null,
+      carbs_per_serving: recipe.carbs_per_serving ?? null,
+      fat_per_serving: recipe.fat_per_serving ?? null,
+      fiber_per_serving: recipe.fiber_per_serving ?? null,
+      sugar_per_serving: recipe.sugar_per_serving ?? null,
+      sodium_per_serving: recipe.sodium_per_serving ?? null,
+    },
+    dietaryTags,
+  };
+}
+
+export default function RecipeDetailScreen() {
+  const theme = useTheme();
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+
+  const [detailData, setDetailData] = useState<RecipeDetailData | null>(null);
+  const [spoonacularRaw, setSpoonacularRaw] = useState<Awaited<ReturnType<typeof getRecipeDetail>> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    loadRecipe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  async function loadRecipe() {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user.id;
+
+      if (isUUID(id)) {
+        const recipe = await getRecipeById(id);
+        if (!recipe) {
+          setError('Recipe not found');
+          return;
+        }
+        setDetailData(savedRecipeToDetailData(recipe));
+        setIsSaved(true);
+        setIsFavorited(recipe.is_favorited);
+      } else {
+        const spoonacularId = parseInt(id, 10);
+        const raw = await getRecipeDetail(spoonacularId);
+        setSpoonacularRaw(raw);
+        setDetailData(spoonacularToDetailData(raw));
+
+        if (userId) {
+          const saved = await isRecipeSaved(userId, String(spoonacularId));
+          setIsSaved(saved);
+        }
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load recipe');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSave() {
+    if (!spoonacularRaw) return;
+    const { data: session } = await supabase.auth.getSession();
+    const userId = session.session?.user.id;
+    if (!userId) {
+      Alert.alert('Sign in required', 'Please sign in to save recipes.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await saveRecipe(userId, {
+        title: spoonacularRaw.title,
+        description: spoonacularRaw.description,
+        image_url: spoonacularRaw.image,
+        prep_minutes: spoonacularRaw.prepMinutes,
+        cook_minutes: spoonacularRaw.cookMinutes,
+        servings: spoonacularRaw.servings,
+        difficulty: spoonacularRaw.difficulty ?? undefined,
+        cuisine_type: spoonacularRaw.cuisineType ?? undefined,
+        source_type: 'api',
+        source_url: spoonacularRaw.sourceUrl,
+        source_api_id: String(spoonacularRaw.id),
+        calories_per_serving: spoonacularRaw.nutrition.calories,
+        protein_per_serving: spoonacularRaw.nutrition.protein,
+        carbs_per_serving: spoonacularRaw.nutrition.carbs,
+        fat_per_serving: spoonacularRaw.nutrition.fat,
+        fiber_per_serving: spoonacularRaw.nutrition.fiber,
+        sugar_per_serving: spoonacularRaw.nutrition.sugar,
+        sodium_per_serving: spoonacularRaw.nutrition.sodium,
+        instructions: spoonacularRaw.instructions,
+        dietary_tags: spoonacularRaw.dietaryTags,
+        ingredients: spoonacularRaw.ingredients.map((ing, i) => ({
+          raw_text: ing.rawText,
+          name: ing.name,
+          quantity: ing.quantity,
+          unit: ing.unit,
+          display_order: i,
+        })),
+      });
+      setIsSaved(true);
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save recipe');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={Colors.accent} />
+      </View>
+    );
+  }
+
+  if (error || !detailData) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.textSecondary }]}>{error ?? 'Recipe not found'}</Text>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={[styles.backBtnText, { color: Colors.accent }]}>Go back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Sticky header with title and save button */}
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <Pressable onPress={() => router.back()} style={styles.backIconBtn} hitSlop={8}>
+          <Text style={[styles.backIcon, { color: Colors.accent }]}>‹</Text>
+        </Pressable>
+        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+          {detailData.title}
+        </Text>
+        {!isUUID(id) && (
+          <Pressable
+            style={[
+              styles.saveBtn,
+              isSaved
+                ? { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }
+                : { backgroundColor: Colors.accent },
+            ]}
+            onPress={isSaved ? undefined : handleSave}
+            disabled={saving || isSaved}
+          >
+            <Text
+              style={[
+                styles.saveBtnText,
+                { color: isSaved ? theme.textSecondary : '#FFFFFF' },
+              ]}
+            >
+              {saving ? 'Saving…' : isSaved ? 'Saved ✓' : 'Save'}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
+      <RecipeDetailView recipe={detailData} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  } as ViewStyle,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.md,
+  } as ViewStyle,
+  backIconBtn: {
+    flexShrink: 0,
+  } as ViewStyle,
+  backIcon: {
+    fontSize: 28,
+    fontWeight: '300',
+    lineHeight: 30,
+  } as TextStyle,
+  headerTitle: {
+    flex: 1,
+    fontSize: FontSizes.md,
+    fontWeight: '600',
+  } as TextStyle,
+  saveBtn: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    flexShrink: 0,
+  } as ViewStyle,
+  saveBtnText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+  } as TextStyle,
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  } as ViewStyle,
+  errorText: {
+    fontSize: FontSizes.md,
+    textAlign: 'center',
+  } as TextStyle,
+  backBtn: {
+    padding: Spacing.sm,
+  } as ViewStyle,
+  backBtnText: {
+    fontSize: FontSizes.md,
+    fontWeight: '600',
+  } as TextStyle,
+});
