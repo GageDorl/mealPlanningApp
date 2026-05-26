@@ -141,12 +141,16 @@ export default function WeeklyPlannerScreen() {
   const pinchZoomGesture = useMemo(() =>
     Gesture.Pinch()
       .runOnJS(true)
-      .onTouchesDown((e) => {
-        if (e.numberOfTouches >= 2) {
-          setScrollEnabled(false);
+      .onTouchesUp((e) => {
+        if (e.numberOfTouches < 2) {
+          setScrollEnabled(true);
         }
       })
+      .onTouchesCancelled(() => {
+        setScrollEnabled(true);
+      })
       .onBegin(() => {
+        // Only lock scroll when a real pinch is recognized.
         pinchStartHeightRef.current = hourHeightRef.current;
         setScrollEnabled(false);
       })
@@ -353,13 +357,14 @@ export default function WeeklyPlannerScreen() {
         )}
       </View>
 
-      <GestureDetector gesture={pinchZoomGesture}>
       <View style={styles.calendarShell}>
         {isNarrow ? (
           <ScrollView
             ref={horizontalScrollRef}
             horizontal
-            scrollEnabled={scrollEnabled}
+            scrollEnabled
+            directionalLockEnabled
+            nestedScrollEnabled
             showsHorizontalScrollIndicator={false}
             onLayout={(event) => setHorizontalViewportWidth(event.nativeEvent.layout.width)}
             onScroll={(event) => setScrollX(event.nativeEvent.contentOffset.x)}
@@ -388,10 +393,12 @@ export default function WeeklyPlannerScreen() {
                 </View>
               )}
 
+              <GestureDetector gesture={pinchZoomGesture}>
                 <ScrollView
                   ref={verticalScrollRef}
                   style={styles.scrollArea}
                   scrollEnabled={scrollEnabled}
+                  nestedScrollEnabled
                   showsVerticalScrollIndicator={false}
                   onLayout={(event) => {
                     const { height } = event.nativeEvent.layout;
@@ -425,6 +432,7 @@ export default function WeeklyPlannerScreen() {
                     />
                   </Animated.View>
                 </ScrollView>
+              </GestureDetector>
             </View>
           </ScrollView>
         ) : (
@@ -450,10 +458,12 @@ export default function WeeklyPlannerScreen() {
               </View>
             )}
 
+            <GestureDetector gesture={pinchZoomGesture}>
               <ScrollView
                 ref={verticalScrollRef}
                 style={styles.scrollArea}
                 scrollEnabled={scrollEnabled}
+                nestedScrollEnabled
                 showsVerticalScrollIndicator={false}
                 onLayout={(event) => {
                   const { height } = event.nativeEvent.layout;
@@ -487,10 +497,10 @@ export default function WeeklyPlannerScreen() {
                   />
                 </Animated.View>
               </ScrollView>
+            </GestureDetector>
           </>
         )}
       </View>
-      </GestureDetector>
 
       {showScrollToNow && (
         <Pressable style={styles.scrollToNowButton} onPress={() => scrollToNow()}>
