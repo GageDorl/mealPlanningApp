@@ -132,6 +132,7 @@ export default function RecipeSearchScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
         contentContainerStyle={styles.filterRow}
       >
         <Text style={[styles.filterLabel, { color: theme.textSecondary }]}>Cuisine:</Text>
@@ -149,6 +150,7 @@ export default function RecipeSearchScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
         contentContainerStyle={styles.filterRow}
       >
         <Text style={[styles.filterLabel, { color: theme.textSecondary }]}>Diet:</Text>
@@ -282,6 +284,10 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
     height: '100%',
   } as TextStyle,
+  filterScroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+  } as ViewStyle,
   filterRow: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.sm,

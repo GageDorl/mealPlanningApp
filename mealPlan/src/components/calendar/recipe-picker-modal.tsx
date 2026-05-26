@@ -7,6 +7,8 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
@@ -78,6 +80,7 @@ export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerMo
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={styles.kavWrapper} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.overlay}>
         <View style={[styles.sheet, { backgroundColor: theme.background }]}>
           <View style={styles.header}>
@@ -113,11 +116,15 @@ export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerMo
           )}
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kavWrapper: {
+    flex: 1,
+  } as ViewStyle,
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

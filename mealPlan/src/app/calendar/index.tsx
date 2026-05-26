@@ -62,9 +62,8 @@ export default function WeeklyPlannerScreen() {
   const [scrollY, setScrollY] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [scrollX, setScrollX] = useState(0);
-  const [horizontalViewportWidth, setHorizontalViewportWidth] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
   const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
-  const [scrollEnabled, setScrollEnabled] = useState(true);
   const gridHeight = (END_HOUR - START_HOUR + 1) * hourHeight;
   const isNarrow = windowWidth > 0 && windowWidth < 7 * 130;
 
@@ -101,8 +100,15 @@ export default function WeeklyPlannerScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
 
+  // Narrow path: 2D pan state
+  const panOffset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const panCurrentXY = useRef({ x: 0, y: 0 });
+  const panStartXY = useRef({ x: 0, y: 0 });
+  const isClampingRef = useRef(false);
+
+  // Wide path: vertical scroll ref
   const verticalScrollRef = useRef<ScrollView>(null);
-  const horizontalScrollRef = useRef<ScrollView>(null);
+
   const hourHeightRef = useRef(hourHeight);
   const pinchStartHeightRef = useRef(hourHeight);
   const pinchPreviewScaleRef = useRef(new Animated.Value(1));
@@ -141,25 +147,15 @@ export default function WeeklyPlannerScreen() {
   const pinchZoomGesture = useMemo(() =>
     Gesture.Pinch()
       .runOnJS(true)
-      .onTouchesUp((e) => {
-        if (e.numberOfTouches < 2) {
-          setScrollEnabled(true);
-        }
-      })
-      .onTouchesCancelled(() => {
-        setScrollEnabled(true);
-      })
       .onBegin(() => {
         // Only lock scroll when a real pinch is recognized.
         pinchStartHeightRef.current = hourHeightRef.current;
-        setScrollEnabled(false);
       })
       .onUpdate((e) => {
         const nextHeight = Math.max(
           MIN_HOUR_HEIGHT,
           Math.min(MAX_HOUR_HEIGHT, pinchStartHeightRef.current * e.scale)
         );
-
         pinchPreviewScaleRef.current.setValue(nextHeight / pinchStartHeightRef.current);
       })
       .onEnd((e) => {
@@ -175,7 +171,6 @@ export default function WeeklyPlannerScreen() {
         if (pendingPinchHeightRef.current === null) {
           pinchPreviewScaleRef.current.setValue(1);
         }
-        setScrollEnabled(true);
       }),
     []
   );
@@ -192,27 +187,99 @@ export default function WeeklyPlannerScreen() {
     ],
   };
 
+  // Pan bounds for narrow path
+  const maxTranslateX = Math.min(0, viewportWidth - MOBILE_CALENDAR_WIDTH);
+  const maxTranslateY = Math.min(0, viewportHeight - gridHeight);
+
+  const panGesture = useMemo(() =>
+    Gesture.Pan()
+      .runOnJS(true)
+      .minPointers(1)
+      .maxPointers(1)
+      .onBegin(() => {
+        panOffset.stopAnimation();
+        panStartXY.current = { x: panCurrentXY.current.x, y: panCurrentXY.current.y };
+      })
+      .onUpdate((e) => {
+        const nx = Math.max(maxTranslateX, Math.min(0, panStartXY.current.x + e.translationX));
+        const ny = Math.max(maxTranslateY, Math.min(0, panStartXY.current.y + e.translationY));
+        panCurrentXY.current = { x: nx, y: ny };
+        panOffset.setValue({ x: nx, y: ny });
+      })
+      .onEnd((e) => {
+        setScrollY(-panCurrentXY.current.y);
+        setScrollX(-panCurrentXY.current.x);
+        Animated.decay(panOffset, {
+          velocity: { x: e.velocityX / 1000, y: e.velocityY / 1000 },
+          deceleration: 0.997,
+          useNativeDriver: false,
+        }).start(({ finished }) => {
+          if (finished) {
+            setScrollY(-panCurrentXY.current.y);
+            setScrollX(-panCurrentXY.current.x);
+          }
+        });
+      }),
+    [maxTranslateX, maxTranslateY]
+  );
+
+  // Pinch wins over pan (2 fingers beats 1 finger via maxPointers(1) on panGesture)
+  const composedGesture = useMemo(
+    () => Gesture.Race(pinchZoomGesture, panGesture),
+    [pinchZoomGesture, panGesture]
+  );
+
+  // Keep panCurrentXY in sync; hard-clamp panOffset itself if decay drifts out of bounds.
+  // Guard against re-entrancy: AnimatedValueXY.setValue fires the joint callback once per
+  // component (x then y), so calling setValue inside the listener would loop infinitely.
+  useEffect(() => {
+    const id = panOffset.addListener(({ x, y }) => {
+      const cx = Math.max(maxTranslateX, Math.min(0, x));
+      const cy = Math.max(maxTranslateY, Math.min(0, y));
+      panCurrentXY.current = { x: cx, y: cy };
+      if (!isClampingRef.current && (x !== cx || y !== cy)) {
+        isClampingRef.current = true;
+        panOffset.stopAnimation();
+        panOffset.setValue({ x: cx, y: cy });
+        isClampingRef.current = false;
+      }
+    });
+    return () => panOffset.removeListener(id);
+  }, [maxTranslateX, maxTranslateY]);
+
   const scrollToNow = (animated = true) => {
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     const nowOffset = ((nowMinutes - START_HOUR * 60) / 60) * hourHeight;
-    const targetY = Math.max(nowOffset - hourHeight, 0);
-    const currentDayIndex = now.getDay();
-    const targetX = Math.max(currentDayIndex * (MOBILE_DAY_WIDTH + DAY_GAP) - Spacing.sm, 0);
 
     if (isNarrow) {
-      horizontalScrollRef.current?.scrollTo({ x: targetX, animated });
+      const targetNX = Math.max(maxTranslateX, Math.min(0,
+        -(now.getDay() * (MOBILE_DAY_WIDTH + DAY_GAP) - Spacing.sm)));
+      const targetNY = Math.max(maxTranslateY, Math.min(0, -(Math.max(nowOffset - hourHeight, 0))));
+      panCurrentXY.current = { x: targetNX, y: targetNY };
+      if (animated) {
+        Animated.spring(panOffset, {
+          toValue: { x: targetNX, y: targetNY },
+          useNativeDriver: false,
+          bounciness: 0,
+          speed: 14,
+        }).start();
+      } else {
+        panOffset.setValue({ x: targetNX, y: targetNY });
+      }
+    } else {
+      const targetY = Math.max(nowOffset - hourHeight, 0);
+      verticalScrollRef.current?.scrollTo({ y: targetY, animated });
     }
-
-    verticalScrollRef.current?.scrollTo({ y: targetY, animated });
   };
 
-  // Auto-scroll all columns to current time on mount
+  // Reset pan on week change and auto-scroll to now
   useEffect(() => {
+    panOffset.stopAnimation();
+    panOffset.setValue({ x: 0, y: 0 });
+    panCurrentXY.current = { x: 0, y: 0 };
     const timer = setTimeout(() => {
-      if(weekOffset === 0){
-        scrollToNow(false);
-      }
+      if (weekOffset === 0) scrollToNow(false);
     }, 150);
     return () => clearTimeout(timer);
   }, [weekOffset]);
@@ -295,8 +362,8 @@ export default function WeeklyPlannerScreen() {
   const currentDayRight = currentDayLeft + MOBILE_DAY_WIDTH;
   const nowOffscreenTop = nowIndicatorY < scrollY + 16;
   const nowOffscreenBottom = nowIndicatorY > scrollY + viewportHeight - 16;
-  const nowOffscreenLeft = isNarrow && horizontalViewportWidth > 0 && currentDayLeft < scrollX + 16;
-  const nowOffscreenRight = isNarrow && horizontalViewportWidth > 0 && currentDayRight > scrollX + horizontalViewportWidth - 16;
+  const nowOffscreenLeft = isNarrow && viewportWidth > 0 && currentDayLeft < scrollX + 16;
+  const nowOffscreenRight = isNarrow && viewportWidth > 0 && currentDayRight > scrollX + viewportWidth - 16;
   const showScrollToNow = isCurrentWeek && viewportHeight > 0 && (
     nowOffscreenTop || nowOffscreenBottom || nowOffscreenLeft || nowOffscreenRight
   );
@@ -359,26 +426,33 @@ export default function WeeklyPlannerScreen() {
 
       <View style={styles.calendarShell}>
         {isNarrow ? (
-          <ScrollView
-            ref={horizontalScrollRef}
-            horizontal
-            scrollEnabled
-            directionalLockEnabled
-            nestedScrollEnabled
-            showsHorizontalScrollIndicator={false}
-            onLayout={(event) => setHorizontalViewportWidth(event.nativeEvent.layout.width)}
-            onScroll={(event) => setScrollX(event.nativeEvent.contentOffset.x)}
-            scrollEventThrottle={16}
-            contentContainerStyle={styles.mobileCalendarContent}
+          // Narrow/mobile path: single pan area, no nested ScrollViews
+          <View
+            style={{ flex: 1, overflow: 'hidden' }}
+            onLayout={(e) => setViewportWidth(e.nativeEvent.layout.width)}
           >
-            <View style={styles.mobileCalendarInner}>
+            {/* Day headers — translate X only (sticky vertically) */}
+            <Animated.View
+              style={{
+                width: MOBILE_CALENDAR_WIDTH,
+                transform: [{ translateX: panOffset.x }],
+              }}
+            >
               <View style={styles.dayHeaderRow}>
                 {days.map((day) => (
                   <DayHeader key={day.date} dayIndex={day.dayIndex} date={day.date} isToday={day.isToday} isNarrow />
                 ))}
               </View>
+            </Animated.View>
 
-              {hasTopItems && (
+            {/* All-day row — translate X only */}
+            {hasTopItems && (
+              <Animated.View
+                style={{
+                  width: MOBILE_CALENDAR_WIDTH,
+                  transform: [{ translateX: panOffset.x }],
+                }}
+              >
                 <View style={styles.dayHeaderRow}>
                   {days.map((day) => (
                     <AllDayCell
@@ -391,26 +465,24 @@ export default function WeeklyPlannerScreen() {
                     />
                   ))}
                 </View>
-              )}
+              </Animated.View>
+            )}
 
-              <GestureDetector gesture={pinchZoomGesture}>
-                <ScrollView
-                  ref={verticalScrollRef}
-                  style={styles.scrollArea}
-                  scrollEnabled={scrollEnabled}
-                  nestedScrollEnabled
-                  showsVerticalScrollIndicator={false}
-                  onLayout={(event) => {
-                    const { height } = event.nativeEvent.layout;
-                    setViewportHeight(height);
+            {/* Scrollable grid — pan X and Y, pinch zoom */}
+            <GestureDetector gesture={composedGesture}>
+              <View
+                style={{ flex: 1, overflow: 'hidden' }}
+                onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+              >
+                <Animated.View
+                  style={{
+                    width: MOBILE_CALENDAR_WIDTH,
+                    transform: [{ translateX: panOffset.x }, { translateY: panOffset.y }],
                   }}
-                  onScroll={(event) => {
-                    const nextScrollY = event.nativeEvent.contentOffset.y;
-                    setScrollY(nextScrollY);
-                  }}
-                  scrollEventThrottle={16}
                 >
-                  <Animated.View style={[styles.weekGrid, { height: gridHeight }, pinchPreviewTransform]}>
+                  <Animated.View
+                    style={[{ height: gridHeight, width: MOBILE_CALENDAR_WIDTH, flexDirection: 'row', gap: DAY_GAP }, pinchPreviewTransform]}
+                  >
                     {[0, 1, 2, 3, 4, 5, 6].map((i) => (
                       <DayColumn
                         key={i}
@@ -431,11 +503,12 @@ export default function WeeklyPlannerScreen() {
                       onEventPress={setSelectedEvent}
                     />
                   </Animated.View>
-                </ScrollView>
-              </GestureDetector>
-            </View>
-          </ScrollView>
+                </Animated.View>
+              </View>
+            </GestureDetector>
+          </View>
         ) : (
+          // Wide/web path: unchanged vertical ScrollView
           <>
             <View style={styles.dayHeaderRow}>
               {days.map((day) => (
@@ -462,8 +535,6 @@ export default function WeeklyPlannerScreen() {
               <ScrollView
                 ref={verticalScrollRef}
                 style={styles.scrollArea}
-                scrollEnabled={scrollEnabled}
-                nestedScrollEnabled
                 showsVerticalScrollIndicator={false}
                 onLayout={(event) => {
                   const { height } = event.nativeEvent.layout;
@@ -580,12 +651,6 @@ const styles = StyleSheet.create({
   dayHeaderRow: {
     flexDirection: 'row',
     gap: 2,
-  } as ViewStyle,
-  mobileCalendarContent: {
-    width: MOBILE_CALENDAR_WIDTH,
-  } as ViewStyle,
-  mobileCalendarInner: {
-    flex: 1,
   } as ViewStyle,
   calendarShell: {
     flex: 1,

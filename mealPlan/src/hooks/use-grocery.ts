@@ -12,9 +12,9 @@ import {
 function getCurrentWeekStart(): Date {
   const today = new Date();
   const day = today.getDay();
-  const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+  const diff = day === 0 ? 1 : 1 - day;
   const monday = new Date(today);
-  monday.setDate(diff);
+  monday.setDate(monday.getDate() + diff);
   monday.setHours(0, 0, 0, 0);
   return monday;
 }

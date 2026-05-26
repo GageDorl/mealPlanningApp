@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Pressable, StyleSheet, type ViewStyle } from 'react-native';
+import { View, Pressable, StyleSheet, Platform, type ViewStyle } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { ExternalEventBlock } from './external-event-block';
 import { MealSlotCard } from './meal-slot-card';
@@ -96,7 +96,11 @@ function DayEventsColumn({
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={(e) => {
-          const mins = Math.round((START_HOUR * 60 + (e.nativeEvent.locationY / hourHeight) * 60) / 15) * 15;
+          // On web, nativeEvent is a DOM PointerEvent — locationY is undefined, use offsetY instead.
+          const y = Platform.OS === 'web'
+            ? (e.nativeEvent as unknown as { offsetY: number }).offsetY
+            : e.nativeEvent.locationY;
+          const mins = Math.round((START_HOUR * 60 + (y / hourHeight) * 60) / 15) * 15;
           onAddSlot(day.date, formatMinutes24(clampMinutes(mins)));
         }}
       />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, Pressable, type ViewStyle, type TextStyle } from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable, KeyboardAvoidingView, Platform, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Button } from '@/components/ui/button';
@@ -71,6 +71,7 @@ export function AddMealSlotModal({ visible, date, initialTime, onClose, onAdd }:
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={styles.kavWrapper} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={[styles.sheet, { backgroundColor: theme.background }]} onPress={()=>{}}>
           <Text style={[styles.title, { color: theme.text }]}>Add Meal Slot</Text>
@@ -134,11 +135,15 @@ export function AddMealSlotModal({ visible, date, initialTime, onClose, onAdd }:
           </View>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kavWrapper: {
+    flex: 1,
+  } as ViewStyle,
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
