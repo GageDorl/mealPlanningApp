@@ -40,9 +40,9 @@ export async function getWeek(weekStart: Date): Promise<WeekPlan> {
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user.id ?? null;
 
-  const query = supabase.from('meal_plans').select('*').eq('week_start', monday);
-  if (userId) query.eq('user_id', userId);
-  const { data: existingPlan } = await query.single();
+  let query = supabase.from('meal_plans').select('*').eq('week_start', monday);
+  if (userId) query = query.eq('user_id', userId);
+  const { data: existingPlan } = await query.maybeSingle();
 
   let mealPlan: MealPlan;
 

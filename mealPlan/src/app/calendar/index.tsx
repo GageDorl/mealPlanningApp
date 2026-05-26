@@ -65,7 +65,7 @@ export default function WeeklyPlannerScreen() {
   const [viewportWidth, setViewportWidth] = useState(0);
   const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
   const gridHeight = (END_HOUR - START_HOUR + 1) * hourHeight;
-  const isNarrow = windowWidth > 0 && windowWidth < 7 * 130;
+  const isNarrow = Platform.OS !== 'web' && windowWidth > 0 && windowWidth < 7 * 130;
 
   const today = new Date();
   const currentWeekStart = getSunday(addDays(today, weekOffset * 7));
@@ -370,29 +370,48 @@ export default function WeeklyPlannerScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header — swipe left/right to change week, tap label to jump */}
-      <GestureDetector gesture={swipeGesture}>
-      <View style={styles.header}>
-        <Pressable onPress={() => setWeekOffset((o) => o - 1)}>
-          <Text style={[styles.navArrow, { color: Colors.accent }]}>‹</Text>
-        </Pressable>
-
-        <View style={styles.headerCenter}>
-          <Pressable onPress={() => setWeekPickerVisible(true)}>
-            <Text style={[styles.weekLabel, { color: theme.text }]}>{weekLabel} ▾</Text>
-          </Pressable>
-          {weekOffset !== 0 && (
-            <Pressable onPress={() => setWeekOffset(0)}>
-              <Text style={[styles.todayLink, { color: Colors.accent }]}>Today</Text>
+      {/* Header — swipe left/right on native; arrow buttons handle web */}
+      {Platform.OS !== 'web' ? (
+        <GestureDetector gesture={swipeGesture}>
+          <View style={styles.header}>
+            <Pressable onPress={() => setWeekOffset((o) => o - 1)}>
+              <Text style={[styles.navArrow, { color: Colors.accent }]}>‹</Text>
             </Pressable>
-          )}
+            <View style={styles.headerCenter}>
+              <Pressable onPress={() => setWeekPickerVisible(true)}>
+                <Text style={[styles.weekLabel, { color: theme.text }]}>{weekLabel} ▾</Text>
+              </Pressable>
+              {weekOffset !== 0 && (
+                <Pressable onPress={() => setWeekOffset(0)}>
+                  <Text style={[styles.todayLink, { color: Colors.accent }]}>Today</Text>
+                </Pressable>
+              )}
+            </View>
+            <Pressable onPress={() => setWeekOffset((o) => o + 1)}>
+              <Text style={[styles.navArrow, { color: Colors.accent }]}>›</Text>
+            </Pressable>
+          </View>
+        </GestureDetector>
+      ) : (
+        <View style={styles.header}>
+          <Pressable onPress={() => setWeekOffset((o) => o - 1)}>
+            <Text style={[styles.navArrow, { color: Colors.accent }]}>‹</Text>
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <Pressable onPress={() => setWeekPickerVisible(true)}>
+              <Text style={[styles.weekLabel, { color: theme.text }]}>{weekLabel} ▾</Text>
+            </Pressable>
+            {weekOffset !== 0 && (
+              <Pressable onPress={() => setWeekOffset(0)}>
+                <Text style={[styles.todayLink, { color: Colors.accent }]}>Today</Text>
+              </Pressable>
+            )}
+          </View>
+          <Pressable onPress={() => setWeekOffset((o) => o + 1)}>
+            <Text style={[styles.navArrow, { color: Colors.accent }]}>›</Text>
+          </Pressable>
         </View>
-
-        <Pressable onPress={() => setWeekOffset((o) => o + 1)}>
-          <Text style={[styles.navArrow, { color: Colors.accent }]}>›</Text>
-        </Pressable>
-      </View>
-      </GestureDetector>
+      )}
 
       {/* Calendar connect / connected banner */}
       <View style={styles.connectRow}>

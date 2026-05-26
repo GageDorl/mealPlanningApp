@@ -1,94 +1,186 @@
-import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { Button } from '@/components/ui/button';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { useTheme } from '@/hooks/use-theme';
 import { useUserProfile } from '@/hooks/use-user-profile';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useMealPlan } from '@/hooks/use-meal-plan';
+import { useMacros } from '@/hooks/use-macros';
+import { useGrocery } from '@/hooks/use-grocery';
+import { useCalendar } from '@/hooks/use-calendar';
+
+import { CalendarPreviewCard } from '@/components/dashboard/calendar-preview-card';
+import { GroceryPreviewCard } from '@/components/dashboard/grocery-preview-card';
+import { MealsPreviewCard } from '@/components/dashboard/meals-preview-card';
+import { MacrosPreviewCard } from '@/components/dashboard/macros-preview-card';
+import { NudgeBanner } from '@/components/dashboard/nudge-banner';
+import { Colors, FontSizes, Spacing } from '@/constants/theme';
+
+function todayString(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const TODAY_DATE = new Date();
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { profile, loading } = useUserProfile();
+  const theme = useTheme();
+
+  const { profile, loading: profileLoading } = useUserProfile();
+  const { weekPlan } = useMealPlan(TODAY_DATE);
+  const { dailyProgress } = useMacros(TODAY_DATE);
+  const { state: grocery } = useGrocery();
+  const { connected: calendarConnected } = useCalendar();
 
   useEffect(() => {
-    if (!loading && !profile) {
+    if (!profileLoading && !profile) {
       router.replace('/sign-in');
     }
-  }, [loading, profile, router]);
+  }, [profileLoading, profile, router]);
 
-  if (loading || !profile) {
+  const todayStr = todayString();
+
+  const todaySlots = useMemo(() => {
+    if (!weekPlan) return [];
+    return weekPlan.slots
+      .filter((s) => s.date === todayStr)
+      .sort((a, b) => a.display_order - b.display_order);
+  }, [weekPlan, todayStr]);
+
+  const handleNudgePress = useCallback(() => {
+    if (!calendarConnected) {
+      router.push('/calendar-connect' as any);
+    } else if (profile && profile.macroGoals.length === 0) {
+      router.push('/macro-goals' as any);
+    } else {
+      router.push('/profile');
+    }
+  }, [calendarConnected, profile, router]);
+
+  if (profileLoading || !profile) {
     return (
-      <ThemedView style={styles.container}>
-        <ThemedText type="default">Loading your dashboard…</ThemedText>
-      </ThemedView>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator color={Colors.accent} />
+      </View>
     );
   }
 
-  return (
-    <ThemedView style={styles.container}>
-      <View style={styles.card}>
-        <ThemedText type="title" style={styles.title}>
-          Welcome back, {profile.user.display_name ?? 'Prepd user'}
-        </ThemedText>
-        <ThemedText type="default" style={styles.subtitle}>
-          Your profile is ready. Continue to plan meals, adjust goals, and personalize your preferences.
-        </ThemedText>
-        <Button label="Update goals" onPress={() => router.push('/macro-goals')} />
+  const greeting = getGreeting();
+  const displayName = profile.user.display_name ?? 'there';
 
-        {/* TODO: remove when real nav is added */}
-        <View style={styles.devNav}>
-          <ThemedText type="default" style={styles.devNavLabel}>Dev nav</ThemedText>
-          <View style={styles.devNavLinks}>
-            {([
-              { label: 'Calendar', href: '/calendar' },
-              { label: 'Macros', href: '/macros' },
-              { label: 'Grocery', href: '/grocery' },
-              { label: 'Profile', href: '/profile' },
-              { label: 'Recipe Search', href: '/recipes/search' },
-              { label: 'Saved Recipes', href: '/recipes/saved' },
-              { label: 'Create Recipe', href: '/recipes/create' },
-              { label: 'Import Recipe', href: '/recipes/import' },
-            ] as const).map(({ label, href }) => (
-              <Button key={href} label={label} onPress={() => router.push(href as any)} variant="secondary" />
-            ))}
-          </View>
+  return (
+    <ScrollView
+      style={[styles.root, { backgroundColor: theme.background }]}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={[styles.greeting, { color: theme.textSecondary }]}>{greeting}</Text>
+          <Text style={[styles.name, { color: theme.text }]}>{displayName}</Text>
+        </View>
+        <Text style={[styles.dateLabel, { color: theme.textSecondary }]}>
+          {formatDate(new Date())}
+        </Text>
+      </View>
+
+      {/* Contextual nudge banner */}
+      <NudgeBanner
+        profile={profile}
+        calendarConnected={calendarConnected}
+        onPress={handleNudgePress}
+      />
+
+      {/* Module grid: left column (Calendar + Grocery) + right column (Meals) */}
+      <View style={styles.grid}>
+        <View style={styles.leftColumn}>
+          <CalendarPreviewCard
+            onPress={() => router.push('/calendar')}
+          />
+          <GroceryPreviewCard
+            totalCount={grocery.totalCount}
+            checkedCount={grocery.checkedCount}
+            onPress={() => router.push('/grocery')}
+          />
+        </View>
+
+        <View style={styles.rightColumn}>
+          <MealsPreviewCard
+            slots={todaySlots}
+            onPress={() => router.push('/calendar')}
+          />
         </View>
       </View>
-    </ThemedView>
+
+      {/* Macros — full width, expandable inline */}
+      <MacrosPreviewCard
+        dailyProgress={dailyProgress}
+        onPress={() => router.push('/macros')}
+      />
+    </ScrollView>
   );
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning,';
+  if (hour < 17) return 'Good afternoon,';
+  return 'Good evening,';
+}
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  card: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    gap: Spacing.lg,
-  },
-  title: {
-    marginBottom: Spacing.md,
-  },
-  subtitle: {
-    marginBottom: Spacing.xl,
-  },
-  link: {
-    marginTop: Spacing.lg,
-  },
-  devNav: {
-    marginTop: Spacing.xl,
-    gap: Spacing.sm,
-  },
-  devNavLabel: {
-    opacity: 0.4,
-  },
-  devNavLinks: {
-    gap: Spacing.sm,
-  },
+    justifyContent: 'center',
+  } as ViewStyle,
+  root: {
+    flex: 1,
+  } as ViewStyle,
+  content: {
+    padding: Spacing.lg,
+    gap: Spacing.md,
+    paddingBottom: Spacing.xxxl,
+  } as ViewStyle,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
+  greeting: {
+    fontSize: FontSizes.sm,
+  } as TextStyle,
+  name: {
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+  } as TextStyle,
+  dateLabel: {
+    fontSize: FontSizes.sm,
+  } as TextStyle,
+  grid: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  } as ViewStyle,
+  leftColumn: {
+    flex: 1,
+    gap: Spacing.md,
+  } as ViewStyle,
+  rightColumn: {
+    flex: 1,
+    gap: Spacing.md,
+  } as ViewStyle,
 });

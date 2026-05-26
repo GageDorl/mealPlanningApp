@@ -103,13 +103,13 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 9
 
-- [ ] T036 [US9] Create dashboard screen with module grid layout in mealPlan/src/app/index.tsx
-- [ ] T037 [P] [US9] Create CalendarPreviewCard component in mealPlan/src/components/dashboard/calendar-preview-card.tsx
-- [ ] T038 [P] [US9] Create GroceryPreviewCard component in mealPlan/src/components/dashboard/grocery-preview-card.tsx
-- [ ] T039 [P] [US9] Create MealsPreviewCard component in mealPlan/src/components/dashboard/meals-preview-card.tsx
-- [ ] T040 [P] [US9] Create MacrosPreviewCard component with compact/expanded toggle in mealPlan/src/components/dashboard/macros-preview-card.tsx
-- [ ] T041 [US9] Create contextual nudge banner component for incomplete onboarding in mealPlan/src/components/dashboard/nudge-banner.tsx
-- [ ] T042 [US9] Wire dashboard modules to stack navigation for calendar, grocery, macros, and recipe detail screens in mealPlan/src/app/index.tsx
+- [x] T036 [US9] Create dashboard screen with module grid layout in mealPlan/src/app/index.tsx
+- [x] T037 [P] [US9] Create CalendarPreviewCard component in mealPlan/src/components/dashboard/calendar-preview-card.tsx
+- [x] T038 [P] [US9] Create GroceryPreviewCard component in mealPlan/src/components/dashboard/grocery-preview-card.tsx
+- [x] T039 [P] [US9] Create MealsPreviewCard component in mealPlan/src/components/dashboard/meals-preview-card.tsx
+- [x] T040 [P] [US9] Create MacrosPreviewCard component with compact/expanded toggle in mealPlan/src/components/dashboard/macros-preview-card.tsx
+- [x] T041 [US9] Create contextual nudge banner component for incomplete onboarding in mealPlan/src/components/dashboard/nudge-banner.tsx
+- [x] T042 [US9] Wire dashboard modules to stack navigation for calendar, grocery, macros, and recipe detail screens in mealPlan/src/app/index.tsx
 
 **Checkpoint**: Dashboard shell is functional — feature detail screens can be developed independently.
 
