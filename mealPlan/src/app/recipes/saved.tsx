@@ -55,6 +55,12 @@ export default function SavedRecipesScreen() {
           <Text style={[styles.backIcon, { color: Colors.accent }]}>‹</Text>
         </Pressable>
         <Text style={[styles.title, { color: theme.text }]}>My Recipes</Text>
+        <Pressable onPress={() => router.push('/recipes/import' as any)} style={styles.searchLink}>
+          <Text style={[styles.searchLinkText, { color: Colors.accent }]}>Import</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/recipes/create' as any)} style={styles.searchLink}>
+          <Text style={[styles.searchLinkText, { color: Colors.accent }]}>Create</Text>
+        </Pressable>
         <Pressable onPress={() => router.push('/recipes/search' as any)} style={styles.searchLink}>
           <Text style={[styles.searchLinkText, { color: Colors.accent }]}>Search</Text>
         </Pressable>

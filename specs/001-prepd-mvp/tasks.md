@@ -150,13 +150,13 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 3
 
-- [ ] T053 [US3] Implement USDA FoodData Central API client (lookupIngredient) in mealPlan/src/services/usda.ts
-- [ ] T054 [US3] Implement nutritionService.calculateForQuantity in mealPlan/src/utils/macro-calculator.ts
-- [ ] T055 [US3] Implement schema.org JSON-LD parser (recipeService.importFromUrl) in mealPlan/src/services/schema-import.ts
-- [ ] T056 [US3] Create recipe creation form screen with ingredient list, steps, and macro preview in mealPlan/src/app/recipes/create.tsx
-- [ ] T057 [P] [US3] Create IngredientInput component with USDA autocomplete lookup in mealPlan/src/components/recipes/ingredient-input.tsx
-- [ ] T058 [US3] Create URL import screen with URL input, loading state, error handling, and form pre-fill in mealPlan/src/app/recipes/import.tsx
-- [ ] T059 [US3] Wire recipe form to recipeService.save with user review confirmation in mealPlan/src/app/recipes/create.tsx
+- [x] T053 [US3] Implement USDA FoodData Central API client (lookupIngredient) in mealPlan/src/services/usda.ts
+- [x] T054 [US3] Implement nutritionService.calculateForQuantity in mealPlan/src/utils/macro-calculator.ts
+- [x] T055 [US3] Implement schema.org JSON-LD parser (recipeService.importFromUrl) in mealPlan/src/services/schema-import.ts
+- [x] T056 [US3] Create recipe creation form screen with ingredient list, steps, and macro preview in mealPlan/src/app/recipes/create.tsx
+- [x] T057 [P] [US3] Create IngredientInput component with USDA autocomplete lookup in mealPlan/src/components/recipes/ingredient-input.tsx
+- [x] T058 [US3] Create URL import screen with URL input, loading state, error handling, and form pre-fill in mealPlan/src/app/recipes/import.tsx
+- [x] T059 [US3] Wire recipe form to recipeService.save with user review confirmation in mealPlan/src/app/recipes/create.tsx
 
 **Checkpoint**: Full hybrid recipe sourcing works — API, manual, URL import all flow through the same review form.
 

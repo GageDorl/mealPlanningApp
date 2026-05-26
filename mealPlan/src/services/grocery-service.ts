@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import { supabase } from './supabase';
 import { aggregateIngredients, type RawIngredientInput } from '@/utils/grocery-aggregator';
 
@@ -104,7 +105,7 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
     .select('id')
     .eq('user_id', userId)
     .eq('week_start', weekStartStr)
-    .single();
+    .maybeSingle();
 
   if (!planData) {
     return { list: null, items: [], displayGroups: [], checkedCount: 0, totalCount: 0 };
@@ -186,7 +187,7 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
     .select('id')
     .eq('user_id', userId)
     .eq('meal_plan_id', planData.id)
-    .single();
+    .maybeSingle();
 
   let listId: string;
   if (existingList) {
@@ -197,9 +198,10 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
       .update({ generated_at: now, updated_at: now })
       .eq('id', listId);
   } else {
-    const { data: newList } = await supabase
+    const { data: newList, error: insertError } = await supabase
       .from('grocery_lists')
       .insert({
+        id: randomUUID(),
         user_id: userId,
         meal_plan_id: planData.id,
         generated_at: now,
@@ -208,12 +210,14 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
       })
       .select('id')
       .single();
-    listId = newList!.id;
+    if (insertError || !newList) throw new Error(insertError?.message ?? 'Failed to create grocery list');
+    listId = newList.id;
   }
 
   if (allAggregated.length > 0) {
     await supabase.from('grocery_items').insert(
       allAggregated.map((item) => ({
+        id: randomUUID(),
         grocery_list_id: listId,
         ingredient_id: item.ingredient_id,
         name: item.name,
@@ -258,7 +262,7 @@ export async function getList(userId: string, weekStart: Date): Promise<GroceryS
     .select('id')
     .eq('user_id', userId)
     .eq('week_start', weekStartStr)
-    .single();
+    .maybeSingle();
 
   if (!planData) {
     return { list: null, items: [], displayGroups: [], checkedCount: 0, totalCount: 0 };
@@ -269,7 +273,7 @@ export async function getList(userId: string, weekStart: Date): Promise<GroceryS
     .select('*')
     .eq('user_id', userId)
     .eq('meal_plan_id', planData.id)
-    .single();
+    .maybeSingle();
 
   if (!listData) {
     return { list: null, items: [], displayGroups: [], checkedCount: 0, totalCount: 0 };
@@ -308,6 +312,7 @@ export async function addPantryStaple(
   const { data } = await supabase
     .from('pantry_staples')
     .insert({
+      id: randomUUID(),
       user_id: userId,
       ingredient_name: ingredientName.toLowerCase().trim(),
       quantity,
