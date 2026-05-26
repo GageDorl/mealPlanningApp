@@ -1,14 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { AuthScreen, authStyles } from '@/components/auth-screen';
 import { signUpWithEmail } from '@/services/supabase';
 import { createUserProfile } from '@/services/user-service';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -42,70 +40,40 @@ export default function SignUpScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.card}>
-        <ThemedText type="title" style={styles.title}>
-          Create your account
-        </ThemedText>
-        <Input
-          value={name}
-          onChangeText={setName}
-          placeholder="Full name"
-          style={styles.input}
-        />
-        <Input
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={styles.input}
-        />
-        <Input
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Password"
-          secureTextEntry
-          style={styles.input}
-        />
-        {error ? <ThemedText type="default" style={styles.error}>{error}</ThemedText> : null}
-        <Button label={loading ? 'Creating account…' : 'Sign up'} onPress={handleSignUp} disabled={loading} />
-        <View style={styles.footer}>
+    <AuthScreen
+      title="Create your account"
+      footer={
+        <>
           <ThemedText type="default">Already have an account?</ThemedText>
           <Link href="/sign-in">
             <ThemedText type="linkPrimary">Sign in</ThemedText>
           </Link>
-        </View>
-      </View>
-    </ThemedView>
+        </>
+      }
+    >
+      <Input
+        value={name}
+        onChangeText={setName}
+        placeholder="Full name"
+        style={authStyles.input}
+      />
+      <Input
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Email"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        style={authStyles.input}
+      />
+      <Input
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Password"
+        secureTextEntry
+        style={authStyles.input}
+      />
+      {error ? <ThemedText type="default" style={authStyles.error}>{error}</ThemedText> : null}
+      <Button label={loading ? 'Creating account…' : 'Sign up'} onPress={handleSignUp} disabled={loading} />
+    </AuthScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.five,
-  },
-  card: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    gap: Spacing.four,
-  },
-  title: {
-    marginBottom: Spacing.four,
-  },
-  input: {
-    marginBottom: Spacing.three,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.three,
-    marginTop: Spacing.four,
-  },
-  error: {
-    color: '#ff3b30',
-  },
-});

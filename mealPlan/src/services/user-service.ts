@@ -34,12 +34,14 @@ export async function createUserProfile(user: {
   id: string;
   email: string;
   displayName?: string | null;
+  authMethod?: 'email' | 'google' | 'apple';
 }) {
   return supabase.from('users').insert([
     {
       id: user.id,
       email: user.email,
       display_name: user.displayName ?? null,
+      auth_method: user.authMethod ?? 'email',
       onboarding_completed: false,
       tutorial_completed: false,
       tier: 'free',
