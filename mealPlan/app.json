@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "mealPlan",
+    "name": "Prepd",
     "slug": "mealPlan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mealplan",
+    "scheme": "prepd",
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.prepd.app",
