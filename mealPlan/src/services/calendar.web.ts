@@ -1,7 +1,11 @@
 import { supabase } from './supabase';
-import type { CalendarEvent, MealEventInput } from './calendar.types';
+import type { CalendarEvent, CalendarInfo, MealEventInput } from './calendar.types';
 
-export type { CalendarEvent, MealEventInput };
+export type { CalendarEvent, CalendarInfo, MealEventInput };
+
+export async function getAvailableCalendars(): Promise<CalendarInfo[]> { return []; }
+export async function getSelectedCalendarIds(): Promise<string[]> { return []; }
+export async function setSelectedCalendarIds(_ids: string[]): Promise<void> {}
 
 const CONNECTED_KEY = 'prepd_calendar_connected';
 
@@ -44,27 +48,42 @@ export async function connect(): Promise<{ granted: boolean }> {
   return { granted: false }; // unreachable — page redirects
 }
 
+function parseEventDate(raw: any): Date {
+  if (raw?.dateTime) return new Date(raw.dateTime);
+  if (raw?.date) {
+    const [y, m, d] = (raw.date as string).split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(raw);
+}
+
 export async function getEvents(start: Date, end: Date): Promise<CalendarEvent[]> {
-  if (!isConnected()) return [];
-
-  try {
-    const events = await callFunction('recal-calendar', {
-      action: 'getEvents',
-      start: start.toISOString(),
-      end: end.toISOString(),
-    });
-
-    return (Array.isArray(events) ? events : []).map((e: any) => ({
-      id: e.id,
-      title: e.subject ?? e.title ?? e.summary ?? '(No title)',
-      startDate: new Date(e.start),
-      endDate: new Date(e.end),
-      calendarId: e.calendarId ?? 'primary',
-      isAllDay: e.isAllDay ?? false,
-    }));
-  } catch {
+  if (!isConnected()) {
+    console.log('[calendar] getEvents: not connected (localStorage check failed)');
     return [];
   }
+
+  const raw = await callFunction('recal-calendar', {
+    action: 'getEvents',
+    start: start.toISOString(),
+    end: end.toISOString(),
+  });
+
+  const events = Array.isArray(raw) ? raw : (raw?.events ?? raw?.items ?? []);
+
+  return events.map((e: any) => {
+    const startRaw = e.start ?? e.original?.start;
+    const endRaw = e.end ?? e.original?.end;
+    const isAllDay = e.isAllDay ?? (startRaw?.date != null && startRaw?.dateTime == null);
+    return {
+      id: e.id,
+      title: e.subject ?? e.title ?? e.summary ?? '(No title)',
+      startDate: parseEventDate(startRaw),
+      endDate: parseEventDate(endRaw),
+      calendarId: e.calendarId ?? 'primary',
+      isAllDay,
+    };
+  });
 }
 
 export async function createMealEvent(input: MealEventInput): Promise<string | null> {

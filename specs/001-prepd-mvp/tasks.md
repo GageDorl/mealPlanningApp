@@ -221,13 +221,13 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 6
 
-- [ ] T078 [US6] Implement grocery-aggregator utility (combine duplicates, group by category, exclude pantry staples) in mealPlan/src/utils/grocery-aggregator.ts
-- [ ] T079 [US6] Implement groceryService (generateList, toggleItemChecked, addPantryStaple, removePantryStaple) in mealPlan/src/services/grocery-service.ts
-- [ ] T080 [US6] Create useGrocery hook with PowerSync watched query in mealPlan/src/hooks/use-grocery.ts
-- [ ] T081 [US6] Create grocery list detail screen with category groups and progress indicator in mealPlan/src/app/grocery/index.tsx
-- [ ] T082 [P] [US6] Create GroceryItemRow component (name, quantity, unit, checkbox) in mealPlan/src/components/grocery/grocery-item-row.tsx
-- [ ] T083 [P] [US6] Create GroceryCategoryGroup component (collapsible category sections) in mealPlan/src/components/grocery/grocery-category-group.tsx
-- [ ] T084 [US6] Create pantry staples management UI (add/remove staples) in mealPlan/src/app/grocery/pantry-staples.tsx
+- [x] T078 [US6] Implement grocery-aggregator utility (combine duplicates, group by category, exclude pantry staples) in mealPlan/src/utils/grocery-aggregator.ts
+- [x] T079 [US6] Implement groceryService (generateList, toggleItemChecked, addPantryStaple, removePantryStaple) in mealPlan/src/services/grocery-service.ts
+- [x] T080 [US6] Create useGrocery hook with PowerSync watched query in mealPlan/src/hooks/use-grocery.ts
+- [x] T081 [US6] Create grocery list detail screen with category groups and progress indicator in mealPlan/src/app/grocery/index.tsx
+- [x] T082 [P] [US6] Create GroceryItemRow component (name, quantity, unit, checkbox) in mealPlan/src/components/grocery/grocery-item-row.tsx
+- [x] T083 [P] [US6] Create GroceryCategoryGroup component (collapsible category sections) in mealPlan/src/components/grocery/grocery-category-group.tsx
+- [x] T084 [US6] Create pantry staples management UI (add/remove staples) in mealPlan/src/app/grocery/pantry-staples.tsx
 
 **Checkpoint**: Grocery list works end-to-end with aggregation, checking, and pantry staple exclusion.
 

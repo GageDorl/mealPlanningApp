@@ -12,6 +12,7 @@ export interface UserProfile {
   id: string;
   email: string;
   display_name: string | null;
+  onboarding_completed: boolean;
   notification_meal_reminders: boolean;
   notification_planning_nudges: boolean;
   notification_macro_checkins: boolean;
@@ -99,6 +100,10 @@ export async function updateDietaryPreferences(userId: string, tags: string[]) {
   }));
 
   return supabase.from('dietary_preferences').insert(records);
+}
+
+export async function markOnboardingComplete(userId: string) {
+  return supabase.from('users').update({ onboarding_completed: true }).eq('id', userId);
 }
 
 export async function updateNotificationSettings(userId: string, settings: {

@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react';
+import { memo } from 'react';
 import { View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { MealSlotCard } from './meal-slot-card';
-import { ExternalEventBlock } from './external-event-block';
 import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
 import type { CalendarEvent } from '@/services/calendar.types';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/** Hours shown in the time grid (full day). */
 export const START_HOUR = 0;
 export const END_HOUR = 23;
 export const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
-export const HOUR_HEIGHT = 52;
+export const DEFAULT_HOUR_HEIGHT = 52;
+export const MIN_HOUR_HEIGHT = 32;
+export const MAX_HOUR_HEIGHT = 96;
+export const HOUR_HEIGHT = DEFAULT_HOUR_HEIGHT;
+export const GRID_HEIGHT = HOURS.length * DEFAULT_HOUR_HEIGHT;
+export const DEFAULT_SLOT_DURATION = 60;
 
 function formatHour(hour: number): string {
   const suffix = hour >= 12 ? 'PM' : 'AM';
@@ -21,54 +24,44 @@ function formatHour(hour: number): string {
   return `${h} ${suffix}`;
 }
 
-function formatHour24(hour: number): string {
-  return `${String(hour).padStart(2, '0')}:00`;
-}
-
-function formatMinutes24(totalMinutes: number): string {
+export function formatMinutes24(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-function parseTimeToMinutes(time: string | undefined | null): number | null {
+export function parseTimeToMinutes(time: string | undefined | null): number | null {
   if (!time) return null;
   const parts = time.split(':');
   if (parts.length < 2) return null;
   return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
 }
 
-/** Convert a minutes-from-midnight value to a pixel offset from the top of the grid. */
-function minutesToY(minutes: number): number {
-  return ((minutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+export function minutesToY(minutes: number, hourHeight = DEFAULT_HOUR_HEIGHT): number {
+  return ((minutes - START_HOUR * 60) / 60) * hourHeight;
 }
 
-function clampMinutes(minutes: number): number {
+export function clampMinutes(minutes: number): number {
   return Math.max(START_HOUR * 60, Math.min((END_HOUR + 1) * 60, minutes));
 }
 
-const GRID_HEIGHT = HOURS.length * HOUR_HEIGHT;
-const DEFAULT_SLOT_DURATION = 60; // minutes
-const QUARTER_HOUR_MINUTES = [0, 15, 30, 45] as const;
+// Static memoized hour lines — only re-renders if the theme color strings change.
+const HourGrid = memo(function HourGrid({ borderColor, textColor, hourHeight }: { borderColor: string; textColor: string; hourHeight: number }) {
+  return (
+    <>
+      {HOURS.map((hour) => (
+        <View key={hour} style={[styles.hourRow, { borderBottomColor: borderColor, height: hourHeight }]}>
+          <Text style={[styles.hourLabel, { color: textColor }]}>{formatHour(hour)}</Text>
+        </View>
+      ))}
+    </>
+  );
+});
 
-interface DayColumnProps {
-  dayIndex: number;
-  date: string;
-  slots: MealSlotWithRecipe[];
-  externalEvents: CalendarEvent[];
-  onAddSlot: (time: string) => void;
-  onSlotPress: (slotId: string) => void;
-  onAssignRecipe: (slotId: string) => void;
-  onDeleteSlot: (slotId: string) => void;
-  isToday: boolean;
-  isNarrow?: boolean;
-}
-
-/** Pinned day header — rendered above the scroll area. */
-export function DayHeader({ dayIndex, date, isToday, isNarrow }: Pick<DayColumnProps, 'dayIndex' | 'date' | 'isToday' | 'isNarrow'>) {
+/** Pinned day header rendered above the scroll area. */
+export function DayHeader({ dayIndex, date, isToday, isNarrow }: { dayIndex: number; date: string; isToday: boolean; isNarrow?: boolean }) {
   const theme = useTheme();
   const dayNum = parseInt(date.split('-')[2], 10);
-
   return (
     <View style={styles.headerCol}>
       <View style={[styles.header, { backgroundColor: theme.backgroundElement }]}>
@@ -85,146 +78,68 @@ export function DayHeader({ dayIndex, date, isToday, isNarrow }: Pick<DayColumnP
   );
 }
 
-/** Time-grid body of a day — rendered inside the shared scroll area. */
-export function DayColumn({
-  dayIndex,
-  date,
-  slots,
-  externalEvents,
-  onAddSlot,
-  onSlotPress,
+/** All-day events + untimed meal slots row above the scroll area. */
+export function AllDayCell({
+  events,
+  untimedSlots = [],
+  onEventPress,
   onAssignRecipe,
   onDeleteSlot,
-  isToday,
-  isNarrow,
-}: DayColumnProps) {
+}: {
+  events: CalendarEvent[];
+  untimedSlots?: MealSlotWithRecipe[];
+  onEventPress?: (event: CalendarEvent) => void;
+  onAssignRecipe?: (slotId: string) => void;
+  onDeleteSlot?: (slotId: string) => void;
+}) {
   const theme = useTheme();
-
-  // Current time tracking for the "now" indicator
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    if (!isToday) return;
-    const interval = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(interval);
-  }, [isToday]);
-
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-  // Separate timed vs untimed items
-  const timedSlots = slots.filter((s) => parseTimeToMinutes(s.time_of_day) != null);
-  const untimed = slots.filter((s) => parseTimeToMinutes(s.time_of_day) == null);
-  const allDayEvents = externalEvents.filter((e) => e.isAllDay);
-  const timedEvents = externalEvents.filter((e) => !e.isAllDay);
-
-  const showNowLine = isToday && currentMinutes >= START_HOUR * 60 && currentMinutes <= (END_HOUR + 1) * 60;
-
-  const handleQuarterPress = (hour: number, minuteOffset: number) => {
-    const totalMinutes = clampMinutes(hour * 60 + minuteOffset);
-    onAddSlot(formatMinutes24(totalMinutes));
-  };
-
   return (
-    <View style={[styles.column, { backgroundColor: theme.backgroundElement }]}>
-      {/* All-day events & un-timed slots above the grid */}
-      {(allDayEvents.length > 0 || untimed.length > 0) && (
-        <View style={styles.untimedSection}>
-          {allDayEvents.map((event) => (
-            <ExternalEventBlock key={event.id} event={event} />
-          ))}
-          {untimed.map((slot) => (
-            <MealSlotCard
-              key={slot.id}
-              slot={slot}
-              onPress={() => onSlotPress(slot.id)}
-              onAssignRecipe={() => onAssignRecipe(slot.id)}
-              onDelete={() => onDeleteSlot(slot.id)}
-            />
-          ))}
-        </View>
-      )}
-
-      {/* Fixed-height time grid */}
-      <View style={[styles.grid, { height: GRID_HEIGHT }]}>
-        {/* Background hour rows (tappable) */}
-        {HOURS.map((hour) => (
-          <View key={hour} style={[styles.hourRow, { borderBottomColor: theme.border }]}>
-            <View style={styles.quarterTapTargets}>
-              {QUARTER_HOUR_MINUTES.map((minuteOffset) => (
-                <Pressable
-                  key={`${hour}-${minuteOffset}`}
-                  style={styles.quarterTapTarget}
-                  onPress={() => handleQuarterPress(hour, minuteOffset)}
-                />
-              ))}
-            </View>
-            <Text style={[styles.hourLabel, { color: theme.textSecondary }]}>
-              {formatHour(hour)}
-            </Text>
-          </View>
-        ))}
-
-        {/* Now indicator */}
-        {showNowLine && (
-          <View style={[styles.nowLine, { top: minutesToY(currentMinutes) }]}>
-            <View style={styles.nowDot} />
-            <View style={styles.nowRule} />
-          </View>
-        )}
-
-        {/* Absolutely-positioned external events */}
-        {/* When both events and meal slots exist, split the column so they don't overlap */}
-        {(() => {
-          const split = timedSlots.length > 0 && timedEvents.length > 0;
-          return timedEvents.map((event) => {
-            const startMin = event.startDate.getHours() * 60 + event.startDate.getMinutes();
-            const endMin = event.endDate.getHours() * 60 + event.endDate.getMinutes();
-            const clippedStart = clampMinutes(startMin);
-            const clippedEnd = clampMinutes(Math.max(endMin, startMin + 30));
-            const visibleDuration = Math.max(clippedEnd - clippedStart, 30);
-            const top = minutesToY(clippedStart);
-            const height = (visibleDuration / 60) * HOUR_HEIGHT;
-
-            if (clippedEnd <= clippedStart) return null;
-
-            return (
-              <View key={event.id} style={[styles.absoluteItem, { top, height, left: 30, right: split ? '52%' : 2 }]}>
-                <ExternalEventBlock event={event} compact={height < 56} />
-              </View>
-            );
-          });
-        })()}
-
-        {/* Absolutely-positioned meal slots */}
-        {(() => {
-          const split = timedSlots.length > 0 && timedEvents.length > 0;
-          return timedSlots.map((slot) => {
-            const startMin = parseTimeToMinutes(slot.time_of_day)!;
-            const clippedStart = clampMinutes(startMin);
-            const clippedEnd = clampMinutes(startMin + DEFAULT_SLOT_DURATION);
-            const visibleDuration = Math.max(clippedEnd - clippedStart, 30);
-            const top = minutesToY(clippedStart);
-            const height = (visibleDuration / 60) * HOUR_HEIGHT;
-
-            if (clippedEnd <= clippedStart) return null;
-
-            return (
-              <View key={slot.id} style={[styles.absoluteItem, { top, height, left: split ? '50%' : 30, right: 2 }]}>
-                <MealSlotCard
-                  slot={slot}
-                  compact={height < 56}
-                  onPress={() => onSlotPress(slot.id)}
-                  onAssignRecipe={() => onAssignRecipe(slot.id)}
-                  onDelete={() => onDeleteSlot(slot.id)}
-                />
-              </View>
-            );
-          });
-        })()}
-      </View>
+    <View style={[styles.allDayCell, { borderBottomColor: theme.border, borderRightColor: theme.border }]}>
+      {events.map((event) => (
+        <Pressable key={event.id} style={styles.allDayChip} onPress={() => onEventPress?.(event)}>
+          <Text numberOfLines={1} style={styles.allDayChipText}>{event.title}</Text>
+        </Pressable>
+      ))}
+      {untimedSlots.map((slot) => (
+        <MealSlotCard
+          key={slot.id}
+          slot={slot}
+          compact
+          onPress={() => {}}
+          onAssignRecipe={() => onAssignRecipe?.(slot.id)}
+          onDelete={() => onDeleteSlot?.(slot.id)}
+        />
+      ))}
     </View>
   );
 }
+
+/**
+ * Static time-grid background column. Only receives theme color strings — never
+ * changes on week navigation — so React.memo skips all re-renders on week change.
+ * Events and tap targets live in WeekEventsOverlay, rendered as a sibling.
+ */
+export const DayColumn = memo(function DayColumn({
+  bgColor,
+  borderColor,
+  textColor,
+  hourHeight = DEFAULT_HOUR_HEIGHT,
+}: {
+  bgColor: string;
+  borderColor: string;
+  textColor: string;
+  hourHeight?: number;
+}) {
+  const gridHeight = HOURS.length * hourHeight;
+
+  return (
+    <View style={[styles.column, { backgroundColor: bgColor }]}> 
+      <View style={{ height: gridHeight }}>
+        <HourGrid borderColor={borderColor} textColor={textColor} hourHeight={hourHeight} />
+      </View>
+    </View>
+  );
+});
 
 const styles = StyleSheet.create({
   headerCol: {
@@ -266,53 +181,36 @@ const styles = StyleSheet.create({
   dayNumberToday: {
     color: '#FFFFFF',
   } as TextStyle,
-  untimedSection: {
-    padding: Spacing.xs,
-    gap: Spacing.xs,
-  } as ViewStyle,
-  grid: {
-    position: 'relative',
-  } as ViewStyle,
   hourRow: {
-    height: HOUR_HEIGHT,
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: Spacing.xs,
     justifyContent: 'flex-start',
-    position: 'relative',
-  } as ViewStyle,
-  quarterTapTargets: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 0,
-  } as ViewStyle,
-  quarterTapTarget: {
-    flex: 1,
   } as ViewStyle,
   hourLabel: {
     fontSize: 9,
     fontWeight: '500',
     paddingTop: 2,
-    zIndex: 1,
   } as TextStyle,
-  absoluteItem: {
-    position: 'absolute',
-  } as ViewStyle,
-  nowLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    zIndex: 10,
-  } as ViewStyle,
-  nowDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.accent,
-  } as ViewStyle,
-  nowRule: {
+  allDayCell: {
     flex: 1,
-    height: 2,
-    backgroundColor: Colors.accent,
+    minWidth: 120,
+    minHeight: 24,
+    padding: Spacing.xs,
+    gap: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
   } as ViewStyle,
+  allDayChip: {
+    backgroundColor: 'rgba(74, 144, 217, 0.15)',
+    borderLeftWidth: 2,
+    borderLeftColor: '#4A90D9',
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 1,
+  } as ViewStyle,
+  allDayChipText: {
+    fontSize: 9,
+    fontWeight: '500',
+    color: '#4A90D9',
+  } as TextStyle,
 });

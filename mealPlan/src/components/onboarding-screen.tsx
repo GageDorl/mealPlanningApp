@@ -1,8 +1,8 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { ScreenContainer, ScreenCard, ScreenTitle } from '@/components/ui/screen';
+import { useTheme } from '@/hooks/use-theme';
+import { FontSizes } from '@/constants/theme';
 
 interface Props {
   title: string;
@@ -13,65 +13,54 @@ interface Props {
 }
 
 export function OnboardingScreen({ title, children, scrollable, loading, loadingText = 'Loading…' }: Props) {
+  const theme = useTheme();
+
   if (loading) {
     return (
-      <ThemedView style={styles.center}>
-        <ThemedText type="default">{loadingText}</ThemedText>
-      </ThemedView>
+      <ScreenContainer style={styles.loadingContainer}>
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>{loadingText}</Text>
+      </ScreenContainer>
     );
   }
 
-  const card = (
-    <View style={styles.card}>
-      <ThemedText type="title" style={styles.title}>{title}</ThemedText>
-      {children}
-    </View>
-  );
-
   if (scrollable) {
     return (
-      <ThemedView style={styles.scrollContainer}>
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {card}
+      <View style={[styles.scrollOuter, { backgroundColor: theme.background }]}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScreenContainer>
+            <ScreenCard>
+              <ScreenTitle>{title}</ScreenTitle>
+              {children}
+            </ScreenCard>
+          </ScreenContainer>
         </ScrollView>
-      </ThemedView>
+      </View>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      {card}
-    </ThemedView>
+    <ScreenContainer>
+      <ScreenCard>
+        <ScreenTitle>{title}</ScreenTitle>
+        {children}
+      </ScreenCard>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.xxxl,
-  },
-  scrollContainer: {
+  } as ViewStyle,
+  loadingText: {
+    fontSize: FontSizes.md,
+    fontWeight: '500',
+  } as TextStyle,
+  scrollOuter: {
     flex: 1,
-  },
-  scroll: {
-    padding: Spacing.xxxl,
-    justifyContent: 'center',
+  } as ViewStyle,
+  scrollContent: {
     flexGrow: 1,
-  },
-  card: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    gap: Spacing.sm,
-  },
-  title: {
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  } as ViewStyle,
 });

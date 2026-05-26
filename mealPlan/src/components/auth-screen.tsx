@@ -1,8 +1,7 @@
 import { StyleSheet, View, type TextStyle, type ViewStyle } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { ScreenContainer, ScreenCard, ScreenTitle } from '@/components/ui/screen';
+import { Colors, Spacing } from '@/constants/theme';
 
 interface Props {
   title: string;
@@ -12,13 +11,13 @@ interface Props {
 
 export function AuthScreen({ title, children, footer }: Props) {
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.card}>
-        <ThemedText type="title" style={styles.title}>{title}</ThemedText>
+    <ScreenContainer>
+      <ScreenCard>
+        <ScreenTitle>{title}</ScreenTitle>
         {children}
         {footer && <View style={styles.footer}>{footer}</View>}
-      </View>
-    </ThemedView>
+      </ScreenCard>
+    </ScreenContainer>
   );
 }
 
@@ -29,24 +28,10 @@ export const authStyles = {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  card: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    gap: Spacing.lg,
-  },
-  title: {
-    marginBottom: Spacing.lg,
-  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: Spacing.md,
     marginTop: Spacing.lg,
-  },
+  } as ViewStyle,
 });

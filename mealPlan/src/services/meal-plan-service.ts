@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import { supabase } from './supabase';
 import type { MealPlan } from '@/models/meal-plan';
 import type { MealSlot } from '@/models/meal-slot';
@@ -21,7 +22,7 @@ function getMonday(date: Date): string {
 }
 
 function generateId(): string {
-  return crypto.randomUUID();
+  return randomUUID();
 }
 
 function nowIso(): string {

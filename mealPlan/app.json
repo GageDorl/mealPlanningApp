@@ -8,9 +8,11 @@
     "scheme": "mealplan",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.prepd.app",
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.prepd.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -41,6 +43,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "984ecfa9-a0b7-487a-a054-4b4c34c011b1"
+      }
     }
   }
 }

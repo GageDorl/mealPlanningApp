@@ -18,7 +18,7 @@ export default function SignInScreen() {
   const handleSignIn = async () => {
     setLoading(true);
     setError(null);
-    const { error } = await signInWithEmail(email, password);
+    const { data, error } = await signInWithEmail(email, password);
     setLoading(false);
 
     if (error) {
@@ -26,7 +26,9 @@ export default function SignInScreen() {
       return;
     }
 
-    router.replace('/macro-goals');
+    const userId = data.user?.id;
+    const existingProfile = userId ? await getProfile(userId) : null;
+    router.replace(existingProfile?.user.onboarding_completed ? '/' : '/macro-goals');
   };
 
   const handleProviderSignIn = async (provider: 'google' | 'apple') => {
@@ -69,7 +71,7 @@ export default function SignInScreen() {
     }
 
     setLoading(false);
-    router.replace('/macro-goals');
+    router.replace(existingProfile?.user.onboarding_completed ? '/' : '/macro-goals');
   };
 
   return (
@@ -108,13 +110,14 @@ export default function SignInScreen() {
         style={authStyles.socialButton}
         disabled={loading}
       />
+      {/* Apple sign-in requires paid Apple Developer account ($99/yr) — re-enable if that changes
       <Button
         label="Continue with Apple"
         onPress={() => handleProviderSignIn('apple')}
         variant="secondary"
         style={authStyles.socialButton}
         disabled={loading}
-      />
+      /> */}
     </AuthScreen>
   );
 }

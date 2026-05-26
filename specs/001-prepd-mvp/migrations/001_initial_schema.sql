@@ -163,6 +163,7 @@ CREATE TABLE grocery_items (
   quantity NUMERIC,
   unit TEXT,
   category ingredient_category_enum,
+  deficit_note TEXT,
   is_checked BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL
@@ -172,6 +173,8 @@ CREATE TABLE pantry_staples (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   ingredient_name TEXT NOT NULL,
+  quantity NUMERIC,
+  unit TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
   UNIQUE(user_id, ingredient_name)
 );

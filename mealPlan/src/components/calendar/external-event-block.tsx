@@ -1,28 +1,29 @@
-import { View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { Pressable, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import type { CalendarEvent } from '@/services/calendar.types';
 
 interface ExternalEventBlockProps {
   event: CalendarEvent;
   compact?: boolean;
+  onPress?: () => void;
 }
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-export function ExternalEventBlock({ event, compact = false }: ExternalEventBlockProps) {
+export function ExternalEventBlock({ event, compact = false, onPress }: ExternalEventBlockProps) {
   const timeLabel = event.isAllDay
     ? 'All day'
     : `${formatTime(event.startDate)} – ${formatTime(event.endDate)}`;
 
   return (
-    <View style={[styles.block, compact && styles.blockCompact]}>
+    <Pressable style={[styles.block, compact && styles.blockCompact]} onPress={onPress}>
       <Text style={styles.title} numberOfLines={compact ? 1 : 2}>
         {event.title}
       </Text>
       {!compact && <Text style={styles.time}>{timeLabel}</Text>}
-    </View>
+    </Pressable>
   );
 }
 
@@ -33,7 +34,7 @@ const styles = StyleSheet.create({
     borderLeftColor: '#4A90D9',
     borderRadius: BorderRadius.sm,
     padding: Spacing.xs,
-    minHeight: '100%',
+    flex: 1,
   } as ViewStyle,
   blockCompact: {
     justifyContent: 'center',

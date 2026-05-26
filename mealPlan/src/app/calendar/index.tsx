@@ -1,12 +1,27 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, Platform, useWindowDimensions, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { View, Text, ScrollView, Pressable, Platform, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, type ViewStyle, type TextStyle } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMealPlan } from '@/hooks/use-meal-plan';
 import { useCalendar } from '@/hooks/use-calendar';
-import { DayColumn, DayHeader, START_HOUR, HOUR_HEIGHT } from '@/components/calendar/day-column';
+import {
+  DayColumn,
+  DayHeader,
+  AllDayCell,
+  START_HOUR,
+  END_HOUR,
+  DEFAULT_HOUR_HEIGHT,
+  MIN_HOUR_HEIGHT,
+  MAX_HOUR_HEIGHT,
+  parseTimeToMinutes,
+} from '@/components/calendar/day-column';
+import { WeekEventsOverlay, type DayData } from '@/components/calendar/week-events-overlay';
 import { AddMealSlotModal } from '@/components/calendar/add-meal-slot-modal';
 import { RecipePickerModal } from '@/components/calendar/recipe-picker-modal';
+import { CalendarPickerModal } from '@/components/calendar/calendar-picker-modal';
+import { EventDetailModal } from '@/components/calendar/event-detail-modal';
+import { WeekPickerModal } from '@/components/calendar/week-picker-modal';
 import type { CalendarEvent } from '@/services/calendar.types';
 import type { Recipe } from '@/models/recipe';
 
@@ -43,18 +58,39 @@ export default function WeeklyPlannerScreen() {
   const theme = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const [weekOffset, setWeekOffset] = useState(0);
+  const [weekPickerVisible, setWeekPickerVisible] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [scrollX, setScrollX] = useState(0);
   const [horizontalViewportWidth, setHorizontalViewportWidth] = useState(0);
-  const isNarrow = windowWidth < 7 * 130;
+  const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+  const gridHeight = (END_HOUR - START_HOUR + 1) * hourHeight;
+  const isNarrow = windowWidth > 0 && windowWidth < 7 * 130;
 
   const today = new Date();
   const currentWeekStart = getSunday(addDays(today, weekOffset * 7));
-  const currentWeekEnd = addDays(currentWeekStart, 6);
+  const currentWeekEnd = addDays(currentWeekStart, 7);
 
   const { weekPlan, loading, createSlot, assignRecipe, deleteSlot, refresh } = useMealPlan(currentWeekStart);
-  const { connected, events, connectError, connect, loadEvents, createMealEvent } = useCalendar();
+  const {
+    connected, events, loading: calendarLoading, connectError, loadError,
+    availableCalendars, selectedCalendarIds, connectedCalendarTitle,
+    connect, selectCalendars, loadEvents, createMealEvent,
+  } = useCalendar();
+
+  // Calendar picker modal state
+  const [calPickerVisible, setCalPickerVisible] = useState(false);
+
+  // Auto-show picker when connected but no calendar selected yet
+  useEffect(() => {
+    if (connected && availableCalendars.length > 0 && selectedCalendarIds.length === 0) {
+      setCalPickerVisible(true);
+    }
+  }, [connected, availableCalendars.length, selectedCalendarIds.length]);
+
+  // Event detail modal state
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   // Add-slot modal state
   const [addSlotVisible, setAddSlotVisible] = useState(false);
@@ -67,12 +103,100 @@ export default function WeeklyPlannerScreen() {
 
   const verticalScrollRef = useRef<ScrollView>(null);
   const horizontalScrollRef = useRef<ScrollView>(null);
+  const hourHeightRef = useRef(hourHeight);
+  const pinchStartHeightRef = useRef(hourHeight);
+  const pinchPreviewScaleRef = useRef(new Animated.Value(1));
+  const pendingPinchHeightRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    hourHeightRef.current = hourHeight;
+
+    // Clear the preview scale only after the committed zoom height is applied,
+    // which avoids a one-frame snap back to the old layout on mobile.
+    if (pendingPinchHeightRef.current !== null) {
+      const target = pendingPinchHeightRef.current;
+      const current = hourHeight;
+
+      if (target === current) {
+        pinchPreviewScaleRef.current.setValue(1);
+        pendingPinchHeightRef.current = null;
+      }
+    }
+  }, [hourHeight]);
+
+  const changeWeek = useCallback((delta: number) => setWeekOffset((o) => o + delta), []);
+
+  const swipeGesture = useMemo(() =>
+    Gesture.Pan()
+      .runOnJS(true)
+      .activeOffsetX([-12, 12])
+      .failOffsetY([-10, 10])
+      .onEnd((e) => {
+        if (e.translationX < -50) changeWeek(1);
+        else if (e.translationX > 50) changeWeek(-1);
+      }),
+    [changeWeek]
+  );
+
+  const pinchZoomGesture = useMemo(() =>
+    Gesture.Pinch()
+      .runOnJS(true)
+      .onTouchesUp((e) => {
+        if (e.numberOfTouches < 2) {
+          setScrollEnabled(true);
+        }
+      })
+      .onTouchesCancelled(() => {
+        setScrollEnabled(true);
+      })
+      .onBegin(() => {
+        // Only lock scroll when a real pinch is recognized.
+        pinchStartHeightRef.current = hourHeightRef.current;
+        setScrollEnabled(false);
+      })
+      .onUpdate((e) => {
+        const nextHeight = Math.max(
+          MIN_HOUR_HEIGHT,
+          Math.min(MAX_HOUR_HEIGHT, pinchStartHeightRef.current * e.scale)
+        );
+
+        pinchPreviewScaleRef.current.setValue(nextHeight / pinchStartHeightRef.current);
+      })
+      .onEnd((e) => {
+        const nextHeight = Math.max(
+          MIN_HOUR_HEIGHT,
+          Math.min(MAX_HOUR_HEIGHT, pinchStartHeightRef.current * e.scale)
+        );
+        const committedHeight = Math.round(nextHeight);
+        pendingPinchHeightRef.current = committedHeight;
+        setHourHeight(committedHeight);
+      })
+      .onFinalize(() => {
+        if (pendingPinchHeightRef.current === null) {
+          pinchPreviewScaleRef.current.setValue(1);
+        }
+        setScrollEnabled(true);
+      }),
+    []
+  );
+
+  const pinchTranslateY = Animated.multiply(
+    Animated.add(pinchPreviewScaleRef.current, -1),
+    gridHeight / 2
+  );
+
+  const pinchPreviewTransform = {
+    transform: [
+      { translateY: pinchTranslateY },
+      { scaleY: pinchPreviewScaleRef.current },
+    ],
+  };
 
   const scrollToNow = (animated = true) => {
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const nowOffset = ((nowMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-    const targetY = Math.max(nowOffset - HOUR_HEIGHT, 0);
+    const nowOffset = ((nowMinutes - START_HOUR * 60) / 60) * hourHeight;
+    const targetY = Math.max(nowOffset - hourHeight, 0);
     const currentDayIndex = now.getDay();
     const targetX = Math.max(currentDayIndex * (MOBILE_DAY_WIDTH + DAY_GAP) - Spacing.sm, 0);
 
@@ -86,7 +210,9 @@ export default function WeeklyPlannerScreen() {
   // Auto-scroll all columns to current time on mount
   useEffect(() => {
     const timer = setTimeout(() => {
-      scrollToNow(false);
+      if(weekOffset === 0){
+        scrollToNow(false);
+      }
     }, 150);
     return () => clearTimeout(timer);
   }, [weekOffset]);
@@ -95,15 +221,15 @@ export default function WeeklyPlannerScreen() {
     if (connected) {
       loadEvents(currentWeekStart, currentWeekEnd);
     }
-  }, [connected, currentWeekStart.toISOString()]);
+  }, [connected, currentWeekStart.toISOString(), selectedCalendarIds.join(',')]);
 
   const weekLabel = `${currentWeekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${currentWeekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 
-  const handleAddSlot = (dayDate: string, time?: string) => {
+  const handleAddSlot = useCallback((dayDate: string, time?: string) => {
     setAddSlotDate(dayDate);
     setAddSlotTime(time);
     setAddSlotVisible(true);
-  };
+  }, []);
 
   const handleCreateSlot = async (label: string, time?: string) => {
     const daySlots = weekPlan?.slots.filter((s) => s.date === addSlotDate) ?? [];
@@ -115,10 +241,10 @@ export default function WeeklyPlannerScreen() {
     });
   };
 
-  const handleAssignRecipe = (slotId: string) => {
+  const handleAssignRecipe = useCallback((slotId: string) => {
     setActiveSlotId(slotId);
     setPickerVisible(true);
-  };
+  }, []);
 
   const handleRecipeSelected = async (recipe: Recipe) => {
     if (!activeSlotId) return;
@@ -148,13 +274,22 @@ export default function WeeklyPlannerScreen() {
     const daySlots = weekPlan?.slots.filter((s) => s.date === dayStr) ?? [];
     const dayEvents = events.filter((e) => isSameDay(e.startDate, dayStr));
     const isToday = dateToString(today) === dayStr;
+    return {
+      dayIndex: i,
+      date: dayStr,
+      isToday,
+      timedSlots: daySlots.filter((s) => parseTimeToMinutes(s.time_of_day) != null),
+      untimedSlots: daySlots.filter((s) => parseTimeToMinutes(s.time_of_day) == null),
+      timedEvents: dayEvents.filter((e) => !e.isAllDay),
+      allDayEvents: dayEvents.filter((e) => e.isAllDay),
+    };
+  }) satisfies DayData[];
 
-    return { dayIndex: i, date: dayStr, slots: daySlots, events: dayEvents, isToday };
-  });
+  const hasTopItems = days.some((d) => d.allDayEvents.length > 0 || d.untimedSlots.length > 0);
 
   const now = new Date();
   const isCurrentWeek = weekOffset === 0;
-  const nowIndicatorY = ((now.getHours() * 60 + now.getMinutes() - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+  const nowIndicatorY = ((now.getHours() * 60 + now.getMinutes() - START_HOUR * 60) / 60) * hourHeight;
   const currentDayIndex = now.getDay();
   const currentDayLeft = currentDayIndex * (MOBILE_DAY_WIDTH + DAY_GAP);
   const currentDayRight = currentDayLeft + MOBILE_DAY_WIDTH;
@@ -168,14 +303,17 @@ export default function WeeklyPlannerScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header */}
+      {/* Header — swipe left/right to change week, tap label to jump */}
+      <GestureDetector gesture={swipeGesture}>
       <View style={styles.header}>
         <Pressable onPress={() => setWeekOffset((o) => o - 1)}>
           <Text style={[styles.navArrow, { color: Colors.accent }]}>‹</Text>
         </Pressable>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.weekLabel, { color: theme.text }]}>{weekLabel}</Text>
+          <Pressable onPress={() => setWeekPickerVisible(true)}>
+            <Text style={[styles.weekLabel, { color: theme.text }]}>{weekLabel} ▾</Text>
+          </Pressable>
           {weekOffset !== 0 && (
             <Pressable onPress={() => setWeekOffset(0)}>
               <Text style={[styles.todayLink, { color: Colors.accent }]}>Today</Text>
@@ -187,24 +325,46 @@ export default function WeeklyPlannerScreen() {
           <Text style={[styles.navArrow, { color: Colors.accent }]}>›</Text>
         </Pressable>
       </View>
+      </GestureDetector>
 
-      {/* Calendar connect banner */}
-      {!connected && (
-        <View style={styles.connectRow}>
-          <Pressable style={styles.connectBanner} onPress={connect} accessibilityRole="button" accessibilityLabel="Connect your calendar">
-            <Text style={styles.connectText}>Connect Calendar</Text>
-          </Pressable>
-          {connectError ? (
-            <Text style={[styles.connectErrorText, { color: theme.textSecondary }]}>{connectError}</Text>
-          ) : null}
-        </View>
-      )}
+      {/* Calendar connect / connected banner */}
+      <View style={styles.connectRow}>
+        {connected ? (
+          <View style={styles.connectedBadge}>
+            {calendarLoading ? (
+              <ActivityIndicator size="small" color={theme.textSecondary} />
+            ) : (
+              <View style={[styles.connectedDot, { backgroundColor: theme.success }]} />
+            )}
+            <Text style={[styles.connectedText, { color: theme.textSecondary }]}>
+              {calendarLoading ? 'Loading events…' : `${connectedCalendarTitle} connected`}
+            </Text>
+            {!calendarLoading && availableCalendars.length > 1 && (
+              <Pressable onPress={() => setCalPickerVisible(true)}>
+                <Text style={[styles.changeCalendarText, { color: Colors.accent }]}>Change</Text>
+              </Pressable>
+            )}
+          </View>
+        ) : (
+          <>
+            <Pressable style={styles.connectBanner} onPress={connect} accessibilityRole="button" accessibilityLabel="Connect your calendar">
+              <Text style={styles.connectText}>Connect Calendar</Text>
+            </Pressable>
+            {(loadError || connectError) ? (
+              <Text style={[styles.connectErrorText, { color: theme.textSecondary }]}>{loadError ?? connectError}</Text>
+            ) : null}
+          </>
+        )}
+      </View>
 
       <View style={styles.calendarShell}>
         {isNarrow ? (
           <ScrollView
             ref={horizontalScrollRef}
             horizontal
+            scrollEnabled
+            directionalLockEnabled
+            nestedScrollEnabled
             showsHorizontalScrollIndicator={false}
             onLayout={(event) => setHorizontalViewportWidth(event.nativeEvent.layout.width)}
             onScroll={(event) => setScrollX(event.nativeEvent.contentOffset.x)}
@@ -218,32 +378,61 @@ export default function WeeklyPlannerScreen() {
                 ))}
               </View>
 
-              <ScrollView
-                ref={verticalScrollRef}
-                style={styles.scrollArea}
-                showsVerticalScrollIndicator={false}
-                onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
-                onScroll={(event) => setScrollY(event.nativeEvent.contentOffset.y)}
-                scrollEventThrottle={16}
-              >
-                <View style={styles.weekGrid}>
+              {hasTopItems && (
+                <View style={styles.dayHeaderRow}>
                   {days.map((day) => (
-                    <DayColumn
+                    <AllDayCell
                       key={day.date}
-                      dayIndex={day.dayIndex}
-                      date={day.date}
-                      slots={day.slots}
-                      externalEvents={day.events}
-                      onAddSlot={(time: string) => handleAddSlot(day.date, time)}
-                      onSlotPress={() => {}}
-                      onDeleteSlot={handleDeleteSlot}
+                      events={day.allDayEvents}
+                      untimedSlots={day.untimedSlots}
+                      onEventPress={setSelectedEvent}
                       onAssignRecipe={handleAssignRecipe}
-                      isToday={day.isToday}
-                      isNarrow
+                      onDeleteSlot={handleDeleteSlot}
                     />
                   ))}
                 </View>
-              </ScrollView>
+              )}
+
+              <GestureDetector gesture={pinchZoomGesture}>
+                <ScrollView
+                  ref={verticalScrollRef}
+                  style={styles.scrollArea}
+                  scrollEnabled={scrollEnabled}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={false}
+                  onLayout={(event) => {
+                    const { height } = event.nativeEvent.layout;
+                    setViewportHeight(height);
+                  }}
+                  onScroll={(event) => {
+                    const nextScrollY = event.nativeEvent.contentOffset.y;
+                    setScrollY(nextScrollY);
+                  }}
+                  scrollEventThrottle={16}
+                >
+                  <Animated.View style={[styles.weekGrid, { height: gridHeight }, pinchPreviewTransform]}>
+                    {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                      <DayColumn
+                        key={i}
+                        bgColor={theme.backgroundElement}
+                        borderColor={theme.border}
+                        textColor={theme.textSecondary}
+                        hourHeight={hourHeight}
+                      />
+                    ))}
+                    <WeekEventsOverlay
+                      days={days}
+                      isCurrentWeek={isCurrentWeek}
+                      hourHeight={hourHeight}
+                      gridHeight={gridHeight}
+                      onAddSlot={handleAddSlot}
+                      onAssignRecipe={handleAssignRecipe}
+                      onDeleteSlot={handleDeleteSlot}
+                      onEventPress={setSelectedEvent}
+                    />
+                  </Animated.View>
+                </ScrollView>
+              </GestureDetector>
             </View>
           </ScrollView>
         ) : (
@@ -254,31 +443,61 @@ export default function WeeklyPlannerScreen() {
               ))}
             </View>
 
-            <ScrollView
-              ref={verticalScrollRef}
-              style={styles.scrollArea}
-              showsVerticalScrollIndicator={false}
-              onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
-              onScroll={(event) => setScrollY(event.nativeEvent.contentOffset.y)}
-              scrollEventThrottle={16}
-            >
-              <View style={[styles.weekGrid, styles.weekGridWeb]}>
+            {hasTopItems && (
+              <View style={styles.dayHeaderRow}>
                 {days.map((day) => (
-                  <DayColumn
+                  <AllDayCell
                     key={day.date}
-                    dayIndex={day.dayIndex}
-                    date={day.date}
-                    slots={day.slots}
-                    externalEvents={day.events}
-                    onAddSlot={(time: string) => handleAddSlot(day.date, time)}
-                    onSlotPress={() => {}}
-                    onDeleteSlot={handleDeleteSlot}
+                    events={day.allDayEvents}
+                    untimedSlots={day.untimedSlots}
+                    onEventPress={setSelectedEvent}
                     onAssignRecipe={handleAssignRecipe}
-                    isToday={day.isToday}
+                    onDeleteSlot={handleDeleteSlot}
                   />
                 ))}
               </View>
-            </ScrollView>
+            )}
+
+            <GestureDetector gesture={pinchZoomGesture}>
+              <ScrollView
+                ref={verticalScrollRef}
+                style={styles.scrollArea}
+                scrollEnabled={scrollEnabled}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+                onLayout={(event) => {
+                  const { height } = event.nativeEvent.layout;
+                  setViewportHeight(height);
+                }}
+                onScroll={(event) => {
+                  const nextScrollY = event.nativeEvent.contentOffset.y;
+                  setScrollY(nextScrollY);
+                }}
+                scrollEventThrottle={16}
+              >
+                <Animated.View style={[styles.weekGrid, styles.weekGridWeb, { height: gridHeight }, pinchPreviewTransform]}>
+                  {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                    <DayColumn
+                      key={i}
+                      bgColor={theme.backgroundElement}
+                      borderColor={theme.border}
+                      textColor={theme.textSecondary}
+                      hourHeight={hourHeight}
+                    />
+                  ))}
+                  <WeekEventsOverlay
+                    days={days}
+                    isCurrentWeek={isCurrentWeek}
+                    hourHeight={hourHeight}
+                    gridHeight={gridHeight}
+                    onAddSlot={handleAddSlot}
+                    onAssignRecipe={handleAssignRecipe}
+                    onDeleteSlot={handleDeleteSlot}
+                    onEventPress={setSelectedEvent}
+                  />
+                </Animated.View>
+              </ScrollView>
+            </GestureDetector>
           </>
         )}
       </View>
@@ -305,6 +524,25 @@ export default function WeeklyPlannerScreen() {
           setActiveSlotId(null);
         }}
         onSelect={handleRecipeSelected}
+      />
+
+      <CalendarPickerModal
+        visible={calPickerVisible}
+        calendars={availableCalendars}
+        selectedIds={selectedCalendarIds}
+        onDone={(ids) => { selectCalendars(ids); setCalPickerVisible(false); }}
+      />
+
+      <EventDetailModal
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+      />
+
+      <WeekPickerModal
+        visible={weekPickerVisible}
+        weekOffset={weekOffset}
+        onSelect={setWeekOffset}
+        onClose={() => setWeekPickerVisible(false)}
       />
     </View>
   );
@@ -377,6 +615,25 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
     textAlign: 'center',
   } as TextStyle,
+  connectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  } as ViewStyle,
+  connectedDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  } as ViewStyle,
+  connectedText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+  } as TextStyle,
+  changeCalendarText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    marginLeft: Spacing.xs,
+  } as TextStyle,
   scrollArea: {
     flex: 1,
   } as ViewStyle,
@@ -399,11 +656,15 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0px 3px 8px rgba(0,0,0,0.18)' }
+      : {
+          shadowColor: '#000000',
+          shadowOpacity: 0.18,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 4,
+        }),
   } as ViewStyle,
   scrollToNowText: {
     color: '#FFFFFF',

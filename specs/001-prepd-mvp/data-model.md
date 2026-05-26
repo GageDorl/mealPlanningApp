@@ -220,10 +220,18 @@ Reference table for known ingredients with USDA data.
 |-------|------|-------------|-------|
 | `id` | UUID | PK | |
 | `user_id` | UUID | FK → User, NOT NULL | |
-| `ingredient_name` | string | NOT NULL | Normalized name to match against |
+| `ingredient_name` | string | NOT NULL | Normalized (lowercase) name |
+| `quantity` | decimal | nullable | Amount on hand; null = have enough (exclude from list) |
+| `unit` | string | nullable | Unit for quantity; same-unit comparison only |
 | `created_at` | timestamp | NOT NULL | |
 
 **UNIQUE**: (`user_id`, `ingredient_name`)
+
+**Grocery list subtraction logic**:
+- Pantry item exists, `quantity = null` → exclude from list entirely
+- Pantry item exists, `quantity >= recipe needs` (same unit) → exclude
+- Pantry item exists, `quantity < recipe needs` (same unit) → include with deficit note "need X more for planned meals"
+- Units differ → include normally (cannot compare)
 
 ## Validation Rules
 
