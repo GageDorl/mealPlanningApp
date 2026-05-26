@@ -59,7 +59,7 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 - [x] T019 Create shared UI primitives (Button, Card, Input, ProgressRing, ProgressBar) in mealPlan/src/components/ui/
 - [x] T020 Remove existing Expo boilerplate screens and components (explore.tsx, hint-row.tsx, animated-icon.tsx, web-badge.tsx, app-tabs.tsx)
 - [x] T021 Set up root layout with auth gate and PowerSync provider in mealPlan/src/app/_layout.tsx
-- [x] T022 Create Supabase Postgres migration SQL for all 12 tables per data-model.md (output to specs/001-prepd-mvp/migrations/001_initial_schema.sql)
+- [x] T022 Create Supabase Postgres migration SQL for all 12 tables per data-model.md (put to specs/001-prepd-mvp/migrations/001_initial_schema.sql)
 
 **Checkpoint**: Foundation ready — 3 developers can now work in parallel on separate branches.
 
@@ -262,11 +262,11 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 8
 
-- [ ] T089 [US8] Implement notification scheduling service (register, schedule, cancel) in mealPlan/src/services/notification-service.ts
-- [ ] T090 [US8] Create notification settings screen with three independent toggles in mealPlan/src/app/profile/notifications.tsx
-- [ ] T091 [US8] Wire meal slot creation/update to schedule meal reminder notifications in mealPlan/src/services/meal-plan-service.ts (extend)
-- [ ] T092 [US8] Implement planning nudge scheduler (Sunday evening check) in mealPlan/src/services/notification-service.ts (extend)
-- [ ] T093 [US8] Implement macro check-in scheduler (end-of-day summary) in mealPlan/src/services/notification-service.ts (extend)
+- [x] T089 [US8] Implement notification scheduling service (register, schedule, cancel) in mealPlan/src/services/notification-service.ts
+- [x] T090 [US8] Create notification settings screen with three independent toggles in mealPlan/src/app/profile/notifications.tsx
+- [x] T091 [US8] Wire meal slot creation/update to schedule meal reminder notifications in mealPlan/src/services/meal-plan-service.ts (extend)
+- [x] T092 [US8] Implement planning nudge scheduler (Sunday evening check) in mealPlan/src/services/notification-service.ts (extend)
+- [x] T093 [US8] Implement macro check-in scheduler (end-of-day summary) in mealPlan/src/services/notification-service.ts (extend)
 
 **Checkpoint**: All three notification types configurable and firing correctly.
 

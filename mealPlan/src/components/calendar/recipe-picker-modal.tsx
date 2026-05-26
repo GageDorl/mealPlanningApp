@@ -7,11 +7,11 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  Animated,
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
+import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ interface RecipePickerModalProps {
 
 export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerModalProps) {
   const theme = useTheme();
+  const keyboardSlide = useKeyboardSlide();
   const [query, setQuery] = useState('');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,9 +81,8 @@ export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerMo
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.kavWrapper} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.overlay}>
-        <View style={[styles.sheet, { backgroundColor: theme.background }]}>
+        <Animated.View style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide }] }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.text }]}>Choose a Recipe</Text>
             <Button label="Cancel" onPress={onClose} variant="secondary" />
@@ -114,17 +114,13 @@ export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerMo
               }
             />
           )}
-        </View>
+        </Animated.View>
       </View>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  kavWrapper: {
-    flex: 1,
-  } as ViewStyle,
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

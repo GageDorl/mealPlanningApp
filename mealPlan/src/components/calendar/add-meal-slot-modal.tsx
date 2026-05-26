@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, Pressable, KeyboardAvoidingView, Platform, type ViewStyle, type TextStyle } from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable, Animated, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -62,6 +63,8 @@ export function AddMealSlotModal({ visible, date, initialTime, onClose, onAdd }:
     setLabel(quickLabel);
   };
 
+  const keyboardSlide = useKeyboardSlide();
+
   const [year, month, day] = date.split('-').map(Number);
   const formattedDate = new Date(year, month - 1, day).toLocaleDateString(undefined, {
     weekday: 'long',
@@ -71,9 +74,8 @@ export function AddMealSlotModal({ visible, date, initialTime, onClose, onAdd }:
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.kavWrapper} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: theme.background }]} onPress={()=>{}}>
+        <Animated.View style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide }] }]} onStartShouldSetResponder={() => true}>
           <Text style={[styles.title, { color: theme.text }]}>Add Meal Slot</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{formattedDate}</Text>
 
@@ -133,17 +135,13 @@ export function AddMealSlotModal({ visible, date, initialTime, onClose, onAdd }:
             <Button label="Cancel" onPress={onClose} variant="secondary" />
             <Button label="Add Slot" onPress={handleAdd} disabled={!label.trim()} />
           </View>
-        </Pressable>
+        </Animated.View>
       </Pressable>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  kavWrapper: {
-    flex: 1,
-  } as ViewStyle,
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

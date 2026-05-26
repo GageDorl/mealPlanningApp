@@ -1,5 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 import { supabase } from './supabase';
+import { scheduleMealReminder, cancelMealReminder } from './notification-service';
 import type { MealPlan } from '@/models/meal-plan';
 import type { MealSlot } from '@/models/meal-slot';
 import type { Recipe } from '@/models/recipe';
@@ -118,11 +119,31 @@ export async function createSlot(params: {
   return slot as MealSlot;
 }
 
+async function tryScheduleReminder(slotId: string, recipeId: string): Promise<void> {
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user.id;
+  if (!userId) return;
+
+  const [{ data: user }, { data: slot }, { data: recipe }] = await Promise.all([
+    supabase.from('users').select('notification_meal_reminders').eq('id', userId).single(),
+    supabase.from('meal_slots').select('date, time_of_day').eq('id', slotId).single(),
+    supabase.from('recipes').select('title').eq('id', recipeId).single(),
+  ]);
+
+  if (!user?.notification_meal_reminders || !slot?.date || !slot?.time_of_day || !recipe?.title) return;
+
+  const [hour, minute] = (slot.time_of_day as string).split(':').map(Number);
+  const [year, month, day] = (slot.date as string).split('-').map(Number);
+  const date = new Date(year, month - 1, day, hour, minute);
+  await scheduleMealReminder(slotId, recipe.title as string, date);
+}
+
 export async function assignRecipe(slotId: string, recipeId: string): Promise<void> {
   await supabase
     .from('meal_slots')
     .update({ recipe_id: recipeId, updated_at: nowIso() })
     .eq('id', slotId);
+  await tryScheduleReminder(slotId, recipeId).catch(() => {});
 }
 
 export async function removeRecipe(slotId: string): Promise<void> {
@@ -130,9 +151,11 @@ export async function removeRecipe(slotId: string): Promise<void> {
     .from('meal_slots')
     .update({ recipe_id: null, updated_at: nowIso() })
     .eq('id', slotId);
+  await cancelMealReminder(slotId).catch(() => {});
 }
 
 export async function deleteSlot(slotId: string): Promise<void> {
+  await cancelMealReminder(slotId).catch(() => {});
   await supabase.from('meal_slots').delete().eq('id', slotId);
 }
 
