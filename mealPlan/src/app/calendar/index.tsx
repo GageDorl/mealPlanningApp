@@ -148,6 +148,7 @@ export default function WeeklyPlannerScreen() {
     Gesture.Pinch()
       .runOnJS(true)
       .onBegin(() => {
+        // Only lock scroll when a real pinch is recognized.
         pinchStartHeightRef.current = hourHeightRef.current;
       })
       .onUpdate((e) => {
