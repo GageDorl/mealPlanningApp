@@ -46,6 +46,8 @@ export default function HomeScreen() {
               { label: 'Macros', href: '/macros' },
               { label: 'Grocery', href: '/grocery' },
               { label: 'Profile', href: '/profile' },
+              { label: 'Recipe Search', href: '/recipes/search' },
+              { label: 'Saved Recipes', href: '/recipes/saved' },
             ] as const).map(({ label, href }) => (
               <Button key={href} label={label} onPress={() => router.push(href as any)} variant="secondary" />
             ))}

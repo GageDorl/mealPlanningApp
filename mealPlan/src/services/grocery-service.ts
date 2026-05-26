@@ -61,9 +61,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 function getMonday(date: Date): string {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().split('T')[0];
+  const diff = day === 0 ? 1 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function groupItemsByCategory(items: GroceryItemRow[]): GroceryDisplayGroup[] {

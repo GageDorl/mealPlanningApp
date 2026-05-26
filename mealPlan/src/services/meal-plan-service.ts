@@ -15,10 +15,14 @@ export interface WeekPlan {
 
 function getMonday(date: Date): string {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().split('T')[0];
+  const day = d.getDay(); // 0=Sun, 1=Mon, …, 6=Sat
+  // Sunday is the first day of the displayed week (Sun-Sat), so advance to the
+  // following Monday rather than falling back to the previous one.
+  const diff = day === 0 ? 1 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  // Use local date parts — toISOString() is UTC and shifts the date for
+  // users in positive-offset timezones.
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function generateId(): string {
@@ -32,11 +36,12 @@ function nowIso(): string {
 export async function getWeek(weekStart: Date): Promise<WeekPlan> {
   const monday = getMonday(weekStart);
 
-  const { data: existingPlan } = await supabase
-    .from('meal_plans')
-    .select('*')
-    .eq('week_start', monday)
-    .single();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user.id ?? null;
+
+  const query = supabase.from('meal_plans').select('*').eq('week_start', monday);
+  if (userId) query.eq('user_id', userId);
+  const { data: existingPlan } = await query.single();
 
   let mealPlan: MealPlan;
 
@@ -46,7 +51,7 @@ export async function getWeek(weekStart: Date): Promise<WeekPlan> {
     const now = nowIso();
     const newPlan = {
       id: generateId(),
-      user_id: null,
+      user_id: userId,
       week_start: monday,
       created_at: now,
       updated_at: now,
