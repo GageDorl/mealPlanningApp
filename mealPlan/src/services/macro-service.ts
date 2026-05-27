@@ -58,7 +58,7 @@ export async function getDailyProgress(userId: string, date: string): Promise<Da
 
   const [{ data: goalsData }, { data: planData }] = await Promise.all([
     supabase.from('macro_goals').select('*').eq('user_id', userId).eq('is_active', true).order('display_order'),
-    supabase.from('meal_plans').select('id').eq('user_id', userId).eq('week_start', weekStart).single(),
+    supabase.from('meal_plans').select('id').eq('user_id', userId).eq('week_start', weekStart).maybeSingle(),
   ]);
 
   const goals = (goalsData ?? []) as MacroGoalRow[];
