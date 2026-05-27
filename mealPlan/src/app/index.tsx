@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { Alert, View, Text, ScrollView, ActivityIndicator, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useTheme } from '@/hooks/use-theme';
@@ -50,6 +50,15 @@ export default function HomeScreen() {
       .filter((s) => s.date === todayStr)
       .sort((a, b) => a.display_order - b.display_order);
   }, [weekPlan, todayStr]);
+
+  const handleAddRecipe = useCallback(() => {
+    Alert.alert('Add Recipe', undefined, [
+      { text: 'Import from URL', onPress: () => router.push('/recipes/import') },
+      { text: 'Search Recipes', onPress: () => router.push('/recipes/search') },
+      { text: 'Create New', onPress: () => router.push('/recipes/create') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [router]);
 
   const handleNudgePress = useCallback(() => {
     if (!calendarConnected) {
@@ -113,6 +122,7 @@ export default function HomeScreen() {
           <MealsPreviewCard
             slots={todaySlots}
             onPress={() => router.push('/calendar')}
+            onAddPress={handleAddRecipe}
           />
         </View>
       </View>

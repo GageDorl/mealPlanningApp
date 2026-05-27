@@ -6,11 +6,12 @@ import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
 interface MealsPreviewCardProps {
   slots: MealSlotWithRecipe[];
   onPress: () => void;
+  onAddPress: () => void;
 }
 
 const MAX_VISIBLE = 4;
 
-export function MealsPreviewCard({ slots, onPress }: MealsPreviewCardProps) {
+export function MealsPreviewCard({ slots, onPress, onAddPress }: MealsPreviewCardProps) {
   const theme = useTheme();
   const visible = slots.slice(0, MAX_VISIBLE);
   const overflow = slots.length - MAX_VISIBLE;
@@ -20,7 +21,16 @@ export function MealsPreviewCard({ slots, onPress }: MealsPreviewCardProps) {
       style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
       onPress={onPress}
     >
-      <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Today's Meals</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Today's Meals</Text>
+        <Pressable
+          onPress={(e) => { e.stopPropagation?.(); onAddPress(); }}
+          hitSlop={8}
+          style={[styles.addButton, { borderColor: theme.border }]}
+        >
+          <Text style={[styles.addButtonText, { color: theme.textSecondary }]}>+</Text>
+        </Pressable>
+      </View>
 
       {slots.length === 0 ? (
         <View style={styles.emptyState}>
@@ -79,11 +89,29 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     flex: 1,
   } as ViewStyle,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  } as ViewStyle,
   cardTitle: {
     fontSize: FontSizes.xs,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+  } as TextStyle,
+  addButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as ViewStyle,
+  addButtonText: {
+    fontSize: FontSizes.sm,
+    lineHeight: 18,
+    fontWeight: '400',
   } as TextStyle,
   emptyState: {
     alignItems: 'center',
