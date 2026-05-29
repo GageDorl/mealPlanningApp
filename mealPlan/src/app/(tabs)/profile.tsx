@@ -194,6 +194,9 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    maxWidth: MaxContentWidth,
+    width: '100%',
+    marginHorizontal: 'auto',
   } as ViewStyle,
   scrollContent: {
     padding: Spacing.lg,

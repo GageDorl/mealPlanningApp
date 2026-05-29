@@ -14,7 +14,7 @@ import { GroceryPreviewCard } from '@/components/dashboard/grocery-preview-card'
 import { MealsPreviewCard } from '@/components/dashboard/meals-preview-card';
 import { MacrosPreviewCard } from '@/components/dashboard/macros-preview-card';
 import { NudgeBanner } from '@/components/dashboard/nudge-banner';
-import { Colors, FontSizes, Spacing } from '@/constants/theme';
+import { Colors, FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
 
 function todayString(): string {
   const d = new Date();
@@ -164,6 +164,9 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     gap: Spacing.md,
     paddingBottom: Spacing.xxxl,
+    maxWidth: MaxContentWidth,
+    width: '100%',
+    marginHorizontal: 'auto',
   } as ViewStyle,
   header: {
     flexDirection: 'row',
