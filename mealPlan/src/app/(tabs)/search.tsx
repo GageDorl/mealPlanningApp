@@ -11,7 +11,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
+import { Colors, Spacing, FontSizes, BorderRadius, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { RecipeCard } from '@/components/recipes/recipe-card';
 import { searchRecipes, type SpoonacularSearchResult } from '@/services/spoonacular';
@@ -247,6 +247,9 @@ function Chip({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    maxWidth: MaxContentWidth,
+    width: '100%',
+    marginHorizontal: 'auto',
   } as ViewStyle,
   header: {
     flexDirection: 'row',

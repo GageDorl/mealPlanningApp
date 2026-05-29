@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import type { RecipeFormData, RecipeIngredientInput } from '@/services/recipe-service';
 import { parseIngredientString } from '@/utils/ingredient-parser';
 
@@ -124,14 +125,25 @@ export async function importFromUrl(url: string): Promise<ImportResult> {
   }
 
   let html: string;
-  try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Prepd/1.0; recipe importer)' },
-    });
-    if (!response.ok) return { success: false, error: 'fetch_failed' };
-    html = await response.text();
-  } catch {
-    return { success: false, error: 'fetch_failed' };
+  if (Platform.OS === 'web') {
+    // Browser blocks cross-origin fetches — proxy through the edge function instead
+    const { supabase } = await import('@/services/supabase');
+    const { data, error } = await supabase.functions.invoke<{ html?: string; error?: string }>(
+      'fetch-recipe-html',
+      { body: { url } }
+    );
+    if (error || !data?.html) return { success: false, error: 'fetch_failed' };
+    html = data.html;
+  } else {
+    try {
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Prepd/1.0; recipe importer)' },
+      });
+      if (!response.ok) return { success: false, error: 'fetch_failed' };
+      html = await response.text();
+    } catch {
+      return { success: false, error: 'fetch_failed' };
+    }
   }
 
   const ldBlocks: unknown[] = [];
