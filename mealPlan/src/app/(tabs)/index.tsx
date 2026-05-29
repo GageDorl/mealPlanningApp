@@ -54,7 +54,7 @@ export default function HomeScreen() {
   const handleAddRecipe = useCallback(() => {
     Alert.alert('Add Recipe', undefined, [
       { text: 'Import from URL', onPress: () => router.push('/recipes/import') },
-      { text: 'Search Recipes', onPress: () => router.push('/recipes/search') },
+      { text: 'Search Recipes', onPress: () => router.push('/search') },
       { text: 'Create New', onPress: () => router.push('/recipes/create') },
       { text: 'Cancel', style: 'cancel' },
     ]);
@@ -121,7 +121,7 @@ export default function HomeScreen() {
         <View style={styles.rightColumn}>
           <MealsPreviewCard
             slots={todaySlots}
-            onPress={() => router.push('/calendar')}
+            onPress={() => router.push('/recipes/saved')}
             onAddPress={handleAddRecipe}
           />
         </View>

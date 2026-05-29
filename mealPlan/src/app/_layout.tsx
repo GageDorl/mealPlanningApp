@@ -18,7 +18,7 @@ export default function RootLayout() {
         <Provider store={store}>
           <PowerSyncProvider>
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <SafeAreaView style={styles.root}>
+              <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
                 <Slot />
               </SafeAreaView>
             </ThemeProvider>

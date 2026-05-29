@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { BorderRadius, Colors, FontSizes, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { lookupIngredient, resolvePortionGrams, type UsdaIngredientResult } from '@/services/usda';
+import { lookupIngredient, type FoodSearchResult } from '@/services/fatsecret';
 import { calculateForQuantity } from '@/utils/macro-calculator';
 import type { RecipeIngredientInput } from '@/services/recipe-service';
 
@@ -19,7 +19,7 @@ export interface IngredientInputValue {
   name: string;
   quantity: string;
   unit: string;
-  usdaResult?: UsdaIngredientResult;
+  offResult?: FoodSearchResult;
   macros?: {
     calories: number;
     protein: number;
@@ -59,19 +59,18 @@ const PAGE_SIZE = 10;
 
 export function IngredientInput({ value, onChange, onRemove, index }: IngredientInputProps) {
   const theme = useTheme();
-  const [suggestions, setSuggestions] = useState<UsdaIngredientResult[]>([]);
+  const [suggestions, setSuggestions] = useState<FoodSearchResult[]>([]);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [currentQuery, setCurrentQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [loadingPortions, setLoadingPortions] = useState(false);
-  const [portionEstimated, setPortionEstimated] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function computeMacros(
-    ingredient: UsdaIngredientResult,
+    ingredient: FoodSearchResult,
     qty: string,
     unit: string
   ): { calories: number; protein: number; carbs: number; fat: number } | undefined {
@@ -82,7 +81,7 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
   }
 
   function handleNameChange(text: string) {
-    onChange({ ...value, name: text, usdaResult: undefined, macros: undefined });
+    onChange({ ...value, name: text, offResult: undefined, macros: undefined });
     setShowSuggestions(true);
     setVisibleCount(INITIAL_VISIBLE);
     setCurrentPage(1);
@@ -96,8 +95,9 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
     debounceRef.current = setTimeout(async () => {
       setLoadingSuggestions(true);
       try {
-        const result = await lookupIngredient(text);
+        const result = await lookupIngredient(text, 1);
         setSuggestions(result.results);
+        setHasMore(result.hasMore);
       } catch {
         setSuggestions([]);
       } finally {
@@ -108,18 +108,18 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
 
   async function handleLoadMore() {
     const query = currentQuery || value.name;
-    if (!query.trim() || loadingMore) return;
+    if (!query.trim() || loadingMore || !hasMore) return;
     const nextPage = currentPage + 1;
     setLoadingMore(true);
     try {
-      const result = await lookupIngredient(query, undefined, nextPage);
+      const result = await lookupIngredient(query, nextPage);
       setSuggestions((prev) => {
-        const existingIds = new Set(prev.map((s) => s.fdcId));
-        const fresh = result.results.filter((r) => !existingIds.has(r.fdcId));
-        return [...prev, ...fresh];
+        const existingIds = new Set(prev.map((s) => s.id));
+        return [...prev, ...result.results.filter((r) => !existingIds.has(r.id))];
       });
       setVisibleCount((prev) => prev + PAGE_SIZE);
       setCurrentPage(nextPage);
+      setHasMore(result.hasMore);
     } catch {
       // silent
     } finally {
@@ -128,61 +128,29 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
   }
 
   const handleSelectSuggestion = useCallback(
-    async (ingredient: UsdaIngredientResult) => {
+    (ingredient: FoodSearchResult) => {
       setSuggestions([]);
       setShowSuggestions(false);
-      setPortionEstimated(false);
-
-      // Apply selection immediately so the UI feels responsive
       onChange({
         ...value,
         name: ingredient.name,
-        usdaResult: ingredient,
+        offResult: ingredient,
         macros: computeMacros(ingredient, value.quantity, value.unit),
       });
-
-      // If no weight/volume unit, try to resolve a gram equivalent from USDA portions
-      setLoadingPortions(true);
-      try {
-        const grams = await resolvePortionGrams(
-          ingredient.fdcId,
-          ingredient.name,
-          parseFloat(value.quantity) || 1,
-          value.unit
-        );
-        if (grams !== undefined) {
-          const qtyStr = String(grams);
-          onChange({
-            ...value,
-            name: ingredient.name,
-            usdaResult: ingredient,
-            quantity: qtyStr,
-            unit: 'g',
-            macros: computeMacros(ingredient, qtyStr, 'g'),
-          });
-          setPortionEstimated(true);
-        }
-      } catch {
-        // portion resolution is best-effort
-      } finally {
-        setLoadingPortions(false);
-      }
     },
     [value, onChange]
   );
 
   function handleQuantityChange(text: string) {
-    setPortionEstimated(false);
-    const macros = value.usdaResult
-      ? computeMacros(value.usdaResult, text, value.unit)
+    const macros = value.offResult
+      ? computeMacros(value.offResult, text, value.unit)
       : undefined;
     onChange({ ...value, quantity: text, macros });
   }
 
   function handleUnitChange(unit: string) {
-    setPortionEstimated(false);
-    const macros = value.usdaResult
-      ? computeMacros(value.usdaResult, value.quantity, unit)
+    const macros = value.offResult
+      ? computeMacros(value.offResult, value.quantity, unit)
       : undefined;
     onChange({ ...value, unit, macros });
   }
@@ -225,12 +193,6 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
             onChangeText={handleQuantityChange}
             keyboardType="decimal-pad"
           />
-          {loadingPortions && (
-            <ActivityIndicator size="small" color={Colors.accent} style={styles.qtyLoader} />
-          )}
-          {portionEstimated && !loadingPortions && (
-            <Text style={[styles.estLabel, { color: theme.textSecondary }]}>est.</Text>
-          )}
         </View>
 
         <TextInput
@@ -250,7 +212,7 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
         )}
       </View>
 
-      {/* USDA autocomplete dropdown */}
+      {/* Autocomplete dropdown */}
       {showSuggestions && suggestions.length > 0 && (
         <View
           style={[
@@ -260,7 +222,7 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
         >
           {suggestions.slice(0, visibleCount).map((s) => (
             <Pressable
-              key={s.fdcId}
+              key={s.id}
               style={[styles.dropdownItem, { borderBottomColor: theme.border }]}
               onPress={() => handleSelectSuggestion(s)}
             >
@@ -276,7 +238,7 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
             </Pressable>
           ))}
 
-          {/* Show more fetched results */}
+          {/* Show more already-fetched results */}
           {visibleCount < suggestions.length && (
             <Pressable
               style={[styles.dropdownAction, { borderTopColor: theme.border }]}
@@ -288,8 +250,8 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
             </Pressable>
           )}
 
-          {/* Load next page from USDA */}
-          {visibleCount >= suggestions.length && (
+          {/* Load next page */}
+          {visibleCount >= suggestions.length && hasMore && (
             <Pressable
               style={[styles.dropdownAction, { borderTopColor: theme.border }]}
               onPress={handleLoadMore}
@@ -299,7 +261,7 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
                 <ActivityIndicator size="small" color={Colors.accent} />
               ) : (
                 <Text style={[styles.dropdownActionText, { color: Colors.accent }]}>
-                  Search deeper in USDA…
+                  Load more results…
                 </Text>
               )}
             </Pressable>

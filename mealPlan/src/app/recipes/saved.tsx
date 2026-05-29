@@ -61,7 +61,7 @@ export default function SavedRecipesScreen() {
         <Pressable onPress={() => router.push('/recipes/create' as any)} style={styles.searchLink}>
           <Text style={[styles.searchLinkText, { color: Colors.accent }]}>Create</Text>
         </Pressable>
-        <Pressable onPress={() => router.push('/recipes/search' as any)} style={styles.searchLink}>
+        <Pressable onPress={() => router.push('/search' as any)} style={styles.searchLink}>
           <Text style={[styles.searchLinkText, { color: Colors.accent }]}>Search</Text>
         </Pressable>
       </View>
@@ -111,7 +111,7 @@ export default function SavedRecipesScreen() {
               </Text>
               <Pressable
                 style={[styles.discoverBtn, { backgroundColor: Colors.accent }]}
-                onPress={() => router.push('/recipes/search' as any)}
+                onPress={() => router.push('/search' as any)}
               >
                 <Text style={styles.discoverBtnText}>Find Recipes</Text>
               </Pressable>

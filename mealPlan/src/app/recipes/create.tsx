@@ -24,7 +24,7 @@ import {
   type IngredientInputValue,
 } from '@/components/recipes/ingredient-input';
 import type { RecipeFormData } from '@/services/recipe-service';
-import { lookupIngredient } from '@/services/usda';
+import { lookupIngredient } from '@/services/fatsecret';
 import { calculateForQuantity } from '@/utils/macro-calculator';
 
 export const IMPORT_PREFILL_KEY = 'recipe:pending_import';
@@ -117,11 +117,11 @@ export default function CreateRecipeScreen() {
       .catch(() => {});
   }, []);
 
-  // Auto-run USDA lookup for each prefilled ingredient name
+  // Auto-run OFF lookup for each prefilled ingredient name
   useEffect(() => {
     if (!prefillLoaded) return;
     setIngredients((current) => {
-      const toLookup = current.filter((ing) => ing.name.trim() && !ing.usdaResult);
+      const toLookup = current.filter((ing) => ing.name.trim() && !ing.offResult);
       toLookup.forEach((ing, idx) => {
         setTimeout(async () => {
           try {
@@ -130,7 +130,7 @@ export default function CreateRecipeScreen() {
             const best = result.results[0];
             setIngredients((prev) =>
               prev.map((i) => {
-                if (i.id !== ing.id || i.usdaResult) return i;
+                if (i.id !== ing.id || i.offResult) return i;
                 const qty = parseFloat(i.quantity);
                 const macros =
                   !isNaN(qty) && qty > 0 && i.unit
@@ -138,7 +138,7 @@ export default function CreateRecipeScreen() {
                     : undefined;
                 return {
                   ...i,
-                  usdaResult: best,
+                  offResult: best,
                   macros: macros
                     ? { calories: macros.calories, protein: macros.protein, carbs: macros.carbs, fat: macros.fat }
                     : undefined,

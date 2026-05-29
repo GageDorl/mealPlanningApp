@@ -1,4 +1,12 @@
-import type { UsdaIngredientResult } from '@/services/usda';
+export interface Per100gNutrition {
+  caloriesPer100g: number;
+  proteinPer100g: number;
+  carbsPer100g: number;
+  fatPer100g: number;
+  fiberPer100g?: number;
+  sugarPer100g?: number;
+  sodiumPer100g?: number;
+}
 
 export interface MacroCalculation {
   calories: number;
@@ -49,7 +57,7 @@ export function convertToGrams(quantity: number, unit: string): number {
 }
 
 export function calculateForQuantity(
-  ingredient: UsdaIngredientResult,
+  ingredient: Per100gNutrition,
   quantity: number,
   unit: string
 ): MacroCalculation {
