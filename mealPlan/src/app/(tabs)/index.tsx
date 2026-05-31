@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { Alert, View, Text, ScrollView, ActivityIndicator, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { Alert, View, Text, ScrollView, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
 
 import { useTheme } from '@/hooks/use-theme';
@@ -14,7 +15,7 @@ import { GroceryPreviewCard } from '@/components/dashboard/grocery-preview-card'
 import { MealsPreviewCard } from '@/components/dashboard/meals-preview-card';
 import { MacrosPreviewCard } from '@/components/dashboard/macros-preview-card';
 import { NudgeBanner } from '@/components/dashboard/nudge-banner';
-import { Colors, FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
 
 function todayString(): string {
   const d = new Date();
@@ -70,10 +71,10 @@ export default function HomeScreen() {
     }
   }, [calendarConnected, profile, router]);
 
-  if (profileLoading || !profile) {
+  if (!profile) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <ActivityIndicator color={Colors.accent} />
+        <LoadingModal visible={profileLoading} message="Loading…" />
       </View>
     );
   }

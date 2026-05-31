@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, Alert, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -5,9 +6,11 @@ import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { RecipeDetailView, type RecipeDetailData } from '@/components/recipes/recipe-detail-view';
 import { getRecipeDetail } from '@/services/spoonacular';
-import { getRecipeById, isRecipeSaved, saveRecipe } from '@/services/recipe-service';
+import { deleteRecipe, getRecipeById, getRecipeIngredients, isRecipeSaved, saveRecipe } from '@/services/recipe-service';
 import { supabase } from '@/services/supabase';
 import type { Recipe } from '@/models/recipe';
+
+const EDIT_PREFILL_KEY = 'recipe:edit_prefill';
 
 function isUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -91,13 +94,67 @@ export default function RecipeDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     loadRecipe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  async function handleEdit() {
+    try {
+      const [recipe, ingredients] = await Promise.all([getRecipeById(id), getRecipeIngredients(id)]);
+      if (!recipe) return;
+      const instructions: string[] = (() => {
+        if (!recipe.instructions) return [];
+        if (Array.isArray(recipe.instructions)) return recipe.instructions as string[];
+        try { return JSON.parse(recipe.instructions as unknown as string) as string[]; } catch { return []; }
+      })();
+      await AsyncStorage.setItem(EDIT_PREFILL_KEY, JSON.stringify({
+        recipeId: id,
+        title: recipe.title,
+        description: recipe.description,
+        image_url: recipe.image_url,
+        servings: recipe.servings,
+        prep_minutes: recipe.prep_minutes,
+        cook_minutes: recipe.cook_minutes,
+        cuisine_type: recipe.cuisine_type,
+        difficulty: recipe.difficulty,
+        source_url: recipe.source_url,
+        instructions,
+        ingredients: ingredients.map((ing) => ({ name: ing.name, quantity: ing.quantity, unit: ing.unit, raw_text: ing.raw_text })),
+      }));
+      router.push('/recipes/create' as any);
+    } catch {
+      Alert.alert('Error', 'Could not load recipe for editing.');
+    }
+  }
+
+  function handleDelete() {
+    Alert.alert(
+      'Delete recipe?',
+      'This will permanently remove the recipe.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteRecipe(id);
+              router.back();
+            } catch (e) {
+              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to delete recipe');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  }
 
   async function loadRecipe() {
     setLoading(true);
@@ -114,7 +171,6 @@ export default function RecipeDetailScreen() {
         }
         setDetailData(savedRecipeToDetailData(recipe));
         setIsSaved(true);
-        setIsFavorited(recipe.is_favorited);
       } else {
         const spoonacularId = parseInt(id, 10);
         const raw = await getRecipeDetail(spoonacularId);
@@ -210,7 +266,18 @@ export default function RecipeDetailScreen() {
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
           {detailData.title}
         </Text>
-        {!isUUID(id) && (
+        {isUUID(id) ? (
+          <>
+            <Pressable style={styles.actionBtn} onPress={handleEdit}>
+              <Text style={[styles.actionBtnText, { color: Colors.accent }]}>Edit</Text>
+            </Pressable>
+            <Pressable style={styles.actionBtn} onPress={handleDelete} disabled={deleting}>
+              <Text style={[styles.actionBtnText, { color: Colors.light.error }]}>
+                {deleting ? '…' : 'Delete'}
+              </Text>
+            </Pressable>
+          </>
+        ) : (
           <Pressable
             style={[
               styles.saveBtn,
@@ -289,5 +356,14 @@ const styles = StyleSheet.create({
   backBtnText: {
     fontSize: FontSizes.md,
     fontWeight: '600',
+  } as TextStyle,
+  actionBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    flexShrink: 0,
+  } as ViewStyle,
+  actionBtnText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
   } as TextStyle,
 });

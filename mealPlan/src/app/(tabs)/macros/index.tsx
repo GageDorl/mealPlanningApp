@@ -1,4 +1,5 @@
 import { View, Text, ScrollView, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { LoadingModal } from '@/components/ui/loading-modal';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMacros } from '@/hooks/use-macros';
@@ -48,11 +49,8 @@ export default function MacrosScreen() {
         </Pressable>
       </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <Text style={[styles.statusText, { color: theme.textSecondary }]}>Loading…</Text>
-        </View>
-      ) : error ? (
+      <LoadingModal visible={loading} message="Loading macros…" />
+      {!loading && error ? (
         <View style={styles.center}>
           <Text style={[styles.statusText, { color: Colors.light.error }]}>{error}</Text>
         </View>

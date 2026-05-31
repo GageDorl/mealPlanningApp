@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet,
   type ViewStyle, type TextStyle,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/services/supabase';
@@ -15,6 +16,7 @@ import { Button } from '@/components/ui/button';
 
 export default function PantryStaplesScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const [staples, setStaples] = useState<PantryStapleRow[]>([]);
   const [newName, setNewName] = useState('');
   const [newQty, setNewQty] = useState('');
@@ -111,6 +113,9 @@ export default function PantryStaplesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <Pressable onPress={() => router.push('/grocery')} style={styles.backBtn} hitSlop={8}>
+          <Text style={[styles.backIcon, { color: Colors.accent }]}>‹</Text>
+        </Pressable>
         <Text style={[styles.title, { color: theme.text }]}>Pantry</Text>
       </View>
 
@@ -255,10 +260,21 @@ const styles = StyleSheet.create({
     marginHorizontal: 'auto',
   } as ViewStyle,
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.md,
   } as ViewStyle,
+  backBtn: {
+    flexShrink: 0,
+  } as ViewStyle,
+  backIcon: {
+    fontSize: 28,
+    fontWeight: '300',
+    lineHeight: 30,
+  } as TextStyle,
   title: {
     fontSize: FontSizes.xl,
     fontWeight: '700',

@@ -6,6 +6,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useGrocery } from '@/hooks/use-grocery';
 import { GroceryCategoryGroup } from '@/components/grocery/grocery-category-group';
 import { Button } from '@/components/ui/button';
+import { LoadingModal } from '@/components/ui/loading-modal';
 
 export default function GroceryScreen() {
   const theme = useTheme();
@@ -91,6 +92,7 @@ export default function GroceryScreen() {
           </ScrollView>
         </>
       )}
+      <LoadingModal visible={generating} message="Generating your grocery list…" />
     </View>
   );
 }

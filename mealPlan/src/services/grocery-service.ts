@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import { supabase } from './supabase';
-import { aggregateIngredients, type RawIngredientInput } from '@/utils/grocery-aggregator';
+import { aggregateIngredients, type RawIngredientInput, type AggregatedItem } from '@/utils/grocery-aggregator';
+import { generateGroceryListWithAI } from '@/services/claude-ingredients';
 
 export interface GroceryItemRow {
   id: string;
@@ -177,8 +178,23 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
     (s) => ({ name: s.ingredient_name, quantity: s.quantity, unit: s.unit })
   );
 
-  const categoryGroups = aggregateIngredients(rawInputs, pantryItems);
-  const allAggregated = categoryGroups.flatMap((g) => g.items);
+  // Claude consolidates duplicates across units, applies pantry, and categorizes in one call.
+  // Falls back to legacy exact-match aggregator if the edge function fails.
+  const aiItems = await generateGroceryListWithAI(
+    rawInputs.map((r) => ({ name: r.name, quantity: r.quantity, unit: r.unit })),
+    pantryItems
+  );
+
+  const finalAggregated: AggregatedItem[] = aiItems.length > 0
+    ? aiItems.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        category: item.category,
+        ingredient_id: null,
+        deficitNote: item.deficitNote ?? null,
+      }))
+    : aggregateIngredients(rawInputs, pantryItems).flatMap((g) => g.items);
 
   const now = new Date().toISOString();
 
@@ -214,9 +230,9 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
     listId = newList.id;
   }
 
-  if (allAggregated.length > 0) {
+  if (finalAggregated.length > 0) {
     await supabase.from('grocery_items').insert(
-      allAggregated.map((item) => ({
+      finalAggregated.map((item) => ({
         id: randomUUID(),
         grocery_list_id: listId,
         ingredient_id: item.ingredient_id,

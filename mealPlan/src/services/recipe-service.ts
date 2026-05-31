@@ -145,6 +145,76 @@ export async function getRecipeById(recipeId: string): Promise<Recipe | null> {
   return (data as Recipe) ?? null;
 }
 
+export interface RecipeIngredientRow {
+  id: string;
+  recipe_id: string;
+  name: string;
+  quantity: number | null;
+  unit: string | null;
+  raw_text: string;
+  display_order: number;
+}
+
+export async function getRecipeIngredients(recipeId: string): Promise<RecipeIngredientRow[]> {
+  const { data } = await supabase
+    .from('recipe_ingredients')
+    .select('id, recipe_id, name, quantity, unit, raw_text, display_order')
+    .eq('recipe_id', recipeId)
+    .order('display_order');
+  return (data ?? []) as RecipeIngredientRow[];
+}
+
+export async function updateRecipe(recipeId: string, recipeData: RecipeFormData): Promise<Recipe> {
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('recipes')
+    .update({
+      title: recipeData.title,
+      description: recipeData.description ?? null,
+      prep_minutes: recipeData.prep_minutes ?? null,
+      cook_minutes: recipeData.cook_minutes ?? null,
+      servings: recipeData.servings,
+      difficulty: recipeData.difficulty ?? null,
+      cuisine_type: recipeData.cuisine_type ?? null,
+      calories_per_serving: recipeData.calories_per_serving ?? null,
+      protein_per_serving: recipeData.protein_per_serving ?? null,
+      carbs_per_serving: recipeData.carbs_per_serving ?? null,
+      fat_per_serving: recipeData.fat_per_serving ?? null,
+      instructions: recipeData.instructions ? JSON.stringify(recipeData.instructions) : null,
+      dietary_tags: recipeData.dietary_tags ? JSON.stringify(recipeData.dietary_tags) : null,
+      updated_at: now,
+    })
+    .eq('id', recipeId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  await supabase.from('recipe_ingredients').delete().eq('recipe_id', recipeId);
+
+  if (recipeData.ingredients.length > 0) {
+    await supabase.from('recipe_ingredients').insert(
+      recipeData.ingredients.map((ing) => ({
+        id: generateId(),
+        recipe_id: recipeId,
+        ingredient_id: null,
+        raw_text: ing.raw_text,
+        name: ing.name,
+        quantity: ing.quantity ?? null,
+        unit: ing.unit ?? null,
+        display_order: ing.display_order,
+        calories: ing.calories ?? null,
+        protein: ing.protein ?? null,
+        carbs: ing.carbs ?? null,
+        fat: ing.fat ?? null,
+      }))
+    );
+  }
+
+  return data as Recipe;
+}
+
 export async function isRecipeSaved(userId: string, sourceApiId: string): Promise<boolean> {
   const { data } = await supabase
     .from('recipes')

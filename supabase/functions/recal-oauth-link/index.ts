@@ -17,7 +17,10 @@ async function recal(path: string, options: RequestInit = {}) {
       ...options.headers,
     },
   })
-  if (!res.ok && res.status !== 404 && res.status !== 409) throw new Error(`Recal error: ${res.status}`)
+  if (!res.ok && res.status !== 404 && res.status !== 409) {
+    const body = await res.text()
+    throw new Error(`Recal error: ${res.status} ${body}`)
+  }
   return res.json()
 }
 
@@ -48,7 +51,7 @@ Deno.serve(async (req) => {
     await recal('/users', { method: 'POST', body: JSON.stringify({ id: userId }) })
 
     // accessType and scope are required; redirectUrl overrides dashboard default for dev
-    const params = new URLSearchParams({ accessType: 'offline', scope: 'read,write' })
+    const params = new URLSearchParams({ accessType: 'offline', scope: 'write' })
     if (redirectUrl) params.set('redirectUrl', redirectUrl)
     const result = await recal(`/users/${userId}/oauth/${provider}/link?${params}`)
 

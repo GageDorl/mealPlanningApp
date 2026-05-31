@@ -17,7 +17,10 @@ async function recal(path: string, options: RequestInit = {}) {
       ...options.headers,
     },
   })
-  if (!res.ok && res.status !== 404) throw new Error(`Recal error: ${res.status}`)
+  if (!res.ok && res.status !== 404) {
+    const body = await res.text()
+    throw new Error(`Recal error: ${res.status} ${body}`)
+  }
   return res.json()
 }
 

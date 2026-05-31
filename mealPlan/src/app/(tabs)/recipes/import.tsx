@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,7 +15,8 @@ import { useRouter } from 'expo-router';
 import { BorderRadius, Colors, FontSizes, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { importFromUrl, type ImportError } from '@/services/schema-import';
-import { IMPORT_PREFILL_KEY } from '@/app/recipes/create';
+import { IMPORT_PREFILL_KEY } from '@/app/(tabs)/recipes/create';
+import { useLoading } from '@/contexts/loading-context';
 
 const ERROR_MESSAGES: Record<ImportError, string> = {
   invalid_url: "That doesn't look like a valid URL. Make sure it starts with https://.",
@@ -29,6 +29,7 @@ const ERROR_MESSAGES: Record<ImportError, string> = {
 export default function ImportRecipeScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { showLoading, updateMessage, hideLoading } = useLoading();
 
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,21 +41,24 @@ export default function ImportRecipeScreen() {
 
     setLoading(true);
     setError(null);
+    showLoading('Fetching recipe page…');
 
     try {
-      const result = await importFromUrl(trimmed);
+      const result = await importFromUrl(trimmed, (step) => updateMessage(step));
 
       if (!result.success || !result.recipe) {
         setError(ERROR_MESSAGES[result.error ?? 'no_structured_data']);
         return;
       }
 
+      updateMessage('Saving recipe…');
       const prefill = { ...result.recipe, source_url: trimmed };
       await AsyncStorage.setItem(IMPORT_PREFILL_KEY, JSON.stringify(prefill));
       router.replace('/recipes/create' as any);
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
+      hideLoading();
       setLoading(false);
     }
   }
@@ -102,7 +106,7 @@ export default function ImportRecipeScreen() {
             onSubmitEditing={handleImport}
             editable={!loading}
           />
-          {loading && <ActivityIndicator size="small" color={Colors.accent} />}
+          {loading && <Text style={[styles.loadingDot, { color: Colors.accent }]}>●</Text>}
         </View>
 
         {/* Error message */}
@@ -124,11 +128,7 @@ export default function ImportRecipeScreen() {
           onPress={handleImport}
           disabled={loading || !url.trim()}
         >
-          {loading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.importBtnText}>Import</Text>
-          )}
+          <Text style={styles.importBtnText}>{loading ? 'Importing…' : 'Import'}</Text>
         </Pressable>
 
         {/* Tip */}
@@ -220,5 +220,8 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     textAlign: 'center',
     fontStyle: 'italic',
+  } as TextStyle,
+  loadingDot: {
+    fontSize: 10,
   } as TextStyle,
 });

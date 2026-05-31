@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,20 +14,24 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { BorderRadius, Colors, FontSizes, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useRecipes } from '@/hooks/use-recipes';
+import { useLoading } from '@/contexts/loading-context';
 import {
   IngredientInput,
   toIngredientInput,
   type IngredientInputValue,
 } from '@/components/recipes/ingredient-input';
+import { updateRecipe } from '@/services/recipe-service';
 import type { RecipeFormData } from '@/services/recipe-service';
 import { lookupIngredient } from '@/services/fatsecret';
 import { calculateForQuantity } from '@/utils/macro-calculator';
 
 export const IMPORT_PREFILL_KEY = 'recipe:pending_import';
+export const DRAFT_KEY = 'recipe:create_draft';
+export const EDIT_PREFILL_KEY = 'recipe:edit_prefill';
 
 const DIFFICULTY_OPTIONS: Array<'easy' | 'medium' | 'hard'> = ['easy', 'medium', 'hard'];
 
@@ -60,9 +64,11 @@ export default function CreateRecipeScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { save } = useRecipes();
+  const { showLoading, hideLoading } = useLoading();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [servings, setServings] = useState('2');
   const [prepMinutes, setPrepMinutes] = useState('');
   const [cookMinutes, setCookMinutes] = useState('');
@@ -75,47 +81,123 @@ export default function CreateRecipeScreen() {
   const [saving, setSaving] = useState(false);
   const [prefillSourceUrl, setPrefillSourceUrl] = useState<string | undefined>();
   const [prefillLoaded, setPrefillLoaded] = useState(false);
+  const [lookupRevision, setLookupRevision] = useState(0);
+  const [editRecipeId, setEditRecipeId] = useState<string | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const stepLayouts = useRef<Record<string, number>>({});
+  // Tracks whether the draft has been loaded on first focus so it isn't reloaded on tab re-focus
+  const draftLoadedRef = useRef(false);
 
-  // Load prefilled import data if available
-  useEffect(() => {
-    AsyncStorage.getItem(IMPORT_PREFILL_KEY)
-      .then((raw) => {
-        if (!raw) return;
-        AsyncStorage.removeItem(IMPORT_PREFILL_KEY);
-        const prefill = JSON.parse(raw) as Partial<RecipeFormData> & { source_url?: string };
-        if (prefill.title) setTitle(prefill.title);
-        if (prefill.description) setDescription(prefill.description);
-        if (prefill.servings) setServings(String(prefill.servings));
-        if (prefill.prep_minutes) setPrepMinutes(String(prefill.prep_minutes));
-        if (prefill.cook_minutes) setCookMinutes(String(prefill.cook_minutes));
-        if (prefill.cuisine_type) setCuisine(prefill.cuisine_type);
-        if (prefill.difficulty) setDifficulty(prefill.difficulty);
-        if (prefill.source_url) setPrefillSourceUrl(prefill.source_url);
-        if (prefill.ingredients && prefill.ingredients.length > 0) {
+  // Runs on every focus so it picks up prefill even when the screen is reused by the navigator
+  useFocusEffect(
+    useCallback(() => {
+      const load = async () => {
+        // Edit prefill (user tapped Edit on a saved recipe)
+        const editRaw = await AsyncStorage.getItem(EDIT_PREFILL_KEY).catch(() => null);
+        if (editRaw) {
+          await AsyncStorage.removeItem(EDIT_PREFILL_KEY).catch(() => {});
+          const ed = JSON.parse(editRaw) as { recipeId: string } & Partial<RecipeFormData> & { source_url?: string; instructions?: string[] };
+          setEditRecipeId(ed.recipeId);
+          setTitle(ed.title ?? '');
+          setDescription(ed.description ?? '');
+          setServings(ed.servings ? String(ed.servings) : '2');
+          setPrepMinutes(ed.prep_minutes ? String(ed.prep_minutes) : '');
+          setCookMinutes(ed.cook_minutes ? String(ed.cook_minutes) : '');
+          setCuisine(ed.cuisine_type ?? '');
+          setDifficulty(ed.difficulty ?? null);
+          setImageUrl(ed.image_url ?? '');
+          setPrefillSourceUrl(ed.source_url);
           setIngredients(
-            prefill.ingredients.map((ing, idx) => ({
-              id: String(Date.now() + idx),
-              name: ing.name ?? ing.raw_text ?? '',
-              quantity: ing.quantity != null ? String(ing.quantity) : '',
-              unit: ing.unit ?? '',
-            }))
+            ed.ingredients && ed.ingredients.length > 0
+              ? ed.ingredients.map((ing, idx) => ({
+                  id: String(Date.now() + idx),
+                  name: ing.name ?? ing.raw_text ?? '',
+                  quantity: ing.quantity != null ? String(ing.quantity) : '',
+                  unit: ing.unit ?? '',
+                }))
+              : [makeIngredient(0)]
           );
-        }
-        if (prefill.instructions && prefill.instructions.length > 0) {
           setSteps(
-            prefill.instructions.map((s, idx) => ({
-              id: String(Date.now() + 1000 + idx),
-              text: s,
-            }))
+            ed.instructions && ed.instructions.length > 0
+              ? ed.instructions.map((s, idx) => ({ id: String(Date.now() + 1000 + idx), text: s }))
+              : [makeStep(0)]
           );
+          draftLoadedRef.current = true;
+          setPrefillLoaded(true);
+          setLookupRevision((r) => r + 1);
+          return;
         }
-        setPrefillLoaded(true);
-      })
-      .catch(() => {});
-  }, []);
+
+        // Import prefill (from URL import screen)
+        const prefillRaw = await AsyncStorage.getItem(IMPORT_PREFILL_KEY).catch(() => null);
+        if (prefillRaw) {
+          await AsyncStorage.removeItem(IMPORT_PREFILL_KEY).catch(() => {});
+          const prefill = JSON.parse(prefillRaw) as Partial<RecipeFormData> & { source_url?: string };
+          setEditRecipeId(null);
+          setTitle(prefill.title ?? '');
+          setDescription(prefill.description ?? '');
+          setServings(prefill.servings ? String(prefill.servings) : '2');
+          setPrepMinutes(prefill.prep_minutes ? String(prefill.prep_minutes) : '');
+          setCookMinutes(prefill.cook_minutes ? String(prefill.cook_minutes) : '');
+          setCuisine(prefill.cuisine_type ?? '');
+          setDifficulty(prefill.difficulty ?? null);
+          setImageUrl(prefill.image_url ?? '');
+          setPrefillSourceUrl(prefill.source_url);
+          setIngredients(
+            prefill.ingredients && prefill.ingredients.length > 0
+              ? prefill.ingredients.map((ing, idx) => ({
+                  id: String(Date.now() + idx),
+                  name: ing.name ?? ing.raw_text ?? '',
+                  quantity: ing.quantity != null ? String(ing.quantity) : '',
+                  unit: ing.unit ?? '',
+                }))
+              : [makeIngredient(0)]
+          );
+          setSteps(
+            prefill.instructions && prefill.instructions.length > 0
+              ? prefill.instructions.map((s, idx) => ({ id: String(Date.now() + 1000 + idx), text: s }))
+              : [makeStep(0)]
+          );
+          draftLoadedRef.current = true;
+          setPrefillLoaded(true);
+          setLookupRevision((r) => r + 1);
+          return;
+        }
+
+        // No prefill — restore draft on first focus only
+        if (!draftLoadedRef.current) {
+          draftLoadedRef.current = true;
+          setEditRecipeId(null);
+          try {
+            const draftRaw = await AsyncStorage.getItem(DRAFT_KEY);
+            if (draftRaw) {
+              const draft = JSON.parse(draftRaw);
+              if (draft.title) setTitle(draft.title);
+              if (draft.description) setDescription(draft.description);
+              if (draft.imageUrl) setImageUrl(draft.imageUrl);
+              if (draft.servings) setServings(draft.servings);
+              if (draft.prepMinutes) setPrepMinutes(draft.prepMinutes);
+              if (draft.cookMinutes) setCookMinutes(draft.cookMinutes);
+              if (draft.cuisine) setCuisine(draft.cuisine);
+              if (draft.difficulty) setDifficulty(draft.difficulty);
+              if (draft.prefillSourceUrl) setPrefillSourceUrl(draft.prefillSourceUrl);
+              if (Array.isArray(draft.ingredients) && draft.ingredients.length > 0) {
+                setIngredients(draft.ingredients);
+              }
+              if (Array.isArray(draft.steps) && draft.steps.length > 0) {
+                setSteps(draft.steps);
+              }
+            }
+          } catch {
+            // Ignore corrupt draft
+          }
+          setPrefillLoaded(true);
+        }
+      };
+      load();
+    }, [])
+  );
 
   // Auto-run OFF lookup for each prefilled ingredient name
   useEffect(() => {
@@ -152,7 +234,17 @@ export default function CreateRecipeScreen() {
       });
       return current;
     });
-  }, [prefillLoaded]);
+  }, [prefillLoaded, lookupRevision]);
+
+  // Debounced draft save — only once there's a title worth saving
+  useEffect(() => {
+    if (!prefillLoaded || !title.trim()) return;
+    const timer = setTimeout(() => {
+      const draft = { title, description, imageUrl, servings, prepMinutes, cookMinutes, cuisine, difficulty, ingredients, steps, prefillSourceUrl };
+      AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft)).catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [prefillLoaded, title, description, imageUrl, servings, prepMinutes, cookMinutes, cuisine, difficulty, ingredients, steps, prefillSourceUrl]);
 
   function handleIngredientChange(id: string, val: IngredientInputValue) {
     setIngredients((prev) =>
@@ -189,6 +281,7 @@ export default function CreateRecipeScreen() {
     return {
       title: title.trim(),
       description: description.trim() || undefined,
+      image_url: imageUrl.trim() || undefined,
       servings: srv,
       prep_minutes: parseInt(prepMinutes, 10) || undefined,
       cook_minutes: parseInt(cookMinutes, 10) || undefined,
@@ -217,29 +310,25 @@ export default function CreateRecipeScreen() {
       return;
     }
 
-    const formData = buildFormData();
-
-    Alert.alert(
-      'Save recipe?',
-      `"${formData.title}" with ${formData.ingredients.length} ingredient${formData.ingredients.length !== 1 ? 's' : ''}${formData.calories_per_serving ? `, ~${formData.calories_per_serving} cal/serving` : ''}`,
-      [
-        { text: 'Review', style: 'cancel' },
-        {
-          text: 'Save',
-          onPress: async () => {
-            setSaving(true);
-            try {
-              const recipe = await save(formData);
-              router.replace(`/recipes/${recipe.id}` as any);
-            } catch (e) {
-              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save recipe');
-            } finally {
-              setSaving(false);
-            }
-          },
-        },
-      ]
-    );
+    setSaving(true);
+    showLoading(editRecipeId ? 'Updating recipe…' : 'Saving recipe…');
+    try {
+      const formData = buildFormData();
+      if (editRecipeId) {
+        await updateRecipe(editRecipeId, formData);
+        await AsyncStorage.removeItem(DRAFT_KEY);
+        router.replace(`/recipes/${editRecipeId}` as any);
+      } else {
+        const recipe = await save(formData);
+        await AsyncStorage.removeItem(DRAFT_KEY);
+        router.replace(`/recipes/${recipe.id}` as any);
+      }
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save recipe');
+    } finally {
+      hideLoading();
+      setSaving(false);
+    }
   }
 
   const totals = sumMacros(ingredients);
@@ -256,7 +345,7 @@ export default function CreateRecipeScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
           <Text style={[styles.backIcon, { color: Colors.accent }]}>‹</Text>
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>New Recipe</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>{editRecipeId ? 'Edit Recipe' : 'New Recipe'}</Text>
         <Pressable
           style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
           onPress={handleSave}
@@ -300,6 +389,19 @@ export default function CreateRecipeScreen() {
             onChangeText={setDescription}
             multiline
             numberOfLines={3}
+          />
+        </Section>
+
+        <Section label="Image URL (optional)" theme={theme}>
+          <TextInput
+            style={[styles.textInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.backgroundElement }]}
+            placeholder="https://example.com/image.jpg"
+            placeholderTextColor={theme.textSecondary}
+            value={imageUrl}
+            onChangeText={setImageUrl}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
           />
         </Section>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View, type ViewStyle, type TextStyle } from 'react-native';
+import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/button';
@@ -88,7 +89,7 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
-        <Text style={[styles.statusText, { color: theme.textSecondary }]}>Loading profile…</Text>
+        <LoadingModal visible message="Loading profile…" />
       </View>
     );
   }

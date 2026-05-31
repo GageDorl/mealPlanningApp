@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { PowerSyncProvider } from '@/services/powersync';
 import { store } from '@/store';
+import { LoadingProvider } from '@/contexts/loading-context';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -18,9 +19,11 @@ export default function RootLayout() {
         <Provider store={store}>
           <PowerSyncProvider>
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
-                <Slot />
-              </SafeAreaView>
+              <LoadingProvider>
+                <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+                  <Slot />
+                </SafeAreaView>
+              </LoadingProvider>
             </ThemeProvider>
           </PowerSyncProvider>
         </Provider>

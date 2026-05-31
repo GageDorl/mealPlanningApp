@@ -16,7 +16,7 @@ export function GroceryItemRow({ id, name, quantity, unit, isChecked, onToggle, 
   const theme = useTheme();
 
   const quantityText = quantity !== null
-    ? unit ? `${quantity} ${unit}` : String(quantity)
+    ? unit && unit !== 'each' ? `${quantity} ${unit}` : String(quantity)
     : unit ?? null;
 
   return (

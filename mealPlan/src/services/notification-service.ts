@@ -4,15 +4,17 @@ import { Platform } from 'react-native';
 const PLANNING_NUDGE_ID = 'planning-nudge-weekly';
 const MACRO_CHECKIN_ID = 'macro-checkin-daily';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 function mealReminderId(slotId: string) {
   return `meal-reminder-${slotId}`;

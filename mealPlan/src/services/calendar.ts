@@ -132,7 +132,8 @@ export async function createMealEvent(input: MealEventInput): Promise<string | n
   const calendarId = await getWritableCalendarId();
   if (!calendarId) return null;
 
-  const startDate = new Date(input.date);
+  const [y, m, d] = input.date.split('-').map(Number);
+  const startDate = new Date(y, m - 1, d);
   if (input.timeOfDay) {
     const [hours, minutes] = input.timeOfDay.split(':').map(Number);
     startDate.setHours(hours, minutes, 0, 0);

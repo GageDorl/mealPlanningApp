@@ -11,7 +11,10 @@ const CONNECTED_KEY = 'prepd_calendar_connected';
 
 async function callFunction(name: string, body: object) {
   const { data, error } = await supabase.functions.invoke(name, { body });
-  if (error) throw new Error(error.message);
+  if (error) {
+    const detail = await (error as any).context?.json?.().catch(() => null);
+    throw new Error(detail?.error ?? error.message);
+  }
   return data;
 }
 
@@ -89,7 +92,8 @@ export async function getEvents(start: Date, end: Date): Promise<CalendarEvent[]
 export async function createMealEvent(input: MealEventInput): Promise<string | null> {
   if (!isConnected()) return null;
 
-  const startDate = new Date(input.date);
+  const [y, m, d] = input.date.split('-').map(Number);
+  const startDate = new Date(y, m - 1, d);
   if (input.timeOfDay) {
     const [hours, minutes] = input.timeOfDay.split(':').map(Number);
     startDate.setHours(hours, minutes, 0, 0);

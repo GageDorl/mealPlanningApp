@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import type { RecipeFormData, RecipeIngredientInput } from '@/services/recipe-service';
-import { parseIngredientString } from '@/utils/ingredient-parser';
+import { parseIngredientsWithAI } from '@/services/claude-ingredients';
 
 export type ImportError = 'no_structured_data' | 'fetch_failed' | 'invalid_url';
 
@@ -53,14 +53,7 @@ function parseIngredients(ingredients: unknown): RecipeIngredientInput[] {
   if (!Array.isArray(ingredients)) return [];
   return ingredients.map((raw: unknown, idx: number) => {
     const rawText = typeof raw === 'string' ? raw : '';
-    const parsed = parseIngredientString(rawText);
-    return {
-      raw_text: rawText,
-      name: parsed.name,
-      quantity: parsed.quantity,
-      unit: parsed.unit || undefined,
-      display_order: idx,
-    };
+    return { raw_text: rawText, name: rawText, display_order: idx };
   });
 }
 
@@ -117,12 +110,17 @@ function extractRecipeFromLd(ld: unknown): Partial<RecipeFormData> | null {
   };
 }
 
-export async function importFromUrl(url: string): Promise<ImportResult> {
+export async function importFromUrl(
+  url: string,
+  onProgress?: (step: string) => void,
+): Promise<ImportResult> {
   try {
     new URL(url);
   } catch {
     return { success: false, error: 'invalid_url' };
   }
+
+  onProgress?.('Fetching recipe page…');
 
   let html: string;
   if (Platform.OS === 'web') {
@@ -172,7 +170,15 @@ export async function importFromUrl(url: string): Promise<ImportResult> {
 
   for (const block of flatBlocks) {
     const recipe = extractRecipeFromLd(block);
-    if (recipe) return { success: true, recipe };
+    if (recipe) {
+      const rawTexts = (recipe.ingredients ?? []).map((i) => i.raw_text ?? '').filter(Boolean);
+      if (rawTexts.length > 0) {
+        onProgress?.('Parsing ingredients with AI…');
+        const aiIngredients = await parseIngredientsWithAI(rawTexts);
+        return { success: true, recipe: { ...recipe, ingredients: aiIngredients } };
+      }
+      return { success: true, recipe };
+    }
   }
 
   return { success: false, error: 'no_structured_data' };

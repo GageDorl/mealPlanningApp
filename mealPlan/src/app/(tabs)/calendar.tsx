@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { LoadingModal } from '@/components/ui/loading-modal';
 import { View, Text, ScrollView, Pressable, Platform, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, type ViewStyle, type TextStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
@@ -65,7 +66,7 @@ export default function WeeklyPlannerScreen() {
   const [viewportWidth, setViewportWidth] = useState(0);
   const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
   const gridHeight = (END_HOUR - START_HOUR + 1) * hourHeight;
-  const isNarrow = Platform.OS !== 'web' && windowWidth > 0 && windowWidth < 7 * 130;
+  const isNarrow = windowWidth > 0 && windowWidth < 7 * 130;
 
   const today = new Date();
   const currentWeekStart = getSunday(addDays(today, weekOffset * 7));
@@ -634,6 +635,8 @@ export default function WeeklyPlannerScreen() {
         onSelect={setWeekOffset}
         onClose={() => setWeekPickerVisible(false)}
       />
+
+      <LoadingModal visible={loading} message="Loading calendar…" />
     </View>
   );
 }

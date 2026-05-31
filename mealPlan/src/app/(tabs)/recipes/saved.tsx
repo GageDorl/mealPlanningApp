@@ -10,6 +10,7 @@ import {
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
+import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -90,11 +91,8 @@ export default function SavedRecipesScreen() {
         </View>
       )}
 
-      {loading ? (
-        <View style={styles.center}>
-          <Text style={[styles.statusText, { color: theme.textSecondary }]}>Loading…</Text>
-        </View>
-      ) : error ? (
+      <LoadingModal visible={loading} message="Loading recipes…" />
+      {!loading && error ? (
         <View style={styles.center}>
           <Text style={[styles.statusText, { color: theme.textSecondary }]}>{error}</Text>
           <Pressable onPress={refresh} style={styles.retryBtn}>
@@ -125,11 +123,7 @@ export default function SavedRecipesScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
           {filtered.map((recipe) => (
-            <Pressable
-              key={recipe.id}
-              onLongPress={() => handleDelete(recipe.id, recipe.title)}
-              delayLongPress={500}
-            >
+            <View key={recipe.id} style={styles.cardWrapper}>
               <RecipeCard
                 recipe={{
                   id: recipe.id,
@@ -143,7 +137,14 @@ export default function SavedRecipesScreen() {
                 }}
                 onPress={() => router.push(`/recipes/${recipe.id}` as any)}
               />
-            </Pressable>
+              <Pressable
+                style={styles.deleteBtn}
+                onPress={() => handleDelete(recipe.id, recipe.title)}
+                hitSlop={8}
+              >
+                <Text style={styles.deleteBtnText}>×</Text>
+              </Pressable>
+            </View>
           ))}
         </ScrollView>
       )}
@@ -251,5 +252,25 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: FontSizes.md,
     textAlign: 'center',
+  } as TextStyle,
+  cardWrapper: {
+    position: 'relative',
+  } as ViewStyle,
+  deleteBtn: {
+    position: 'absolute',
+    top: Spacing.sm,
+    left: Spacing.sm,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as ViewStyle,
+  deleteBtnText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '300',
   } as TextStyle,
 });
