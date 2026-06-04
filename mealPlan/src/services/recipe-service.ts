@@ -172,6 +172,7 @@ export async function updateRecipe(recipeId: string, recipeData: RecipeFormData)
     .update({
       title: recipeData.title,
       description: recipeData.description ?? null,
+      image_url: recipeData.image_url ?? null,
       prep_minutes: recipeData.prep_minutes ?? null,
       cook_minutes: recipeData.cook_minutes ?? null,
       servings: recipeData.servings,

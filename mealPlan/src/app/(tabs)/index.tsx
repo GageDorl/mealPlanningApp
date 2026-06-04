@@ -96,7 +96,8 @@ export default function HomeScreen() {
         <View style={styles.rightColumn}>
           <RecipePreviewCard
             recipes={topRecipes}
-            onPress={() => router.push('/recipes/saved')}
+            onRecipePress={(id) => router.push(`/recipes/${id}` as any)}
+            onViewAll={() => router.push('/recipes/saved')}
           />
         </View>
       </View>

@@ -5,21 +5,19 @@ import type { Recipe } from '@/models/recipe';
 
 interface RecipePreviewCardProps {
   recipes: Recipe[];
-  onPress: () => void;
+  onRecipePress: (id: string) => void;
+  onViewAll: () => void;
 }
 
 const MAX_VISIBLE = 4;
 
-export function RecipePreviewCard({ recipes, onPress }: RecipePreviewCardProps) {
+export function RecipePreviewCard({ recipes, onRecipePress, onViewAll }: RecipePreviewCardProps) {
   const theme = useTheme();
   const visible = recipes.slice(0, MAX_VISIBLE);
   const overflow = recipes.length - MAX_VISIBLE;
 
   return (
-    <Pressable
-      style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-      onPress={onPress}
-    >
+    <View style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
       <View style={styles.titleRow}>
         <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Most Used</Text>
       </View>
@@ -36,9 +34,10 @@ export function RecipePreviewCard({ recipes, onPress }: RecipePreviewCardProps) 
       ) : (
         <View style={styles.recipeList}>
           {visible.map((recipe) => (
-            <View
+            <Pressable
               key={recipe.id}
               style={[styles.recipeRow, { borderBottomColor: theme.border }]}
+              onPress={() => onRecipePress(recipe.id)}
             >
               <View style={[styles.recipeDot, { backgroundColor: Colors.accent }]} />
               <Text style={[styles.recipeTitle, { color: theme.text }]} numberOfLines={1}>
@@ -49,7 +48,7 @@ export function RecipePreviewCard({ recipes, onPress }: RecipePreviewCardProps) 
                   {Math.round(recipe.calories_per_serving)} cal
                 </Text>
               )}
-            </View>
+            </Pressable>
           ))}
           {overflow > 0 && (
             <Text style={[styles.overflow, { color: Colors.accent }]}>
@@ -58,7 +57,11 @@ export function RecipePreviewCard({ recipes, onPress }: RecipePreviewCardProps) 
           )}
         </View>
       )}
-    </Pressable>
+
+      <Pressable onPress={onViewAll} style={styles.viewAll}>
+        <Text style={[styles.viewAllText, { color: Colors.accent }]}>View All →</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -131,5 +134,13 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     fontWeight: '600',
     marginTop: Spacing.xs,
+  } as TextStyle,
+  viewAll: {
+    paddingTop: Spacing.xs,
+    alignItems: 'center',
+  } as ViewStyle,
+  viewAllText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
   } as TextStyle,
 });
