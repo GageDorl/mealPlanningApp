@@ -644,7 +644,6 @@ export default function WeeklyPlannerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { minHeight: '100vh' } : {}),
   } as ViewStyle,
   header: {
     flexDirection: 'row',

@@ -35,7 +35,7 @@ interface IngredientInputProps {
   index: number;
 }
 
-const COMMON_UNITS = ['g', 'oz', 'cup', 'tbsp', 'tsp', 'lb', 'ml'];
+const COMMON_UNITS = ['g', 'oz', 'cup', 'tbsp', 'tsp', 'lb', 'ml', 'each'];
 
 export function toIngredientInput(
   val: IngredientInputValue,
@@ -68,6 +68,7 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function computeMacros(
     ingredient: FoodSearchResult,
@@ -75,7 +76,18 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
     unit: string
   ): { calories: number; protein: number; carbs: number; fat: number } | undefined {
     const quantity = parseFloat(qty);
-    if (isNaN(quantity) || quantity <= 0 || !unit) return undefined;
+    if (isNaN(quantity) || quantity <= 0) return undefined;
+
+    if (!unit || unit === 'each') {
+      if (ingredient.caloriesPerServing == null) return undefined;
+      return {
+        calories: Math.round(ingredient.caloriesPerServing * quantity),
+        protein: parseFloat(((ingredient.proteinPerServing ?? 0) * quantity).toFixed(1)),
+        carbs: parseFloat(((ingredient.carbsPerServing ?? 0) * quantity).toFixed(1)),
+        fat: parseFloat(((ingredient.fatPerServing ?? 0) * quantity).toFixed(1)),
+      };
+    }
+
     const m = calculateForQuantity(ingredient, quantity, unit);
     return { calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat };
   }
@@ -171,7 +183,9 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
             placeholderTextColor={theme.textSecondary}
             value={value.name}
             onChangeText={handleNameChange}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onBlur={() => {
+              blurTimerRef.current = setTimeout(() => setShowSuggestions(false), 150);
+            }}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -233,7 +247,9 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
                 {s.name}
               </Text>
               <Text style={[styles.dropdownMeta, { color: theme.textSecondary }]}>
-                {s.caloriesPer100g} kcal · {s.proteinPer100g}g P / 100g
+                {s.servingDescription
+                  ? `${s.caloriesPerServing} kcal · ${s.proteinPerServing}g P / ${s.servingDescription}`
+                  : `${s.caloriesPer100g} kcal · ${s.proteinPer100g}g P / 100g`}
               </Text>
             </Pressable>
           ))}
@@ -242,7 +258,10 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
           {visibleCount < suggestions.length && (
             <Pressable
               style={[styles.dropdownAction, { borderTopColor: theme.border }]}
-              onPress={() => setVisibleCount((n) => n + PAGE_SIZE)}
+              onPress={() => {
+                if (blurTimerRef.current) { clearTimeout(blurTimerRef.current); blurTimerRef.current = null; }
+                setVisibleCount((n) => n + PAGE_SIZE);
+              }}
             >
               <Text style={[styles.dropdownActionText, { color: Colors.accent }]}>
                 See {Math.min(suggestions.length - visibleCount, PAGE_SIZE)} more
@@ -254,7 +273,10 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
           {visibleCount >= suggestions.length && hasMore && (
             <Pressable
               style={[styles.dropdownAction, { borderTopColor: theme.border }]}
-              onPress={handleLoadMore}
+              onPress={() => {
+                if (blurTimerRef.current) { clearTimeout(blurTimerRef.current); blurTimerRef.current = null; }
+                handleLoadMore();
+              }}
               disabled={loadingMore}
             >
               {loadingMore ? (
@@ -295,7 +317,7 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
       </View>
 
       {/* Macro preview */}
-      {value.macros && (
+      {value.macros ? (
         <View style={styles.macroRow}>
           <Text style={[styles.macroItem, { color: theme.textSecondary }]}>
             {value.macros.calories} cal
@@ -310,7 +332,11 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
             {value.macros.fat}g F
           </Text>
         </View>
-      )}
+      ) : value.offResult && parseFloat(value.quantity) > 0 ? (
+        <Text style={[styles.unitHint, { color: theme.textSecondary }]}>
+          Select a unit to calculate macros
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -436,5 +462,10 @@ const styles = StyleSheet.create({
   macroItem: {
     fontSize: FontSizes.xs,
     fontWeight: '500',
+  } as TextStyle,
+  unitHint: {
+    fontSize: FontSizes.xs,
+    fontStyle: 'italic',
+    paddingTop: Spacing.xs,
   } as TextStyle,
 });

@@ -9,6 +9,11 @@ export interface FoodSearchResult {
   proteinPer100g: number;
   carbsPer100g: number;
   fatPer100g: number;
+  servingDescription?: string;
+  caloriesPerServing?: number;
+  proteinPerServing?: number;
+  carbsPerServing?: number;
+  fatPerServing?: number;
 }
 
 export interface FoodSearchResponse {

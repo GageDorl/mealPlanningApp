@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Modal,
   View,
@@ -17,6 +17,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/services/supabase';
+import { getTopRecipes } from '@/services/recipe-service';
 import type { Recipe } from '@/models/recipe';
 
 interface RecipePickerModalProps {
@@ -31,6 +32,20 @@ export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerMo
   const [query, setQuery] = useState('');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(false);
+  const [mostUsed, setMostUsed] = useState<Recipe[]>([]);
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    (async () => {
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user.id;
+      if (!userId || cancelled) return;
+      const top = await getTopRecipes(userId, 5);
+      if (!cancelled) setMostUsed(top);
+    })();
+    return () => { cancelled = true; };
+  }, [visible]);
 
   const searchRecipes = async (text: string) => {
     setQuery(text);
@@ -99,10 +114,15 @@ export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerMo
             <ActivityIndicator color={Colors.accent} style={styles.loader} />
           ) : (
             <FlatList
-              data={recipes}
+              data={query.length >= 2 ? recipes : mostUsed}
               renderItem={renderRecipe}
               keyExtractor={(item) => item.id}
               style={styles.list}
+              ListHeaderComponent={
+                query.length < 2 && mostUsed.length > 0 ? (
+                  <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Most Used</Text>
+                ) : null
+              }
               ListEmptyComponent={
                 query.length >= 2 ? (
                   <Text style={[styles.empty, { color: theme.textSecondary }]}>No recipes found</Text>
@@ -168,4 +188,12 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: Spacing.xl,
   } as ViewStyle,
+  sectionLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+  } as TextStyle,
 });

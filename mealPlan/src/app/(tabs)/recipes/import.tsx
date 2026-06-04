@@ -12,7 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BorderRadius, Colors, FontSizes, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { importFromUrl, type ImportError } from '@/services/schema-import';
 import { IMPORT_PREFILL_KEY } from '@/app/(tabs)/recipes/create';
@@ -143,6 +143,9 @@ export default function ImportRecipeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
   } as ViewStyle,
   header: {
     flexDirection: 'row',

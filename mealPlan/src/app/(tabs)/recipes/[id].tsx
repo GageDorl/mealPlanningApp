@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, Alert, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
+import { Colors, MaxContentWidth, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { RecipeDetailView, type RecipeDetailData } from '@/components/recipes/recipe-detail-view';
 import { getRecipeDetail } from '@/services/spoonacular';
@@ -308,6 +308,9 @@ export default function RecipeDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
   } as ViewStyle,
   header: {
     flexDirection: 'row',

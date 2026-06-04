@@ -1,6 +1,8 @@
+import { useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { LoadingModal } from '@/components/ui/loading-modal';
-import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useMacros } from '@/hooks/use-macros';
 import { ProgressRing } from '@/components/macros/progress-ring';
@@ -25,7 +27,13 @@ function isToday(date: Date): boolean {
 
 export default function MacrosScreen() {
   const theme = useTheme();
-  const { selectedDate, dailyProgress, loading, error, goToPrevDay, goToNextDay, goToToday } = useMacros();
+  const { selectedDate, dailyProgress, loading, error, goToPrevDay, goToNextDay, goToToday, refresh } = useMacros();
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const caloriesMacro = dailyProgress?.macros.find((m) => m.macro_name === 'calories');
   const otherMacros = dailyProgress?.macros.filter((m) => m.macro_name !== 'calories') ?? [];
@@ -104,7 +112,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     width: '100%',
-    maxWidth: 800,
+    maxWidth: MaxContentWidth,
     marginHorizontal: 'auto',
   } as ViewStyle,
   header: {

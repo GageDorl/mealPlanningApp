@@ -45,16 +45,18 @@ export interface DailyMacroProgress {
   meal_breakdown: MealMacroEntry[];
 }
 
-function getMonday(date: Date): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().split('T')[0];
+function getMonday(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d); // local midnight — avoids UTC parse shifting the day
+  const day = date.getDay();
+  // Sunday belongs to the following week (Sun–Sat layout), so advance to Monday
+  const diff = day === 0 ? 1 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export async function getDailyProgress(userId: string, date: string): Promise<DailyMacroProgress> {
-  const weekStart = getMonday(new Date(date));
+  const weekStart = getMonday(date);
 
   const [{ data: goalsData }, { data: planData }] = await Promise.all([
     supabase.from('macro_goals').select('*').eq('user_id', userId).eq('is_active', true).order('display_order'),

@@ -4,7 +4,7 @@ import {
   type ViewStyle, type TextStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/services/supabase';
 import {
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     width: '100%',
-    maxWidth: 800,
+    maxWidth: MaxContentWidth,
     marginHorizontal: 'auto',
   } as ViewStyle,
   header: {

@@ -1,29 +1,21 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import { Alert, View, Text, ScrollView, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useCallback, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
 
 import { useTheme } from '@/hooks/use-theme';
 import { useUserProfile } from '@/hooks/use-user-profile';
-import { useMealPlan } from '@/hooks/use-meal-plan';
+import { useTopRecipes } from '@/hooks/use-top-recipes';
 import { useMacros } from '@/hooks/use-macros';
 import { useGrocery } from '@/hooks/use-grocery';
 import { useCalendar } from '@/hooks/use-calendar';
 
 import { CalendarPreviewCard } from '@/components/dashboard/calendar-preview-card';
 import { GroceryPreviewCard } from '@/components/dashboard/grocery-preview-card';
-import { MealsPreviewCard } from '@/components/dashboard/meals-preview-card';
+import { RecipePreviewCard } from '@/components/dashboard/recipe-preview-card';
 import { MacrosPreviewCard } from '@/components/dashboard/macros-preview-card';
 import { NudgeBanner } from '@/components/dashboard/nudge-banner';
 import { FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function todayString(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 const TODAY_DATE = new Date();
 
@@ -32,7 +24,7 @@ export default function HomeScreen() {
   const theme = useTheme();
 
   const { profile, loading: profileLoading } = useUserProfile();
-  const { weekPlan } = useMealPlan(TODAY_DATE);
+  const { recipes: topRecipes } = useTopRecipes();
   const { dailyProgress } = useMacros(TODAY_DATE);
   const { state: grocery } = useGrocery();
   const { connected: calendarConnected } = useCalendar();
@@ -42,24 +34,6 @@ export default function HomeScreen() {
       router.replace('/sign-in');
     }
   }, [profileLoading, profile, router]);
-
-  const todayStr = todayString();
-
-  const todaySlots = useMemo(() => {
-    if (!weekPlan) return [];
-    return weekPlan.slots
-      .filter((s) => s.date === todayStr)
-      .sort((a, b) => a.display_order - b.display_order);
-  }, [weekPlan, todayStr]);
-
-  const handleAddRecipe = useCallback(() => {
-    Alert.alert('Add Recipe', undefined, [
-      { text: 'Import from URL', onPress: () => router.push('/recipes/import') },
-      { text: 'Search Recipes', onPress: () => router.push('/search') },
-      { text: 'Create New', onPress: () => router.push('/recipes/create') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  }, [router]);
 
   const handleNudgePress = useCallback(() => {
     if (!calendarConnected) {
@@ -120,10 +94,9 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.rightColumn}>
-          <MealsPreviewCard
-            slots={todaySlots}
+          <RecipePreviewCard
+            recipes={topRecipes}
             onPress={() => router.push('/recipes/saved')}
-            onAddPress={handleAddRecipe}
           />
         </View>
       </View>

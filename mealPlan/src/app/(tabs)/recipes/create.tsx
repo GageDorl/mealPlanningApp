@@ -15,7 +15,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { BorderRadius, Colors, FontSizes, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useRecipes } from '@/hooks/use-recipes';
 import { useLoading } from '@/contexts/loading-context';
@@ -236,9 +236,10 @@ export default function CreateRecipeScreen() {
     });
   }, [prefillLoaded, lookupRevision]);
 
-  // Debounced draft save — only once there's a title worth saving
+  // Debounced draft save — only once there's a title worth saving.
+  // Skip for imports/edits: import data should not bleed into future manual creates.
   useEffect(() => {
-    if (!prefillLoaded || !title.trim()) return;
+    if (!prefillLoaded || !title.trim() || prefillSourceUrl || editRecipeId) return;
     const timer = setTimeout(() => {
       const draft = { title, description, imageUrl, servings, prepMinutes, cookMinutes, cuisine, difficulty, ingredients, steps, prefillSourceUrl };
       AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft)).catch(() => {});
@@ -270,6 +271,23 @@ export default function CreateRecipeScreen() {
 
   function handleRemoveStep(id: string) {
     setSteps((prev) => (prev.length > 1 ? prev.filter((s) => s.id !== id) : prev));
+  }
+
+  function resetForm() {
+    setTitle('');
+    setDescription('');
+    setImageUrl('');
+    setServings('2');
+    setPrepMinutes('');
+    setCookMinutes('');
+    setCuisine('');
+    setDifficulty(null);
+    setIngredients([makeIngredient(0)]);
+    setSteps([makeStep(0)]);
+    setPrefillSourceUrl(undefined);
+    setPrefillLoaded(false);
+    setEditRecipeId(null);
+    draftLoadedRef.current = false;
   }
 
   function buildFormData(): RecipeFormData {
@@ -315,12 +333,15 @@ export default function CreateRecipeScreen() {
     try {
       const formData = buildFormData();
       if (editRecipeId) {
-        await updateRecipe(editRecipeId, formData);
+        const savedId = editRecipeId;
+        await updateRecipe(savedId, formData);
         await AsyncStorage.removeItem(DRAFT_KEY);
-        router.replace(`/recipes/${editRecipeId}` as any);
+        resetForm();
+        router.replace(`/recipes/${savedId}` as any);
       } else {
         const recipe = await save(formData);
         await AsyncStorage.removeItem(DRAFT_KEY);
+        resetForm();
         router.replace(`/recipes/${recipe.id}` as any);
       }
     } catch (e) {
@@ -620,6 +641,9 @@ function MacroChip({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
   } as ViewStyle,
   header: {
     flexDirection: 'row',

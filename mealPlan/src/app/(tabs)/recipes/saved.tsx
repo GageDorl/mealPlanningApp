@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
+import { Colors, MaxContentWidth, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { RecipeCard } from '@/components/recipes/recipe-card';
 import { useRecipes } from '@/hooks/use-recipes';
@@ -155,6 +155,9 @@ export default function SavedRecipesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
   } as ViewStyle,
   header: {
     flexDirection: 'row',

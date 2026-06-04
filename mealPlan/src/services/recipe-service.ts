@@ -215,6 +215,41 @@ export async function updateRecipe(recipeId: string, recipeData: RecipeFormData)
   return data as Recipe;
 }
 
+export async function getTopRecipes(userId: string, limit = 4): Promise<Recipe[]> {
+  const { data: plans } = await supabase
+    .from('meal_plans')
+    .select('id')
+    .eq('user_id', userId);
+
+  if (!plans || plans.length === 0) return [];
+
+  const planIds = (plans as { id: string }[]).map((p) => p.id);
+
+  const { data: slots } = await supabase
+    .from('meal_slots')
+    .select('recipe_id')
+    .in('meal_plan_id', planIds)
+    .not('recipe_id', 'is', null);
+
+  if (!slots || slots.length === 0) return [];
+
+  const counts: Record<string, number> = {};
+  for (const slot of slots as { recipe_id: string }[]) {
+    counts[slot.recipe_id] = (counts[slot.recipe_id] ?? 0) + 1;
+  }
+
+  const topIds = Object.entries(counts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, limit)
+    .map(([id]) => id);
+
+  const { data: recipes } = await supabase.from('recipes').select('*').in('id', topIds);
+  if (!recipes) return [];
+
+  const recipeMap = Object.fromEntries((recipes as Recipe[]).map((r) => [r.id, r]));
+  return topIds.map((id) => recipeMap[id]).filter(Boolean) as Recipe[];
+}
+
 export async function isRecipeSaved(userId: string, sourceApiId: string): Promise<boolean> {
   const { data } = await supabase
     .from('recipes')

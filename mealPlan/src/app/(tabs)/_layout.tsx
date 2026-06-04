@@ -11,6 +11,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        sceneStyle: { backgroundColor: theme.background },
         tabBarStyle: {
           backgroundColor: theme.backgroundElement,
           borderTopColor: theme.border,
@@ -45,6 +46,7 @@ export default function TabLayout() {
         name="calendar"
         options={{
           title: 'Calendar',
+          sceneStyle: undefined,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
           ),

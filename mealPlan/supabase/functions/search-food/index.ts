@@ -35,27 +35,57 @@ interface FoodResult {
   proteinPer100g: number;
   carbsPer100g: number;
   fatPer100g: number;
+  servingDescription?: string;
+  caloriesPerServing?: number;
+  proteinPerServing?: number;
+  carbsPerServing?: number;
+  fatPerServing?: number;
 }
 
 function parseDescription(desc: string): Omit<FoodResult, 'id' | 'name'> | null {
-  const cal = /Calories:\s*([\d.]+)/i.exec(desc)?.[1];
-  const fat = /Fat:\s*([\d.]+)/i.exec(desc)?.[1];
-  const carbs = /Carbs:\s*([\d.]+)/i.exec(desc)?.[1];
-  const protein = /Protein:\s*([\d.]+)/i.exec(desc)?.[1];
+  const calStr = /Calories:\s*([\d.]+)/i.exec(desc)?.[1];
+  const fatStr = /Fat:\s*([\d.]+)/i.exec(desc)?.[1];
+  const carbsStr = /Carbs:\s*([\d.]+)/i.exec(desc)?.[1];
+  const proteinStr = /Protein:\s*([\d.]+)/i.exec(desc)?.[1];
 
-  if (!cal || !fat || !carbs || !protein) return null;
+  if (!calStr || !fatStr || !carbsStr || !proteinStr) return null;
 
-  // Scale to per-100g if the serving size isn't already 100g
-  const perMatch = /Per\s+([\d.]+)\s*g/i.exec(desc);
-  const servingG = perMatch ? parseFloat(perMatch[1]) : 100;
-  const scale = 100 / servingG;
+  const cal = parseFloat(calStr);
+  const fat = parseFloat(fatStr);
+  const carbs = parseFloat(carbsStr);
+  const protein = parseFloat(proteinStr);
 
-  return {
-    caloriesPer100g: Math.round(parseFloat(cal) * scale),
-    proteinPer100g: parseFloat((parseFloat(protein) * scale).toFixed(1)),
-    carbsPer100g: parseFloat((parseFloat(carbs) * scale).toFixed(1)),
-    fatPer100g: parseFloat((parseFloat(fat) * scale).toFixed(1)),
+  // "Per 50g" style (gram primary) → scale to 100g, no per-serving needed
+  const directGramsStr = /Per\s+([\d.]+)\s*g/i.exec(desc)?.[1];
+  // "(50g)" style inside a count serving → "Per 1 large egg (50g)"
+  const parenGramsStr = /\(([\d.]+)\s*g\)/i.exec(desc)?.[1];
+
+  const servingG = directGramsStr != null
+    ? parseFloat(directGramsStr)
+    : parenGramsStr != null
+    ? parseFloat(parenGramsStr)
+    : null;
+
+  const scale = servingG != null ? 100 / servingG : 1;
+
+  const result: Omit<FoodResult, 'id' | 'name'> = {
+    caloriesPer100g: Math.round(cal * scale),
+    proteinPer100g: parseFloat((protein * scale).toFixed(1)),
+    carbsPer100g: parseFloat((carbs * scale).toFixed(1)),
+    fatPer100g: parseFloat((fat * scale).toFixed(1)),
   };
+
+  // Store per-serving data for countable items (anything that isn't a raw "Per Xg" serving)
+  if (directGramsStr == null) {
+    const servingDesc = /Per\s+(.+?)\s*-/i.exec(desc)?.[1]?.trim();
+    if (servingDesc) result.servingDescription = servingDesc;
+    result.caloriesPerServing = Math.round(cal);
+    result.proteinPerServing = parseFloat(protein.toFixed(1));
+    result.carbsPerServing = parseFloat(carbs.toFixed(1));
+    result.fatPerServing = parseFloat(fat.toFixed(1));
+  }
+
+  return result;
 }
 
 Deno.serve(async (req: Request) => {
