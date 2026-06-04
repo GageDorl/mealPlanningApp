@@ -1,0 +1,1 @@
+-- Migration applied directly to remote; placeholder for local history tracking.

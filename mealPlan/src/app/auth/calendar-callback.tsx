@@ -4,10 +4,9 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { supabase } from '@/services/supabase';
 
 export default function CalendarCallback() {
-  const { code, state, scope, error: oauthError } = useLocalSearchParams<{
+  const { code, state, error: oauthError } = useLocalSearchParams<{
     code?: string;
     state?: string;
-    scope?: string;
     error?: string;
   }>();
   const router = useRouter();
@@ -22,8 +21,9 @@ export default function CalendarCallback() {
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke('recal-oauth-verify', {
-          body: { provider: 'google', code, state, scope },
+        const redirectUrl = `${window.location.origin}/auth/calendar-callback`;
+        const { data, error } = await supabase.functions.invoke('google-oauth-verify', {
+          body: { code, state, redirectUrl },
         });
 
         if (error) throw error;
@@ -43,7 +43,7 @@ export default function CalendarCallback() {
     }
 
     verify();
-  }, [code, state, scope, oauthError]);
+  }, [code, state, oauthError]);
 
   return (
     <View style={styles.container}>

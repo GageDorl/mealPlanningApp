@@ -10,6 +10,8 @@ const PREFS_KEY = '@prepd/calendar_prefs';
 interface CalendarPrefs {
   disconnected: boolean;
   selectedCalendarIds: string[];
+  prepdCalendarId?: string;
+  calendarExportEnabled: boolean;
 }
 
 async function loadPrefs(): Promise<CalendarPrefs> {
@@ -17,7 +19,7 @@ async function loadPrefs(): Promise<CalendarPrefs> {
     const raw = await AsyncStorage.getItem(PREFS_KEY);
     if (raw) return JSON.parse(raw) as CalendarPrefs;
   } catch {}
-  return { disconnected: false, selectedCalendarIds: [] };
+  return { disconnected: false, selectedCalendarIds: [], calendarExportEnabled: true };
 }
 
 async function savePrefs(prefs: Partial<CalendarPrefs>): Promise<void> {
@@ -30,6 +32,48 @@ async function savePrefs(prefs: Partial<CalendarPrefs>): Promise<void> {
 async function requestPermissions(): Promise<boolean> {
   const { status } = await Calendar.requestCalendarPermissionsAsync();
   return status === 'granted';
+}
+
+async function getOrCreatePrepdCalendar(): Promise<string | null> {
+  try {
+    const prefs = await loadPrefs();
+    const all = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+
+    if (prefs.prepdCalendarId && all.find((c) => c.id === prefs.prepdCalendarId)) {
+      return prefs.prepdCalendarId;
+    }
+
+    const existing = all.find((c) => c.title === 'Prepd' && c.allowsModifications);
+    if (existing) {
+      await savePrefs({ prepdCalendarId: existing.id });
+      return existing.id;
+    }
+
+    const writable = all.filter((c) => c.allowsModifications);
+    const base =
+      Platform.OS === 'ios'
+        ? (writable.find((c) => c.source?.isLocalAccount) ?? writable[0])
+        : (writable.find((c) => c.isPrimary) ?? writable[0]);
+
+    if (!base?.source) return null;
+
+    const calendarId = await Calendar.createCalendarAsync({
+      title: 'Prepd',
+      color: '#FF6B35',
+      entityType: Calendar.EntityTypes.EVENT,
+      sourceId: base.source.id,
+      source: base.source,
+      name: 'prepd',
+      ownerAccount: base.source.name ?? 'personal',
+      accessLevel: Calendar.CalendarAccessLevel.OWNER,
+    });
+
+    await savePrefs({ prepdCalendarId: calendarId });
+    return calendarId;
+  } catch (e) {
+    console.error('[calendar] getOrCreatePrepdCalendar failed:', e);
+    return null;
+  }
 }
 
 async function getWritableCalendarId(): Promise<string | null> {
@@ -125,11 +169,23 @@ export async function getEvents(start: Date, end: Date): Promise<CalendarEvent[]
   });
 }
 
+export async function getCalendarExportEnabled(): Promise<boolean> {
+  const prefs = await loadPrefs();
+  return prefs.calendarExportEnabled;
+}
+
+export async function setCalendarExportEnabled(enabled: boolean): Promise<void> {
+  await savePrefs({ calendarExportEnabled: enabled });
+}
+
 export async function createMealEvent(input: MealEventInput): Promise<string | null> {
+  const { calendarExportEnabled } = await loadPrefs();
+  if (!calendarExportEnabled) return null;
+
   const granted = await requestPermissions();
   if (!granted) return null;
 
-  const calendarId = await getWritableCalendarId();
+  const calendarId = (await getOrCreatePrepdCalendar()) ?? (await getWritableCalendarId());
   if (!calendarId) return null;
 
   const [y, m, d] = input.date.split('-').map(Number);

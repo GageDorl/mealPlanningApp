@@ -8,6 +8,22 @@ export async function getSelectedCalendarIds(): Promise<string[]> { return []; }
 export async function setSelectedCalendarIds(_ids: string[]): Promise<void> {}
 
 const CONNECTED_KEY = 'prepd_calendar_connected';
+const EXPORT_ENABLED_KEY = 'prepd_calendar_export_enabled';
+const PREPD_CALENDAR_ID_KEY = 'prepd_calendar_id';
+
+export function getCalendarExportEnabled(): Promise<boolean> {
+  try {
+    const stored = localStorage.getItem(EXPORT_ENABLED_KEY);
+    return Promise.resolve(stored === null ? true : stored === 'true');
+  } catch {
+    return Promise.resolve(true);
+  }
+}
+
+export function setCalendarExportEnabled(enabled: boolean): Promise<void> {
+  try { localStorage.setItem(EXPORT_ENABLED_KEY, String(enabled)); } catch {}
+  return Promise.resolve();
+}
 
 async function callFunction(name: string, body: object) {
   const { data, error } = await supabase.functions.invoke(name, { body });
@@ -23,10 +39,8 @@ export function isConnected(): boolean {
 }
 
 export async function restoreSession(): Promise<boolean> {
-  // Fast path: localStorage cache avoids a network call on every mount
   if (isConnected()) return true;
 
-  // Auth required — can't check Recal without a session
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) return false;
 
@@ -45,52 +59,49 @@ export async function restoreSession(): Promise<boolean> {
 
 export async function connect(): Promise<{ granted: boolean }> {
   const redirectUrl = `${window.location.origin}/auth/calendar-callback`;
-  const { url } = await callFunction('recal-oauth-link', { provider: 'google', redirectUrl });
+  const { url } = await callFunction('google-oauth-link', { redirectUrl });
   if (!url) return { granted: false };
   window.location.href = url;
   return { granted: false }; // unreachable — page redirects
 }
 
-function parseEventDate(raw: any): Date {
-  if (raw?.dateTime) return new Date(raw.dateTime);
-  if (raw?.date) {
-    const [y, m, d] = (raw.date as string).split('-').map(Number);
-    return new Date(y, m - 1, d);
+async function getOrCreatePrepdCalendar(): Promise<string | null> {
+  try {
+    const cached = localStorage.getItem(PREPD_CALENDAR_ID_KEY);
+    if (cached) return cached;
+    const result = await callFunction('recal-calendar', { action: 'getOrCreatePrepdCalendar' });
+    const id: string | null = result?.calendarId ?? null;
+    if (id) localStorage.setItem(PREPD_CALENDAR_ID_KEY, id);
+    return id;
+  } catch (e) {
+    console.error('[calendar] getOrCreatePrepdCalendar failed:', e);
+    return null;
   }
-  return new Date(raw);
 }
 
 export async function getEvents(start: Date, end: Date): Promise<CalendarEvent[]> {
-  if (!isConnected()) {
-    console.log('[calendar] getEvents: not connected (localStorage check failed)');
+  if (!isConnected()) return [];
+
+  try {
+    const raw = await callFunction('recal-calendar', {
+      action: 'getEvents',
+      start: start.toISOString(),
+      end: end.toISOString(),
+    });
+    const events: any[] = Array.isArray(raw) ? raw : [];
+    return events.map((e) => ({
+      ...e,
+      startDate: new Date(e.startDate),
+      endDate: new Date(e.endDate),
+    }));
+  } catch {
     return [];
   }
-
-  const raw = await callFunction('recal-calendar', {
-    action: 'getEvents',
-    start: start.toISOString(),
-    end: end.toISOString(),
-  });
-
-  const events = Array.isArray(raw) ? raw : (raw?.events ?? raw?.items ?? []);
-
-  return events.map((e: any) => {
-    const startRaw = e.start ?? e.original?.start;
-    const endRaw = e.end ?? e.original?.end;
-    const isAllDay = e.isAllDay ?? (startRaw?.date != null && startRaw?.dateTime == null);
-    return {
-      id: e.id,
-      title: e.subject ?? e.title ?? e.summary ?? '(No title)',
-      startDate: parseEventDate(startRaw),
-      endDate: parseEventDate(endRaw),
-      calendarId: e.calendarId ?? 'primary',
-      isAllDay,
-    };
-  });
 }
 
 export async function createMealEvent(input: MealEventInput): Promise<string | null> {
-  if (!isConnected()) return null;
+  const exportEnabled = await getCalendarExportEnabled();
+  if (!exportEnabled || !isConnected()) return null;
 
   const [y, m, d] = input.date.split('-').map(Number);
   const startDate = new Date(y, m - 1, d);
@@ -105,12 +116,14 @@ export async function createMealEvent(input: MealEventInput): Promise<string | n
   endDate.setMinutes(endDate.getMinutes() + 30);
 
   try {
+    const calendarId = await getOrCreatePrepdCalendar();
     const result = await callFunction('recal-calendar', {
       action: 'createEvent',
       title: `Prepd: ${input.title}`,
       start: startDate.toISOString(),
       end: endDate.toISOString(),
       slotId: input.slotId,
+      ...(calendarId ? { calendarId } : {}),
     });
     return result?.id ?? null;
   } catch (e) {
@@ -123,17 +136,25 @@ export async function deleteMealEvent(eventId: string): Promise<void> {
   if (!isConnected()) return;
 
   try {
-    await callFunction('recal-calendar', { action: 'deleteEvent', eventId });
+    const calendarId = localStorage.getItem(PREPD_CALENDAR_ID_KEY);
+    await callFunction('recal-calendar', {
+      action: 'deleteEvent',
+      eventId,
+      ...(calendarId ? { calendarId } : {}),
+    });
   } catch {
     // Best effort
   }
 }
 
 export async function disconnect(): Promise<void> {
-  try { localStorage.removeItem(CONNECTED_KEY); } catch {}
+  try {
+    localStorage.removeItem(CONNECTED_KEY);
+    localStorage.removeItem(PREPD_CALENDAR_ID_KEY);
+  } catch {}
 
   try {
-    await callFunction('recal-calendar', { action: 'revokeConnection', provider: 'google' });
+    await callFunction('recal-calendar', { action: 'revokeConnection' });
   } catch {
     // Best effort — local state is already cleared
   }

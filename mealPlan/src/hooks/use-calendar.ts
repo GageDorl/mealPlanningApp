@@ -10,6 +10,7 @@ export function useCalendar() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [availableCalendars, setAvailableCalendars] = useState<CalendarInfo[]>([]);
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([]);
+  const [calendarExportEnabled, setCalendarExportEnabledState] = useState(true);
 
   const loadCalendarMeta = useCallback(async () => {
     const [ids, cals] = await Promise.all([
@@ -21,6 +22,7 @@ export function useCalendar() {
   }, []);
 
   useEffect(() => {
+    calendarService.getCalendarExportEnabled().then(setCalendarExportEnabledState);
     calendarService.restoreSession().then(async (restored) => {
       if (restored) {
         setConnected(true);
@@ -86,6 +88,11 @@ export function useCalendar() {
     [],
   );
 
+  const setExportEnabled = useCallback(async (enabled: boolean) => {
+    await calendarService.setCalendarExportEnabled(enabled);
+    setCalendarExportEnabledState(enabled);
+  }, []);
+
   const disconnect = useCallback(async () => {
     await calendarService.disconnect();
     setConnected(false);
@@ -111,11 +118,13 @@ export function useCalendar() {
     availableCalendars,
     selectedCalendarIds,
     connectedCalendarTitle,
+    calendarExportEnabled,
     connect,
     selectCalendars,
     loadEvents,
     createMealEvent,
     deleteMealEvent,
+    setExportEnabled,
     disconnect,
   };
 }

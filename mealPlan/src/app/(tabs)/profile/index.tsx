@@ -18,7 +18,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { profile, loading, reload } = useUserProfile();
-  const { connected, disconnect } = useCalendar();
+  const { connected, calendarExportEnabled, setExportEnabled, disconnect } = useCalendar();
   const [displayName, setDisplayName] = useState('');
   const [macros, setMacros] = useState<MacroDefinition[]>(DefaultMacros);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -174,6 +174,14 @@ export default function ProfileScreen() {
 
           {/* Calendar */}
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Calendar</Text>
+          <View style={[styles.toggleRow, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.toggleLabel, { color: theme.text }]}>Export meals to calendar</Text>
+            <Switch
+              value={calendarExportEnabled}
+              onValueChange={setExportEnabled}
+              trackColor={{ true: Colors.accent }}
+            />
+          </View>
           {connected ? (
             <Button label="Disconnect Google Calendar" onPress={disconnect} variant="secondary" />
           ) : (
