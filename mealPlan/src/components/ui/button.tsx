@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 interface ButtonProps {
   label: string;
@@ -10,13 +11,15 @@ interface ButtonProps {
 }
 
 export function Button({ label, onPress, variant = 'primary', disabled = false, style }: ButtonProps) {
+  const theme = useTheme();
+
   return (
     <Pressable
-      style={[styles.button, variant === 'secondary' ? styles.secondary : styles.primary, disabled && styles.disabled, style]}
+      style={[styles.button, variant === 'secondary' ? { backgroundColor: theme.backgroundElement, borderWidth: 1, borderColor: theme.border } : styles.primary, disabled && styles.disabled, style]}
       onPress={onPress}
       disabled={disabled}
     >
-      <Text style={[styles.label, variant === 'secondary' ? styles.secondaryLabel : styles.primaryLabel]}>{label}</Text>
+      <Text style={[styles.label, variant === 'secondary' ? { color: theme.text } : styles.primaryLabel]}>{label}</Text>
     </Pressable>
   );
 }
@@ -32,11 +35,6 @@ const styles = StyleSheet.create({
   primary: {
     backgroundColor: Colors.accent,
   } as ViewStyle,
-  secondary: {
-    backgroundColor: Colors.light.backgroundElement,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  } as ViewStyle,
   disabled: {
     opacity: 0.5,
   } as ViewStyle,
@@ -46,8 +44,5 @@ const styles = StyleSheet.create({
   } as TextStyle,
   primaryLabel: {
     color: '#FFFFFF',
-  } as TextStyle,
-  secondaryLabel: {
-    color: Colors.light.text,
   } as TextStyle,
 });
