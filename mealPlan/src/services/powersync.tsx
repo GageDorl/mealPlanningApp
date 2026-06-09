@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+
 import env from '@/constants/env';
 import { groceryTable } from '@/models/grocery';
 import { ingredientTable } from '@/models/ingredient';
@@ -22,14 +23,17 @@ interface PowerSyncProviderProps {
   children: ReactNode;
 }
 
+const FallbackProvider = ({ children }: { children: ReactNode }) => <>{children}</>;
+const PowerSyncProviderImpl = RawPowerSyncProvider ?? FallbackProvider;
+
 export function PowerSyncProvider({ children }: PowerSyncProviderProps) {
   return (
-    <RawPowerSyncProvider
+    <PowerSyncProviderImpl
       syncUrl={env.POWERSYNC_URL}
       databaseName="prepd"
       tables={syncTables as any}
     >
       {children}
-    </RawPowerSyncProvider>
+    </PowerSyncProviderImpl>
   );
 }

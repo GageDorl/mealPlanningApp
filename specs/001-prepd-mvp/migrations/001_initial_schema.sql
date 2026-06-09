@@ -57,6 +57,23 @@ CREATE TABLE calendar_connections (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
+-- ingredients must come before recipe_ingredients (forward-reference fix)
+CREATE TABLE ingredients (
+  id UUID PRIMARY KEY,
+  usda_fdc_id TEXT UNIQUE,
+  name TEXT NOT NULL,
+  category ingredient_category_enum,
+  calories_per_100g NUMERIC,
+  protein_per_100g NUMERIC,
+  carbs_per_100g NUMERIC,
+  fat_per_100g NUMERIC,
+  fiber_per_100g NUMERIC,
+  sugar_per_100g NUMERIC,
+  sodium_per_100g NUMERIC,
+  price NUMERIC,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
 CREATE TABLE recipes (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -106,22 +123,6 @@ CREATE TABLE recipe_ingredients (
   fat NUMERIC
 );
 
-CREATE TABLE ingredients (
-  id UUID PRIMARY KEY,
-  usda_fdc_id TEXT UNIQUE,
-  name TEXT NOT NULL,
-  category ingredient_category_enum,
-  calories_per_100g NUMERIC,
-  protein_per_100g NUMERIC,
-  carbs_per_100g NUMERIC,
-  fat_per_100g NUMERIC,
-  fiber_per_100g NUMERIC,
-  sugar_per_100g NUMERIC,
-  sodium_per_100g NUMERIC,
-  price NUMERIC,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL
-);
-
 CREATE TABLE meal_plans (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -136,7 +137,7 @@ CREATE TABLE meal_slots (
   meal_plan_id UUID NOT NULL REFERENCES meal_plans(id) ON DELETE CASCADE,
   recipe_id UUID REFERENCES recipes(id),
   label TEXT NOT NULL,
-  day_of_week INTEGER NOT NULL,
+  date DATE NOT NULL,
   time_of_day TIME,
   serving_override INTEGER,
   external_event_id TEXT,
@@ -162,6 +163,7 @@ CREATE TABLE grocery_items (
   quantity NUMERIC,
   unit TEXT,
   category ingredient_category_enum,
+  deficit_note TEXT,
   is_checked BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL
@@ -171,6 +173,8 @@ CREATE TABLE pantry_staples (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   ingredient_name TEXT NOT NULL,
+  quantity NUMERIC,
+  unit TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL,
   UNIQUE(user_id, ingredient_name)
 );

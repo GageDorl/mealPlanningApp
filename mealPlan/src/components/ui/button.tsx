@@ -31,16 +31,18 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.accent,
+    minHeight: 48,
   } as ViewStyle,
   primary: {
     backgroundColor: Colors.accent,
   } as ViewStyle,
   disabled: {
-    opacity: 0.5,
+    opacity: 0.6,
   } as ViewStyle,
   label: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   } as TextStyle,
   primaryLabel: {
     color: '#FFFFFF',

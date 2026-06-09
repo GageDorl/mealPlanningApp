@@ -1,0 +1,199 @@
+import { useEffect, useState } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  Animated,
+  type ViewStyle,
+  type TextStyle,
+} from 'react-native';
+import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
+import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/services/supabase';
+import { getTopRecipes } from '@/services/recipe-service';
+import type { Recipe } from '@/models/recipe';
+
+interface RecipePickerModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (recipe: Recipe) => void;
+}
+
+export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerModalProps) {
+  const theme = useTheme();
+  const keyboardSlide = useKeyboardSlide();
+  const [query, setQuery] = useState('');
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [mostUsed, setMostUsed] = useState<Recipe[]>([]);
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    (async () => {
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user.id;
+      if (!userId || cancelled) return;
+      const top = await getTopRecipes(userId, 5);
+      if (!cancelled) setMostUsed(top);
+    })();
+    return () => { cancelled = true; };
+  }, [visible]);
+
+  const searchRecipes = async (text: string) => {
+    setQuery(text);
+    if (text.length < 2) {
+      setRecipes([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('recipes')
+        .select('*')
+        .ilike('title', `%${text}%`)
+        .limit(20);
+
+      setRecipes((data as Recipe[]) ?? []);
+    } catch {
+      setRecipes([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelect = (recipe: Recipe) => {
+    onSelect(recipe);
+    setQuery('');
+    setRecipes([]);
+    onClose();
+  };
+
+  const renderRecipe = ({ item }: { item: Recipe }) => (
+    <Pressable
+      style={[styles.recipeRow, { borderBottomColor: theme.border }]}
+      onPress={() => handleSelect(item)}
+    >
+      <View style={styles.recipeInfo}>
+        <Text style={[styles.recipeTitle, { color: theme.text }]} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <Text style={[styles.recipeMeta, { color: theme.textSecondary }]}>
+          {item.calories_per_serving ? `${item.calories_per_serving} kcal` : ''}
+          {item.prep_minutes ? ` · ${item.prep_minutes} min` : ''}
+        </Text>
+      </View>
+    </Pressable>
+  );
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <Animated.View style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide }] }]}>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: theme.text }]}>Choose a Recipe</Text>
+            <Button label="Cancel" onPress={onClose} variant="secondary" />
+          </View>
+
+          <Input
+            placeholder="Search saved recipes..."
+            value={query}
+            onChangeText={searchRecipes}
+            autoFocus
+          />
+
+          {loading ? (
+            <ActivityIndicator color={Colors.accent} style={styles.loader} />
+          ) : (
+            <FlatList
+              data={query.length >= 2 ? recipes : mostUsed}
+              renderItem={renderRecipe}
+              keyExtractor={(item) => item.id}
+              style={styles.list}
+              ListHeaderComponent={
+                query.length < 2 && mostUsed.length > 0 ? (
+                  <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Most Used</Text>
+                ) : null
+              }
+              ListEmptyComponent={
+                query.length >= 2 ? (
+                  <Text style={[styles.empty, { color: theme.textSecondary }]}>No recipes found</Text>
+                ) : (
+                  <Text style={[styles.empty, { color: theme.textSecondary }]}>
+                    Type to search your saved recipes
+                  </Text>
+                )
+              }
+            />
+          )}
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  } as ViewStyle,
+  sheet: {
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
+    maxHeight: '80%',
+  } as ViewStyle,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  } as ViewStyle,
+  title: {
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+  } as TextStyle,
+  list: {
+    marginTop: Spacing.md,
+  } as ViewStyle,
+  recipeRow: {
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+  } as ViewStyle,
+  recipeInfo: {
+    gap: 2,
+  } as ViewStyle,
+  recipeTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: '500',
+  } as TextStyle,
+  recipeMeta: {
+    fontSize: FontSizes.sm,
+  } as TextStyle,
+  empty: {
+    textAlign: 'center',
+    paddingVertical: Spacing.xl,
+    fontSize: FontSizes.sm,
+  } as TextStyle,
+  loader: {
+    marginTop: Spacing.xl,
+  } as ViewStyle,
+  sectionLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+  } as TextStyle,
+});

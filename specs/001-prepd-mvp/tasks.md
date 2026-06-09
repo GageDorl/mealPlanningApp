@@ -59,7 +59,7 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 - [x] T019 Create shared UI primitives (Button, Card, Input, ProgressRing, ProgressBar) in mealPlan/src/components/ui/
 - [x] T020 Remove existing Expo boilerplate screens and components (explore.tsx, hint-row.tsx, animated-icon.tsx, web-badge.tsx, app-tabs.tsx)
 - [x] T021 Set up root layout with auth gate and PowerSync provider in mealPlan/src/app/_layout.tsx
-- [x] T022 Create Supabase Postgres migration SQL for all 12 tables per data-model.md (output to specs/001-prepd-mvp/migrations/001_initial_schema.sql)
+- [x] T022 Create Supabase Postgres migration SQL for all 12 tables per data-model.md (put to specs/001-prepd-mvp/migrations/001_initial_schema.sql)
 
 **Checkpoint**: Foundation ready — 3 developers can now work in parallel on separate branches.
 
@@ -75,19 +75,19 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 1
 
-- [ ] T023 [US1] Create sign-in screen with email/password form in mealPlan/src/app/(auth)/sign-in.tsx
-- [ ] T024 [US1] Create sign-up screen with email/password form in mealPlan/src/app/(auth)/sign-up.tsx
-- [ ] T025 [US1] Implement Google OAuth sign-in flow using expo-auth-session in mealPlan/src/services/supabase.ts (extend auth methods)
-- [ ] T026 [US1] Implement Apple sign-in flow using expo-auth-session in mealPlan/src/services/supabase.ts (extend auth methods)
-- [ ] T027 [US1] Create auth layout with redirect logic in mealPlan/src/app/(auth)/_layout.tsx
-- [ ] T028 [US1] Create onboarding layout with step navigation and skip buttons in mealPlan/src/app/(onboarding)/_layout.tsx
-- [ ] T029 [P] [US1] Create macro goals onboarding step screen in mealPlan/src/app/(onboarding)/macro-goals.tsx
-- [ ] T030 [P] [US1] Create dietary preferences onboarding step screen in mealPlan/src/app/(onboarding)/dietary-preferences.tsx
-- [ ] T031 [P] [US1] Create calendar connection onboarding step screen in mealPlan/src/app/(onboarding)/calendar-connect.tsx
-- [ ] T032 [US1] Implement userService.getProfile and userService.updateMacroGoals in mealPlan/src/services/user-service.ts
-- [ ] T033 [US1] Implement userService.updateDietaryPreferences and userService.updateNotificationSettings in mealPlan/src/services/user-service.ts
-- [ ] T034 [US1] Create useUserProfile hook with PowerSync watched query in mealPlan/src/hooks/use-user-profile.ts
-- [ ] T035 [US1] Create profile/settings screen with macro goals editor, dietary preferences, and account info in mealPlan/src/app/profile/index.tsx
+- [x] T023 [US1] Create sign-in screen with email/password form in mealPlan/src/app/(auth)/sign-in.tsx
+- [x] T024 [US1] Create sign-up screen with email/password form in mealPlan/src/app/(auth)/sign-up.tsx
+- [x] T025 [US1] Implement Google OAuth sign-in flow using expo-auth-session in mealPlan/src/services/supabase.ts (extend auth methods)
+- [x] T026 [US1] Implement Apple sign-in flow using expo-auth-session in mealPlan/src/services/supabase.ts (extend auth methods)
+- [x] T027 [US1] Create auth layout with redirect logic in mealPlan/src/app/(auth)/_layout.tsx
+- [x] T028 [US1] Create onboarding layout with step navigation and skip buttons in mealPlan/src/app/(onboarding)/_layout.tsx
+- [x] T029 [P] [US1] Create macro goals onboarding step screen in mealPlan/src/app/(onboarding)/macro-goals.tsx
+- [x] T030 [P] [US1] Create dietary preferences onboarding step screen in mealPlan/src/app/(onboarding)/dietary-preferences.tsx
+- [x] T031 [P] [US1] Create calendar connection onboarding step screen in mealPlan/src/app/(onboarding)/calendar-connect.tsx
+- [x] T032 [US1] Implement userService.getProfile and userService.updateMacroGoals in mealPlan/src/services/user-service.ts
+- [x] T033 [US1] Implement userService.updateDietaryPreferences and userService.updateNotificationSettings in mealPlan/src/services/user-service.ts
+- [x] T034 [US1] Create useUserProfile hook with PowerSync watched query in mealPlan/src/hooks/use-user-profile.ts
+- [x] T035 [US1] Create profile/settings screen with macro goals editor, dietary preferences, and account info in mealPlan/src/app/profile/index.tsx
 
 **Checkpoint**: User Story 1 complete — users can create accounts and configure profiles.
 
@@ -103,13 +103,13 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 9
 
-- [ ] T036 [US9] Create dashboard screen with module grid layout in mealPlan/src/app/index.tsx
-- [ ] T037 [P] [US9] Create CalendarPreviewCard component in mealPlan/src/components/dashboard/calendar-preview-card.tsx
-- [ ] T038 [P] [US9] Create GroceryPreviewCard component in mealPlan/src/components/dashboard/grocery-preview-card.tsx
-- [ ] T039 [P] [US9] Create MealsPreviewCard component in mealPlan/src/components/dashboard/meals-preview-card.tsx
-- [ ] T040 [P] [US9] Create MacrosPreviewCard component with compact/expanded toggle in mealPlan/src/components/dashboard/macros-preview-card.tsx
-- [ ] T041 [US9] Create contextual nudge banner component for incomplete onboarding in mealPlan/src/components/dashboard/nudge-banner.tsx
-- [ ] T042 [US9] Wire dashboard modules to stack navigation for calendar, grocery, macros, and recipe detail screens in mealPlan/src/app/index.tsx
+- [x] T036 [US9] Create dashboard screen with module grid layout in mealPlan/src/app/index.tsx
+- [x] T037 [P] [US9] Create CalendarPreviewCard component in mealPlan/src/components/dashboard/calendar-preview-card.tsx
+- [x] T038 [P] [US9] Create GroceryPreviewCard component in mealPlan/src/components/dashboard/grocery-preview-card.tsx
+- [x] T039 [P] [US9] Create MealsPreviewCard component in mealPlan/src/components/dashboard/meals-preview-card.tsx
+- [x] T040 [P] [US9] Create MacrosPreviewCard component with compact/expanded toggle in mealPlan/src/components/dashboard/macros-preview-card.tsx
+- [x] T041 [US9] Create contextual nudge banner component for incomplete onboarding in mealPlan/src/components/dashboard/nudge-banner.tsx
+- [x] T042 [US9] Wire dashboard modules to stack navigation for calendar, grocery, macros, and recipe detail screens in mealPlan/src/app/index.tsx
 
 **Checkpoint**: Dashboard shell is functional — feature detail screens can be developed independently.
 
@@ -125,16 +125,16 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 2
 
-- [ ] T043 [US2] Implement Spoonacular API client (search, getDetail) with caching in mealPlan/src/services/spoonacular.ts
-- [ ] T044 [US2] Implement recipeService.save, toggleFavorite, delete in mealPlan/src/services/recipe-service.ts
-- [ ] T045 [US2] Create useRecipes hook with PowerSync watched query for saved recipes in mealPlan/src/hooks/use-recipes.ts
-- [ ] T046 [US2] Create recipe search screen with keyword input and filter chips in mealPlan/src/app/recipes/search.tsx
-- [ ] T047 [P] [US2] Create RecipeCard component (title, image, prep time, calories) in mealPlan/src/components/recipes/recipe-card.tsx
-- [ ] T048 [US2] Create recipe detail screen (ingredients, steps, macros, difficulty, cuisine, save button) in mealPlan/src/app/recipes/[id].tsx
-- [ ] T049 [P] [US2] Create RecipeDetailView component with serving size adjuster in mealPlan/src/components/recipes/recipe-detail-view.tsx
-- [ ] T050 [US2] Implement serving scaler utility (recalculate ingredients + macros) in mealPlan/src/utils/serving-scaler.ts
-- [ ] T051 [US2] Create saved recipes list screen (user's collection, offline indicator) in mealPlan/src/app/recipes/saved.tsx
-- [ ] T052 [US2] Create useOffline hook for network status detection in mealPlan/src/hooks/use-offline.ts
+- [x] T043 [US2] Implement Spoonacular API client (search, getDetail) with caching in mealPlan/src/services/spoonacular.ts
+- [x] T044 [US2] Implement recipeService.save, toggleFavorite, delete in mealPlan/src/services/recipe-service.ts
+- [x] T045 [US2] Create useRecipes hook with PowerSync watched query for saved recipes in mealPlan/src/hooks/use-recipes.ts
+- [x] T046 [US2] Create recipe search screen with keyword input and filter chips in mealPlan/src/app/recipes/search.tsx
+- [x] T047 [P] [US2] Create RecipeCard component (title, image, prep time, calories) in mealPlan/src/components/recipes/recipe-card.tsx
+- [x] T048 [US2] Create recipe detail screen (ingredients, steps, macros, difficulty, cuisine, save button) in mealPlan/src/app/recipes/[id].tsx
+- [x] T049 [P] [US2] Create RecipeDetailView component with serving size adjuster in mealPlan/src/components/recipes/recipe-detail-view.tsx
+- [x] T050 [US2] Implement serving scaler utility (recalculate ingredients + macros) in mealPlan/src/utils/serving-scaler.ts
+- [x] T051 [US2] Create saved recipes list screen (user's collection, offline indicator) in mealPlan/src/app/recipes/saved.tsx
+- [x] T052 [US2] Create useOffline hook for network status detection in mealPlan/src/hooks/use-offline.ts
 
 **Checkpoint**: Recipe browsing and saving works end-to-end with offline support.
 
@@ -150,13 +150,13 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 3
 
-- [ ] T053 [US3] Implement USDA FoodData Central API client (lookupIngredient) in mealPlan/src/services/usda.ts
-- [ ] T054 [US3] Implement nutritionService.calculateForQuantity in mealPlan/src/utils/macro-calculator.ts
-- [ ] T055 [US3] Implement schema.org JSON-LD parser (recipeService.importFromUrl) in mealPlan/src/services/schema-import.ts
-- [ ] T056 [US3] Create recipe creation form screen with ingredient list, steps, and macro preview in mealPlan/src/app/recipes/create.tsx
-- [ ] T057 [P] [US3] Create IngredientInput component with USDA autocomplete lookup in mealPlan/src/components/recipes/ingredient-input.tsx
-- [ ] T058 [US3] Create URL import screen with URL input, loading state, error handling, and form pre-fill in mealPlan/src/app/recipes/import.tsx
-- [ ] T059 [US3] Wire recipe form to recipeService.save with user review confirmation in mealPlan/src/app/recipes/create.tsx
+- [x] T053 [US3] Implement USDA FoodData Central API client (lookupIngredient) in mealPlan/src/services/usda.ts
+- [x] T054 [US3] Implement nutritionService.calculateForQuantity in mealPlan/src/utils/macro-calculator.ts
+- [x] T055 [US3] Implement schema.org JSON-LD parser (recipeService.importFromUrl) in mealPlan/src/services/schema-import.ts
+- [x] T056 [US3] Create recipe creation form screen with ingredient list, steps, and macro preview in mealPlan/src/app/recipes/create.tsx
+- [x] T057 [P] [US3] Create IngredientInput component with USDA autocomplete lookup in mealPlan/src/components/recipes/ingredient-input.tsx
+- [x] T058 [US3] Create URL import screen with URL input, loading state, error handling, and form pre-fill in mealPlan/src/app/recipes/import.tsx
+- [x] T059 [US3] Wire recipe form to recipeService.save with user review confirmation in mealPlan/src/app/recipes/create.tsx
 
 **Checkpoint**: Full hybrid recipe sourcing works — API, manual, URL import all flow through the same review form.
 
@@ -172,18 +172,19 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 4
 
-- [ ] T060 [US4] Implement calendarService.connect, getEvents, createMealEvent, deleteMealEvent for native in mealPlan/src/services/calendar.ts
-- [ ] T061 [US4] Implement calendarService for web (Google Calendar REST API) in mealPlan/src/services/calendar.web.ts
-- [ ] T062 [US4] Implement mealPlanService (getWeek, createSlot, assignRecipe, removeRecipe, deleteSlot, reorderSlots) in mealPlan/src/services/meal-plan-service.ts
-- [ ] T063 [US4] Create useMealPlan hook with PowerSync watched query in mealPlan/src/hooks/use-meal-plan.ts
-- [ ] T064 [US4] Create useCalendar hook for external events in mealPlan/src/hooks/use-calendar.ts
-- [ ] T065 [US4] Create weekly planner screen with 7-day grid in mealPlan/src/app/calendar/index.tsx
-- [ ] T066 [P] [US4] Create DayColumn component with meal slots and external event blocks in mealPlan/src/components/calendar/day-column.tsx
-- [ ] T067 [P] [US4] Create MealSlotCard component (label, assigned recipe preview, empty state) in mealPlan/src/components/calendar/meal-slot-card.tsx
-- [ ] T068 [P] [US4] Create ExternalEventBlock component for calendar busy blocks in mealPlan/src/components/calendar/external-event-block.tsx
-- [ ] T069 [US4] Create AddMealSlot modal (label input, time picker) in mealPlan/src/components/calendar/add-meal-slot-modal.tsx
-- [ ] T070 [US4] Create recipe picker modal for assigning recipes to meal slots in mealPlan/src/components/calendar/recipe-picker-modal.tsx
-- [ ] T071 [US4] Wire meal slot assignment to calendarService.createMealEvent for calendar write-back in mealPlan/src/services/meal-plan-service.ts
+- [x] T060 [US4] Implement calendarService.connect, getEvents, createMealEvent, deleteMealEvent for native in mealPlan/src/services/calendar.ts
+- [x] T061 [US4] Implement calendarService for web (Google Calendar REST API) in mealPlan/src/services/calendar.web.ts
+- [x] T062 [US4] Implement mealPlanService (getWeek, createSlot, assignRecipe, removeRecipe, deleteSlot, reorderSlots) in mealPlan/src/services/meal-plan-service.ts
+- [x] T063 [US4] Create useMealPlan hook with PowerSync watched query in mealPlan/src/hooks/use-meal-plan.ts
+- [x] T064 [US4] Create useCalendar hook for external events in mealPlan/src/hooks/use-calendar.ts
+- [x] T065 [US4] Create weekly planner screen with 7-day grid in mealPlan/src/app/calendar/index.tsx
+- [x] T066 [P] [US4] Create DayColumn component with meal slots and external event blocks in mealPlan/src/components/calendar/day-column.tsx
+- [x] T067 [P] [US4] Create MealSlotCard component (label, assigned recipe preview, empty state) in mealPlan/src/components/calendar/meal-slot-card.tsx
+- [x] T068 [P] [US4] Create ExternalEventBlock component for calendar busy blocks in mealPlan/src/components/calendar/external-event-block.tsx
+- [x] T069 [US4] Create AddMealSlot modal (label input, time picker) in mealPlan/src/components/calendar/add-meal-slot-modal.tsx
+- [x] T070 [US4] Create recipe picker modal for assigning recipes to meal slots in mealPlan/src/components/calendar/recipe-picker-modal.tsx
+- [x] T071 [US4] Wire meal slot assignment to calendarService.createMealEvent for calendar write-back in mealPlan/src/services/meal-plan-service.ts
+- [x] T071b [US4] Persist Google Calendar OAuth token in localStorage with expiry tracking; add isConnected()/restoreSession() to calendar.web.ts and calendar.ts; hydrate useCalendar hook on mount in mealPlan/src/hooks/use-calendar.ts
 
 **Checkpoint**: Weekly planner works with calendar integration end-to-end.
 
@@ -199,12 +200,12 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 5
 
-- [ ] T072 [US5] Implement macroService.getDailyProgress and getWeeklyProgress in mealPlan/src/services/macro-service.ts
-- [ ] T073 [US5] Create useMacros hook for daily progress computation in mealPlan/src/hooks/use-macros.ts
-- [ ] T074 [P] [US5] Create ProgressRing component for compact macro display in mealPlan/src/components/macros/progress-ring.tsx
-- [ ] T075 [P] [US5] Create MacroProgressBar component for expanded macro display in mealPlan/src/components/macros/macro-progress-bar.tsx
-- [ ] T076 [US5] Create macro detail screen with per-meal breakdown in mealPlan/src/app/macros/index.tsx
-- [ ] T077 [P] [US5] Create MealMacroBreakdown component (per-meal macro contributions) in mealPlan/src/components/macros/meal-macro-breakdown.tsx
+- [x] T072 [US5] Implement macroService.getDailyProgress and getWeeklyProgress in mealPlan/src/services/macro-service.ts
+- [x] T073 [US5] Create useMacros hook for daily progress computation in mealPlan/src/hooks/use-macros.ts
+- [x] T074 [P] [US5] Create ProgressRing component for compact macro display in mealPlan/src/components/macros/progress-ring.tsx
+- [x] T075 [P] [US5] Create MacroProgressBar component for expanded macro display in mealPlan/src/components/macros/macro-progress-bar.tsx
+- [x] T076 [US5] Create macro detail screen with per-meal breakdown in mealPlan/src/app/macros/index.tsx
+- [x] T077 [P] [US5] Create MealMacroBreakdown component (per-meal macro contributions) in mealPlan/src/components/macros/meal-macro-breakdown.tsx
 
 **Checkpoint**: Macro tracking displays accurately on dashboard and detail screen.
 
@@ -220,13 +221,13 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 6
 
-- [ ] T078 [US6] Implement grocery-aggregator utility (combine duplicates, group by category, exclude pantry staples) in mealPlan/src/utils/grocery-aggregator.ts
-- [ ] T079 [US6] Implement groceryService (generateList, toggleItemChecked, addPantryStaple, removePantryStaple) in mealPlan/src/services/grocery-service.ts
-- [ ] T080 [US6] Create useGrocery hook with PowerSync watched query in mealPlan/src/hooks/use-grocery.ts
-- [ ] T081 [US6] Create grocery list detail screen with category groups and progress indicator in mealPlan/src/app/grocery/index.tsx
-- [ ] T082 [P] [US6] Create GroceryItemRow component (name, quantity, unit, checkbox) in mealPlan/src/components/grocery/grocery-item-row.tsx
-- [ ] T083 [P] [US6] Create GroceryCategoryGroup component (collapsible category sections) in mealPlan/src/components/grocery/grocery-category-group.tsx
-- [ ] T084 [US6] Create pantry staples management UI (add/remove staples) in mealPlan/src/app/grocery/pantry-staples.tsx
+- [x] T078 [US6] Implement grocery-aggregator utility (combine duplicates, group by category, exclude pantry staples) in mealPlan/src/utils/grocery-aggregator.ts
+- [x] T079 [US6] Implement groceryService (generateList, toggleItemChecked, addPantryStaple, removePantryStaple) in mealPlan/src/services/grocery-service.ts
+- [x] T080 [US6] Create useGrocery hook with PowerSync watched query in mealPlan/src/hooks/use-grocery.ts
+- [x] T081 [US6] Create grocery list detail screen with category groups and progress indicator in mealPlan/src/app/grocery/index.tsx
+- [x] T082 [P] [US6] Create GroceryItemRow component (name, quantity, unit, checkbox) in mealPlan/src/components/grocery/grocery-item-row.tsx
+- [x] T083 [P] [US6] Create GroceryCategoryGroup component (collapsible category sections) in mealPlan/src/components/grocery/grocery-category-group.tsx
+- [x] T084 [US6] Create pantry staples management UI (add/remove staples) in mealPlan/src/app/grocery/pantry-staples.tsx
 
 **Checkpoint**: Grocery list works end-to-end with aggregation, checking, and pantry staple exclusion.
 
@@ -261,11 +262,11 @@ Tasks are organized so 3 developers can work simultaneously after the shared set
 
 ### Implementation for User Story 8
 
-- [ ] T089 [US8] Implement notification scheduling service (register, schedule, cancel) in mealPlan/src/services/notification-service.ts
-- [ ] T090 [US8] Create notification settings screen with three independent toggles in mealPlan/src/app/profile/notifications.tsx
-- [ ] T091 [US8] Wire meal slot creation/update to schedule meal reminder notifications in mealPlan/src/services/meal-plan-service.ts (extend)
-- [ ] T092 [US8] Implement planning nudge scheduler (Sunday evening check) in mealPlan/src/services/notification-service.ts (extend)
-- [ ] T093 [US8] Implement macro check-in scheduler (end-of-day summary) in mealPlan/src/services/notification-service.ts (extend)
+- [x] T089 [US8] Implement notification scheduling service (register, schedule, cancel) in mealPlan/src/services/notification-service.ts
+- [x] T090 [US8] Create notification settings screen with three independent toggles in mealPlan/src/app/profile/notifications.tsx
+- [x] T091 [US8] Wire meal slot creation/update to schedule meal reminder notifications in mealPlan/src/services/meal-plan-service.ts (extend)
+- [x] T092 [US8] Implement planning nudge scheduler (Sunday evening check) in mealPlan/src/services/notification-service.ts (extend)
+- [x] T093 [US8] Implement macro check-in scheduler (end-of-day summary) in mealPlan/src/services/notification-service.ts (extend)
 
 **Checkpoint**: All three notification types configurable and firing correctly.
 
