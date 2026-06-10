@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, ScrollView, Pressable, TextInput, StyleSheet, Platform, Alert,
+  View, Text, ScrollView, Pressable, TextInput, Switch, StyleSheet, Platform, Alert,
   type ViewStyle, type TextStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -14,6 +14,10 @@ import {
   updatePersonalFood,
 } from '@/services/personal-food-service';
 import type { PersonalFood } from '@/models/personal-food';
+import { getMyPublicFoods, sharePublicFood } from '@/services/public-food-service';
+import type { PublicFood } from '@/services/public-food-service';
+
+type ShareStatus = 'not_shared' | 'pending' | 'approved';
 
 const SERVING_UNITS = ['g', 'oz', 'cup', 'piece', 'slice', 'tbsp', 'tsp', 'ml'];
 
@@ -52,17 +56,42 @@ function toEditState(food: PersonalFood): EditState {
 
 function FoodRow({
   food,
+  shareStatus,
   onDelete,
   onSave,
+  onShare,
 }: {
   food: PersonalFood;
+  shareStatus: ShareStatus;
   onDelete: (id: string) => void;
   onSave: (id: string, patch: Partial<PersonalFood>) => Promise<void>;
+  onShare: (food: PersonalFood) => Promise<void>;
 }) {
   const theme = useTheme();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<EditState>(() => toEditState(food));
   const [saving, setSaving] = useState(false);
+  const [localShareStatus, setLocalShareStatus] = useState<ShareStatus>(shareStatus);
+  const [sharing, setSharing] = useState(false);
+
+  useEffect(() => {
+    setLocalShareStatus(shareStatus);
+  }, [shareStatus]);
+
+  async function handleShareToggle(value: boolean) {
+    if (!value || localShareStatus !== 'not_shared') return;
+    setSharing(true);
+    try {
+      await onShare(food);
+      setLocalShareStatus('pending');
+    } catch {
+      // leave as not_shared on error
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  const shareToggleEnabled = localShareStatus === 'not_shared' && !sharing;
 
   const update = (patch: Partial<EditState>) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -157,6 +186,11 @@ function FoodRow({
     );
   }
 
+  const shareLabel =
+    localShareStatus === 'approved' ? 'Shared' :
+    localShareStatus === 'pending' ? 'Pending review' :
+    sharing ? 'Sharing…' : 'Share publicly';
+
   return (
     <View style={[styles.foodRow, { borderBottomColor: theme.border }]}>
       <View style={styles.foodInfo}>
@@ -168,6 +202,18 @@ function FoodRow({
           {macroSummary(food)}
           {food.serving_size_amount != null ? ` · per ${food.serving_size_amount}${food.serving_size_unit ?? ''}` : ''}
         </Text>
+        <View style={styles.shareRow}>
+          <Text style={[styles.shareLabel, { color: localShareStatus !== 'not_shared' ? Colors.accent : theme.textSecondary }]}>
+            {shareLabel}
+          </Text>
+          <Switch
+            value={localShareStatus !== 'not_shared'}
+            onValueChange={handleShareToggle}
+            disabled={!shareToggleEnabled}
+            trackColor={{ false: theme.border, true: Colors.accent }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
       </View>
       <View style={styles.rowActions}>
         <Pressable onPress={() => setEditing(true)} hitSlop={8} style={styles.rowBtn}>
@@ -186,6 +232,7 @@ export default function FoodLibraryScreen() {
   const router = useRouter();
   const { profile } = useUserProfile();
   const [foods, setFoods] = useState<PersonalFood[]>([]);
+  const [publicFoods, setPublicFoods] = useState<PublicFood[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -194,8 +241,12 @@ export default function FoodLibraryScreen() {
     if (!profile) return;
     setLoading(true);
     try {
-      const results = await getPersonalFoods(profile.user.id, q);
+      const [results, myPublic] = await Promise.all([
+        getPersonalFoods(profile.user.id, q),
+        getMyPublicFoods(),
+      ]);
       setFoods(results);
+      setPublicFoods(myPublic);
       setLoaded(true);
     } finally {
       setLoading(false);
@@ -218,6 +269,39 @@ export default function FoodLibraryScreen() {
   async function handleSave(id: string, patch: Partial<PersonalFood>) {
     await updatePersonalFood(id, patch);
     setFoods((prev) => prev.map((f) => f.id === id ? { ...f, ...patch } : f));
+  }
+
+  async function handleShare(food: PersonalFood) {
+    await sharePublicFood({
+      food_name: food.food_name,
+      brand_name: food.brand_name,
+      serving_size_amount: food.serving_size_amount,
+      serving_size_unit: food.serving_size_unit ?? undefined,
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fat: food.fat,
+      saturated_fat: food.saturated_fat,
+      trans_fat: food.trans_fat,
+      cholesterol: food.cholesterol,
+      sodium: food.sodium,
+      dietary_fiber: food.dietary_fiber,
+      total_sugar: food.total_sugar,
+      added_sugar: food.added_sugar,
+      fatsecret_id: food.fatsecret_id,
+      source: food.fatsecret_id ? 'fatsecret' : 'manual',
+    });
+  }
+
+  function getShareStatus(food: PersonalFood): ShareStatus {
+    const match = publicFoods.find((pf) =>
+      food.fatsecret_id
+        ? pf.fatsecret_id === food.fatsecret_id
+        : pf.food_name.toLowerCase() === food.food_name.toLowerCase() &&
+          (pf.brand_name ?? '') === (food.brand_name ?? '')
+    );
+    if (!match) return 'not_shared';
+    return match.approved ? 'approved' : 'pending';
   }
 
   return (
@@ -248,8 +332,10 @@ export default function FoodLibraryScreen() {
               <FoodRow
                 key={food.id}
                 food={food}
+                shareStatus={getShareStatus(food)}
                 onDelete={handleDelete}
                 onSave={handleSave}
+                onShare={handleShare}
               />
             ))}
           </ScrollView>
@@ -416,5 +502,16 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: '600',
     color: '#FFFFFF',
+  } as TextStyle,
+  shareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.xs,
+    gap: Spacing.sm,
+  } as ViewStyle,
+  shareLabel: {
+    fontSize: FontSizes.xs,
+    flex: 1,
   } as TextStyle,
 });

@@ -65,7 +65,32 @@ created_at / updated_at      timestamptz
 ```
 
 ### `public_foods` (Phase 7)
-Same columns as `personal_foods` plus `submitted_by uuid`, `approved bool`, `approval_notes text`.
+Same columns as `personal_foods` plus:
+- `submitted_by uuid` FK → auth.users
+- `approved bool default false`
+- `approval_notes text`
+- `barcode text` — populated when item was sourced from a barcode scan / FatSecret lookup
+- `trusted bool default false` — true for FatSecret-sourced entries (auto-approved, no manual review needed)
+- `flagged bool default false` — true when item has pending flags requiring moderator review (even if already approved)
+- `flag_count int default 0` — denormalized count of open flags for sort/filter
+
+### `food_flags` (Phase 7.1)
+```
+id          uuid PK
+food_id     uuid FK → public_foods
+flagged_by  uuid FK → auth.users
+reason      text    -- user-provided note, optional
+resolved    bool default false
+created_at  timestamptz
+```
+
+### `profiles` (Phase 7 — role management)
+```
+user_id   uuid PK FK → auth.users
+role      text default 'user'   -- 'user' | 'moderator' | 'admin'
+created_at timestamptz
+updated_at timestamptz
+```
 
 ---
 
@@ -206,16 +231,91 @@ Same columns as `personal_foods` plus `submitted_by uuid`, `approved bool`, `app
 
 ## Phase 7 — Public Food Table
 
-- [ ] Create Supabase migration for `public_foods` table
-  - [ ] Same columns as `personal_foods` plus `submitted_by uuid`, `approved bool default false`, `approval_notes text`
-  - [ ] RLS: authenticated users can read approved rows; owner can update their own; no direct delete
-- [ ] Create `supabase/functions/submit-public-food/` edge function — enforces approval logic server-side
-  - [ ] Auto-approve submissions where `source = 'fatsecret'` (data is trusted)
-  - [ ] All other submissions land with `approved = false`
-- [ ] Add "Also share publicly" toggle to the save-to-library flow — calls edge function on confirm
-- [ ] Update food search in `LogFoodForm` to unified search
-  - [ ] Query personal library + approved public foods + FatSecret in parallel
-  - [ ] Display source badge on each result: "My Library" / "Community" / "FatSecret"
+### 7a — Schema & roles
+
+- [x] Create Supabase migration for `profiles` table (`20260609000003_profiles.sql`)
+  - [x] `user_id uuid PK FK → auth.users`, `role text default 'user'` (`'user'` | `'moderator'` | `'admin'`), `created_at`, `updated_at`
+  - [x] RLS: users can read their own row; only admins can update `role`
+  - [x] Trigger: auto-insert a `profiles` row with `role = 'user'` when a new auth user is created
+  - [x] Backfill: existing auth users get a `profiles` row on migration apply
+- [x] Create Supabase migration for `public_foods` table (`20260609000004_public_foods.sql`)
+  - [x] RLS: any authenticated user can `SELECT` rows where `approved = true`; `submitted_by = auth.uid()` can also `SELECT` their own pending rows; no direct `INSERT` or `DELETE` (all writes via edge functions)
+  - [x] Index on `(approved, flagged)`, `(submitted_by)`, `(fatsecret_id)`, `(barcode)`
+- [x] Create Supabase migration for `food_flags` table (`20260609000005_food_flags.sql`)
+  - [x] RLS: users can insert their own flags; users can read their own flags; moderators/admins can read and update all
+  - [x] `UNIQUE(food_id, flagged_by)` — prevents duplicate flags from the same user
+
+### 7b — Edge functions & caching
+
+- [x] Create `supabase/functions/submit-public-food/` edge function
+  - [x] If `source = 'fatsecret'`: sets `approved = true`, `trusted = true` — immediately community-available
+  - [x] Otherwise: sets `approved = false`, `trusted = false` — pending moderator review
+  - [x] Optional `save_to_library` flag also upserts caller's `personal_foods` row (used by 7c share toggle)
+  - [x] Stores `barcode` if provided; upserts on `fatsecret_id` partial unique index (migration `20260609000006`)
+- [x] When a user selects any FatSecret result in `LogFoodForm`:
+  - [x] Call `submit-public-food` in the background via `cachePublicFood` (fire-and-forget, never blocks UI)
+  - [x] Include `barcode` if item was looked up by barcode scan (`barcode-scanner.tsx` now passes barcode to `onFoodFound`)
+- [x] Create `supabase/functions/flag-food/` edge function
+  - [x] Inserts a `food_flags` row for the caller
+  - [x] Increments `public_foods.flag_count` and sets `flagged = true`
+  - [x] Prevents duplicate flags from the same user on the same food (returns 409)
+- [x] Create `src/services/public-food-service.ts` — `cachePublicFood`, `sharePublicFood`, `flagPublicFood` helpers
+
+### 7c — Share toggle UI
+
+- [x] Add "Also share publicly" toggle to the Save to Library confirmation in `FoodLogDetailModal`
+  - [x] Switch below the ☆/★ confirmation — "Share with community?"
+  - [x] If on, calls `submit-public-food`; user sees pending status if manual entry
+- [x] Add share toggle to library management screen `src/app/(tabs)/profile/food-library.tsx`
+  - [x] Each item shows current share status: not shared / pending / shared
+  - [x] Toggle to share (calls edge function)
+- [x] Add "Flag this food" option on community search results and food log item detail when `source = 'community'`
+  - [x] Tap opens a short reason input (optional), then calls `flag-food` edge function
+  - [x] After flagging, button shows "Flagged" and is disabled (one flag per user per food)
+
+### 7d — Unified search
+
+- [x] Update food search in `LogFoodForm` to unified search
+  - [x] Query personal library + approved `public_foods` + FatSecret in parallel
+  - [x] Order: personal library first, then community, then FatSecret
+  - [x] Deduplicate by `fatsecret_id`: if food exists in Community, suppress the FatSecret duplicate
+  - [x] Display source badge: "My Library" / "Community" / "FatSecret"
+
+---
+
+## Phase 7.1 — Moderator & Admin Views
+
+### 7.1a — Pending food review (moderator + admin)
+
+- [x] Create `src/app/(tabs)/profile/admin/` route group — redirect or hide if `profiles.role` is `'user'`
+- [x] Create `src/app/(tabs)/profile/admin/pending-foods.tsx`
+  - [x] List `public_foods` where `approved = false`, ordered by `created_at asc`
+  - [x] Each card: food name, brand, serving, core macros, submitter info, date
+  - [x] **Approve** action → calls `moderate-food` edge function with `{ action: 'approve' }`
+  - [x] **Reject** action → opens reason text input → calls `moderate-food` with `{ action: 'reject', notes }`; removes the `public_foods` row
+- [x] Create `src/app/(tabs)/profile/admin/flagged-foods.tsx`
+  - [x] List `public_foods` where `flagged = true`, ordered by `flag_count desc`
+  - [x] Shows all `food_flags` for each food (who flagged, reason, date)
+  - [x] **Clear flags** action: resolves all open `food_flags`, resets `flagged = false` and `flag_count = 0` — food stays approved
+  - [x] **Re-pend** action: sets `approved = false`, moving food back into the pending-foods queue for full re-review
+  - [x] **Remove** action: hard-deletes the `public_foods` row and its flags
+- [x] Create `supabase/functions/moderate-food/` edge function
+  - [x] Verifies caller's `profiles.role` is `'moderator'` or `'admin'`
+  - [x] Handles `approve`, `reject`, `clear-flags`, `re-pend`, `remove` actions on `public_foods` / `food_flags`
+
+### 7.1b — User role management (admin only)
+
+- [x] Create `src/app/(tabs)/profile/admin/user-roles.tsx`
+  - [x] Paginated list of all users with current role
+  - [x] Search by email
+  - [x] Tap a user → role picker (`user` / `moderator` / `admin`)
+  - [x] Role change calls `supabase/functions/set-user-role/` edge function
+- [x] Create `supabase/functions/set-user-role/` edge function — verifies caller is `admin` before updating `profiles.role`
+- [x] Add "Admin" section to `src/app/(tabs)/profile/index.tsx`
+  - [x] "Pending Foods" link (moderator + admin)
+  - [x] "Flagged Foods" link (moderator + admin)
+  - [x] "User Roles" link (admin only)
+  - [x] Section hidden entirely for `role = 'user'`
 
 ---
 

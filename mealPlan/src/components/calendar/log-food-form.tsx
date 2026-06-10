@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Modal,
+  View, Text, TextInput, ScrollView, Pressable, StyleSheet, ActivityIndicator, Modal,
   type ViewStyle, type TextStyle,
 } from 'react-native';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
@@ -12,6 +12,9 @@ import { getPersonalFoods } from '@/services/personal-food-service';
 import type { PersonalFood } from '@/models/personal-food';
 import { lookupIngredient, getFoodDetails } from '@/services/fatsecret';
 import type { FoodSearchResult, FoodDetails, FatSecretServing } from '@/services/fatsecret';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { cachePublicFood, searchPublicFoods } from '@/services/public-food-service';
+import type { PublicFood } from '@/services/public-food-service';
 import { FatSecretAttribution } from '@/components/food/fatsecret-attribution';
 import { BarcodeScanner } from '@/components/food/barcode-scanner';
 
@@ -68,7 +71,7 @@ interface StagedItem {
   dietary_fiber: string;
   total_sugar: string;
   added_sugar: string;
-  source: 'manual' | 'library' | 'fatsecret';
+  source: 'manual' | 'library' | 'community' | 'fatsecret';
   source_id: string | null;
 }
 
@@ -139,34 +142,62 @@ function servingToFields(srv: FatSecretServing): Partial<StagedItem> {
   };
 }
 
-type FormMode = 'manual' | 'library' | 'fatsecret';
+type FormMode = 'manual' | 'search';
+
+type UnifiedFoodResult =
+  | { source: 'library'; item: PersonalFood }
+  | { source: 'community'; item: PublicFood }
+  | { source: 'fatsecret'; item: FoodSearchResult };
 
 export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSubmit, onCancel }: LogFoodFormProps) {
   const theme = useTheme();
 
   const [formMode, setFormMode] = useState<FormMode>('manual');
 
-  // Library search state
-  const [libraryQuery, setLibraryQuery] = useState('');
-  const [libraryResults, setLibraryResults] = useState<PersonalFood[]>([]);
-  const [libraryLoading, setLibraryLoading] = useState(false);
+  // Unified search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<UnifiedFoodResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const searchLibrary = useCallback(async (q: string) => {
-    if (!userId) return;
-    setLibraryLoading(true);
+  // FatSecret detail-fetch state (used in manual form for serving picker)
+  const [fsLoadingId, setFsLoadingId] = useState<string | null>(null);
+  const [fsSelectedFood, setFsSelectedFood] = useState<FoodDetails | null>(null);
+  const [fsServingIdx, setFsServingIdx] = useState(0);
+
+  const runUnifiedSearch = useCallback(async (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) { setSearchResults([]); return; }
+    setSearchLoading(true);
     try {
-      const results = await getPersonalFoods(userId, q);
-      setLibraryResults(results);
+      const [libraryItems, communityItems, fsResponse] = await Promise.all([
+        userId ? getPersonalFoods(userId, trimmed) : Promise.resolve([] as PersonalFood[]),
+        searchPublicFoods(trimmed).catch(() => [] as PublicFood[]),
+        lookupIngredient(trimmed).catch(() => ({ results: [] as FoodSearchResult[] })),
+      ]);
+      // Suppress FatSecret duplicates that exist in community (matched by fatsecret_id)
+      const communityFsIds = new Set(communityItems.map((f) => f.fatsecret_id).filter(Boolean));
+      const results: UnifiedFoodResult[] = [
+        ...libraryItems.map((item) => ({ source: 'library' as const, item })),
+        ...communityItems.map((item) => ({ source: 'community' as const, item })),
+        ...fsResponse.results
+          .filter((r) => !communityFsIds.has(r.id))
+          .map((item) => ({ source: 'fatsecret' as const, item })),
+      ];
+      setSearchResults(results);
     } finally {
-      setLibraryLoading(false);
+      setSearchLoading(false);
     }
   }, [userId]);
 
   useEffect(() => {
-    if (formMode === 'library') {
-      searchLibrary(libraryQuery);
-    }
-  }, [formMode, libraryQuery, searchLibrary]);
+    if (formMode !== 'search') return;
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => runUnifiedSearch(searchQuery), 400);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery, formMode, runUnifiedSearch]);
 
   function selectLibraryItem(food: PersonalFood) {
     setDraft({
@@ -194,43 +225,37 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
     setFormMode('manual');
   }
 
-  // FatSecret search state
-  const [fsQuery, setFsQuery] = useState('');
-  const [fsResults, setFsResults] = useState<FoodSearchResult[]>([]);
-  const [fsSearching, setFsSearching] = useState(false);
-  const [fsLoadingId, setFsLoadingId] = useState<string | null>(null);
-  const [fsSelectedFood, setFsSelectedFood] = useState<FoodDetails | null>(null);
-  const [fsServingIdx, setFsServingIdx] = useState(0);
-  const fsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (formMode !== 'fatsecret') return;
-    const trimmed = fsQuery.trim();
-    if (!trimmed) {
-      setFsResults([]);
-      return;
-    }
-    if (fsDebounceRef.current) clearTimeout(fsDebounceRef.current);
-    fsDebounceRef.current = setTimeout(async () => {
-      setFsSearching(true);
-      try {
-        const response = await lookupIngredient(trimmed);
-        setFsResults(response.results);
-      } catch {
-        setFsResults([]);
-      } finally {
-        setFsSearching(false);
-      }
-    }, 400);
-    return () => {
-      if (fsDebounceRef.current) clearTimeout(fsDebounceRef.current);
-    };
-  }, [fsQuery, formMode]);
+  function selectCommunityItem(food: PublicFood) {
+    setDraft({
+      key: String(Date.now() + Math.random()),
+      food_name: food.food_name,
+      brand_name: food.brand_name ?? '',
+      serving_size_amount: food.serving_size_amount != null ? String(food.serving_size_amount) : '',
+      serving_size_unit: food.serving_size_unit ?? 'g',
+      servings_eaten: '1',
+      calories: food.calories != null ? String(food.calories) : '',
+      protein: food.protein != null ? String(food.protein) : '',
+      carbs: food.carbs != null ? String(food.carbs) : '',
+      fat: food.fat != null ? String(food.fat) : '',
+      saturated_fat: '',
+      trans_fat: '',
+      cholesterol: '',
+      sodium: '',
+      dietary_fiber: '',
+      total_sugar: '',
+      added_sugar: '',
+      source: 'community',
+      source_id: food.id,
+    });
+    setFsSelectedFood(null);
+    setFormMode('manual');
+  }
 
   async function selectFatSecretFood(result: FoodSearchResult) {
     setFsLoadingId(result.id);
+    let details: FoodDetails | null = null;
     try {
-      const details = await getFoodDetails(result.id);
+      details = await getFoodDetails(result.id);
       const firstServing = details?.servings[0];
 
       const base: StagedItem = {
@@ -283,6 +308,27 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
     } finally {
       setFsLoadingId(null);
       setFormMode('manual');
+      // Background-cache in public_foods so future community searches skip the FatSecret API
+      const srv = details?.servings[0];
+      cachePublicFood({
+        food_name: details?.name ?? result.name,
+        brand_name: details?.brand_name ?? result.brand_name ?? null,
+        fatsecret_id: result.id,
+        source: 'fatsecret',
+        serving_size_amount: srv?.metric_serving_amount ?? null,
+        serving_size_unit: srv?.metric_serving_unit ?? null,
+        calories: srv?.calories ?? result.caloriesPerServing ?? null,
+        protein: srv?.protein ?? result.proteinPerServing ?? null,
+        carbs: srv?.carbs ?? result.carbsPerServing ?? null,
+        fat: srv?.fat ?? result.fatPerServing ?? null,
+        saturated_fat: srv?.saturated_fat ?? null,
+        trans_fat: srv?.trans_fat ?? null,
+        cholesterol: srv?.cholesterol ?? null,
+        sodium: srv?.sodium ?? null,
+        dietary_fiber: srv?.fiber ?? null,
+        total_sugar: srv?.sugar ?? null,
+        added_sugar: srv?.added_sugar ?? null,
+      });
     }
   }
 
@@ -294,7 +340,7 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
 
   const [scannerVisible, setScannerVisible] = useState(false);
 
-  function applyFoodDetails(details: FoodDetails, sourceId: string) {
+  function applyFoodDetails(details: FoodDetails, sourceId: string, barcode?: string) {
     const firstServing = details.servings[0];
     setDraft({
       key: String(Date.now() + Math.random()),
@@ -324,6 +370,27 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
     } else {
       setFsSelectedFood(null);
     }
+    // Background-cache barcode scans so the food is findable in community search without re-hitting FatSecret
+    cachePublicFood({
+      food_name: details.name,
+      brand_name: details.brand_name ?? null,
+      fatsecret_id: sourceId,
+      source: 'fatsecret',
+      barcode: barcode ?? null,
+      serving_size_amount: firstServing?.metric_serving_amount ?? null,
+      serving_size_unit: firstServing?.metric_serving_unit ?? null,
+      calories: firstServing?.calories ?? null,
+      protein: firstServing?.protein ?? null,
+      carbs: firstServing?.carbs ?? null,
+      fat: firstServing?.fat ?? null,
+      saturated_fat: firstServing?.saturated_fat ?? null,
+      trans_fat: firstServing?.trans_fat ?? null,
+      cholesterol: firstServing?.cholesterol ?? null,
+      sodium: firstServing?.sodium ?? null,
+      dietary_fiber: firstServing?.fiber ?? null,
+      total_sugar: firstServing?.sugar ?? null,
+      added_sugar: firstServing?.added_sugar ?? null,
+    });
   }
 
   // Meal label + time
@@ -374,9 +441,9 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
     <>
     <Modal visible={scannerVisible} animationType="slide" onRequestClose={() => setScannerVisible(false)}>
       <BarcodeScanner
-        onFoodFound={(details) => {
+        onFoodFound={(details, barcode) => {
           setScannerVisible(false);
-          applyFoodDetails(details, details.id);
+          applyFoodDetails(details, details.id, barcode);
           setFormMode('manual');
         }}
         onNotFound={() => {
@@ -395,99 +462,130 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
         >
           <Text style={[styles.modeTabText, { color: theme.text }, formMode === 'manual' ? styles.modeTabTextActive : null]}>Manual</Text>
         </Pressable>
-        {userId ? (
-          <Pressable
-            style={[styles.modeTab, formMode === 'library' ? styles.modeTabActive : null]}
-            onPress={() => setFormMode('library')}
-          >
-            <Text style={[styles.modeTabText, { color: theme.text }, formMode === 'library' ? styles.modeTabTextActive : null]}>My Library</Text>
-          </Pressable>
-        ) : null}
         <Pressable
-          style={[styles.modeTab, formMode === 'fatsecret' ? styles.modeTabActive : null]}
-          onPress={() => setFormMode('fatsecret')}
+          style={[styles.modeTab, formMode === 'search' ? styles.modeTabActive : null]}
+          onPress={() => setFormMode('search')}
         >
-          <Text style={[styles.modeTabText, { color: theme.text }, formMode === 'fatsecret' ? styles.modeTabTextActive : null]}>Search</Text>
+          <Text style={[styles.modeTabText, { color: theme.text }, formMode === 'search' ? styles.modeTabTextActive : null]}>Search</Text>
         </Pressable>
       </View>
 
-      {formMode === 'library' ? (
+      {formMode === 'search' ? (
         <View style={styles.libraryPanel}>
-          <Input
-            placeholder="Search saved foods…"
-            value={libraryQuery}
-            onChangeText={setLibraryQuery}
-          />
-          {libraryLoading ? (
+          <View style={styles.searchBarRow}>
+            <View style={[styles.searchBarField, { borderColor: theme.border, backgroundColor: theme.background }]}>
+              <TextInput
+                style={[styles.searchBarInput, { color: theme.text }]}
+                placeholder="Search foods, brands…"
+                placeholderTextColor={theme.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 ? (
+                <Pressable onPress={() => setSearchQuery('')} hitSlop={8} style={styles.searchClearBtn}>
+                  <Text style={[styles.searchClearIcon, { color: theme.textSecondary }]}>×</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            <Pressable style={[styles.cameraBtn, { borderColor: theme.border }]} onPress={() => setScannerVisible(true)} hitSlop={4}>
+              <Ionicons name="barcode-outline" size={22} color="#888" />
+            </Pressable>
+          </View>
+          {searchLoading ? (
             <ActivityIndicator size="small" color={Colors.accent} style={styles.librarySpinner} />
-          ) : libraryResults.length === 0 ? (
+          ) : searchResults.length === 0 ? (
             <Text style={[styles.libraryEmpty, { color: theme.textSecondary }]}>
-              {libraryQuery.trim() ? 'No matches found.' : 'No saved foods yet.'}
+              {searchQuery.trim() ? 'No results.' : 'Search your library, community foods, and FatSecret.'}
             </Text>
           ) : (
-            libraryResults.map((food) => (
-              <Pressable
-                key={food.id}
-                style={[styles.libraryRow, { borderBottomColor: theme.border }]}
-                onPress={() => selectLibraryItem(food)}
-              >
-                <Text style={[styles.libraryFoodName, { color: theme.text }]} numberOfLines={1}>{food.food_name}</Text>
-                {food.brand_name ? (
-                  <Text style={[styles.libraryBrand, { color: theme.textSecondary }]} numberOfLines={1}>{food.brand_name}</Text>
-                ) : null}
-                <Text style={[styles.libraryMacros, { color: theme.textSecondary }]}>
-                  {[
-                    food.calories != null ? `${food.calories} kcal` : null,
-                    food.serving_size_amount != null ? `per ${food.serving_size_amount}${food.serving_size_unit ?? ''}` : null,
-                  ].filter(Boolean).join(' · ') || '—'}
-                </Text>
-              </Pressable>
-            ))
-          )}
-        </View>
-      ) : formMode === 'fatsecret' ? (
-        <View style={styles.libraryPanel}>
-          <Input
-            placeholder="Search foods, brands…"
-            value={fsQuery}
-            onChangeText={setFsQuery}
-          />
-          {fsSearching ? (
-            <ActivityIndicator size="small" color={Colors.accent} style={styles.librarySpinner} />
-          ) : fsResults.length === 0 ? (
-            <Text style={[styles.libraryEmpty, { color: theme.textSecondary }]}>
-              {fsQuery.trim() ? 'No results.' : 'Type to search the FatSecret database.'}
-            </Text>
-          ) : (
-            fsResults.map((food) => (
-              <Pressable
-                key={food.id}
-                style={[styles.libraryRow, { borderBottomColor: theme.border }]}
-                onPress={() => selectFatSecretFood(food)}
-                disabled={fsLoadingId === food.id}
-              >
-                <View style={styles.fsResultRow}>
-                  <View style={styles.fsResultText}>
-                    {food.brand_name ? (
-                      <Text style={[styles.fsBrandName, { color: Colors.accent }]} numberOfLines={1}>{food.brand_name}</Text>
-                    ) : null}
-                    <Text style={[styles.libraryFoodName, { color: theme.text }]} numberOfLines={2}>{food.name}</Text>
-                    <Text style={[styles.libraryMacros, { color: theme.textSecondary }]}>
-                      {food.caloriesPerServing != null
-                        ? `${food.caloriesPerServing} kcal${food.servingDescription ? ` / ${food.servingDescription}` : ''}`
-                        : `${food.caloriesPer100g} kcal / 100g`}
-                    </Text>
+            searchResults.map((result, idx) => {
+              if (result.source === 'library') {
+                const food = result.item;
+                return (
+                  <Pressable
+                    key={`lib-${food.id}`}
+                    style={[styles.libraryRow, { borderBottomColor: theme.border }]}
+                    onPress={() => selectLibraryItem(food)}
+                  >
+                    <View style={styles.fsResultRow}>
+                      <View style={styles.fsResultText}>
+                        {food.brand_name ? (
+                          <Text style={[styles.fsBrandName, { color: Colors.accent }]} numberOfLines={1}>{food.brand_name}</Text>
+                        ) : null}
+                        <Text style={[styles.libraryFoodName, { color: theme.text }]} numberOfLines={1}>{food.food_name}</Text>
+                        <Text style={[styles.libraryMacros, { color: theme.textSecondary }]}>
+                          {[food.calories != null ? `${food.calories} kcal` : null, food.serving_size_amount != null ? `per ${food.serving_size_amount}${food.serving_size_unit ?? ''}` : null].filter(Boolean).join(' · ') || '—'}
+                        </Text>
+                      </View>
+                      <View style={styles.sourceBadgeContainer}>
+                        <Text style={[styles.sourceBadge, styles.sourceBadgeLibrary]}>My Library</Text>
+                        <Text style={[styles.fsChevron, { color: theme.textSecondary }]}>›</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              }
+              if (result.source === 'community') {
+                const food = result.item;
+                return (
+                  <Pressable
+                    key={`com-${food.id}`}
+                    style={[styles.libraryRow, { borderBottomColor: theme.border }]}
+                    onPress={() => selectCommunityItem(food)}
+                  >
+                    <View style={styles.fsResultRow}>
+                      <View style={styles.fsResultText}>
+                        {food.brand_name ? (
+                          <Text style={[styles.fsBrandName, { color: Colors.accent }]} numberOfLines={1}>{food.brand_name}</Text>
+                        ) : null}
+                        <Text style={[styles.libraryFoodName, { color: theme.text }]} numberOfLines={1}>{food.food_name}</Text>
+                        <Text style={[styles.libraryMacros, { color: theme.textSecondary }]}>
+                          {[food.calories != null ? `${food.calories} kcal` : null, food.serving_size_amount != null ? `per ${food.serving_size_amount}${food.serving_size_unit ?? ''}` : null].filter(Boolean).join(' · ') || '—'}
+                        </Text>
+                      </View>
+                      <View style={styles.sourceBadgeContainer}>
+                        <Text style={[styles.sourceBadge, styles.sourceBadgeCommunity]}>Community</Text>
+                        <Text style={[styles.fsChevron, { color: theme.textSecondary }]}>›</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              }
+              // FatSecret result
+              const food = result.item;
+              return (
+                <Pressable
+                  key={`fs-${food.id}-${idx}`}
+                  style={[styles.libraryRow, { borderBottomColor: theme.border }]}
+                  onPress={() => selectFatSecretFood(food)}
+                  disabled={fsLoadingId === food.id}
+                >
+                  <View style={styles.fsResultRow}>
+                    <View style={styles.fsResultText}>
+                      {food.brand_name ? (
+                        <Text style={[styles.fsBrandName, { color: Colors.accent }]} numberOfLines={1}>{food.brand_name}</Text>
+                      ) : null}
+                      <Text style={[styles.libraryFoodName, { color: theme.text }]} numberOfLines={2}>{food.name}</Text>
+                      <Text style={[styles.libraryMacros, { color: theme.textSecondary }]}>
+                        {food.caloriesPerServing != null
+                          ? `${food.caloriesPerServing} kcal${food.servingDescription ? ` / ${food.servingDescription}` : ''}`
+                          : `${food.caloriesPer100g} kcal / 100g`}
+                      </Text>
+                    </View>
+                    <View style={styles.sourceBadgeContainer}>
+                      <Text style={[styles.sourceBadge, styles.sourceBadgeFatSecret]}>FatSecret</Text>
+                      {fsLoadingId === food.id
+                        ? <ActivityIndicator size="small" color={Colors.accent} />
+                        : <Text style={[styles.fsChevron, { color: theme.textSecondary }]}>›</Text>}
+                    </View>
                   </View>
-                  {fsLoadingId === food.id ? (
-                    <ActivityIndicator size="small" color={Colors.accent} />
-                  ) : (
-                    <Text style={[styles.fsChevron, { color: theme.textSecondary }]}>›</Text>
-                  )}
-                </View>
-              </Pressable>
-            ))
+                </Pressable>
+              );
+            })
           )}
-          <FatSecretAttribution style={styles.fsAttribution} />
+          {searchResults.some((r) => r.source === 'fatsecret') ? (
+            <FatSecretAttribution style={styles.fsAttribution} />
+          ) : null}
         </View>
       ) : (
         <View style={styles.manualForm}>
@@ -578,7 +676,7 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
               containerStyle={styles.foodNameInput}
             />
             <Pressable style={[styles.cameraBtn, { borderColor: theme.border }]} onPress={() => setScannerVisible(true)} hitSlop={4}>
-              <Text style={styles.cameraBtnIcon}>📷</Text>
+              <Ionicons name="barcode-outline" size={22} color="#888" />
             </Pressable>
           </View>
           <Input placeholder="Brand (optional)" value={draft.brand_name} onChangeText={(v) => updateDraft({ brand_name: v })} />
@@ -930,6 +1028,56 @@ const styles = StyleSheet.create({
   manualForm: {
     gap: Spacing.sm,
   } as ViewStyle,
+  searchBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  searchBarField: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.md,
+  } as ViewStyle,
+  searchBarInput: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    fontSize: 16,
+  } as TextStyle,
+  searchClearBtn: {
+    paddingLeft: Spacing.xs,
+    paddingVertical: 4,
+  } as ViewStyle,
+  searchClearIcon: {
+    fontSize: 18,
+    lineHeight: 20,
+  } as TextStyle,
+  sourceBadgeContainer: {
+    alignItems: 'flex-end',
+    gap: 4,
+  } as ViewStyle,
+  sourceBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
+  } as TextStyle,
+  sourceBadgeLibrary: {
+    backgroundColor: '#E8F5E9',
+    color: '#2E7D32',
+  } as TextStyle,
+  sourceBadgeCommunity: {
+    backgroundColor: '#E3F2FD',
+    color: '#1565C0',
+  } as TextStyle,
+  sourceBadgeFatSecret: {
+    backgroundColor: '#FFF3E0',
+    color: '#E65100',
+  } as TextStyle,
   // FatSecret-specific
   fsResultRow: {
     flexDirection: 'row',

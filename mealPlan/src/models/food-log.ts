@@ -27,7 +27,7 @@ export interface FoodLogItem {
   dietary_fiber?: number | null;
   total_sugar?: number | null;
   added_sugar?: number | null;
-  source: 'manual' | 'library' | 'fatsecret' | 'recipe';
+  source: 'manual' | 'library' | 'fatsecret' | 'recipe' | 'community';
   source_id?: string | null;
   display_order: number;
   created_at: string;

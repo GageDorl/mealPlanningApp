@@ -10,6 +10,7 @@ import { DefaultMacros, type MacroDefinition } from '@/constants/macros';
 import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUserProfile } from '@/hooks/use-user-profile';
+import { useUserRole } from '@/hooks/use-user-role';
 import { useCalendar } from '@/hooks/use-calendar';
 import { signOut } from '@/services/supabase';
 import { updateDietaryPreferences, updateMacroGoals, updateNotificationSettings } from '@/services/user-service';
@@ -18,6 +19,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { profile, loading, reload } = useUserProfile();
+  const { role } = useUserRole();
   const { connected, calendarExportEnabled, setExportEnabled, disconnect } = useCalendar();
   const [displayName, setDisplayName] = useState('');
   const [macros, setMacros] = useState<MacroDefinition[]>(DefaultMacros);
@@ -195,6 +197,30 @@ export default function ProfileScreen() {
             onPress={() => router.push('/(tabs)/profile/food-library')}
             variant="secondary"
           />
+
+          {/* Admin */}
+          {(role === 'moderator' || role === 'admin') ? (
+            <>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Admin</Text>
+              <Button
+                label="Pending Foods"
+                onPress={() => router.push('/(tabs)/profile/admin/pending-foods')}
+                variant="secondary"
+              />
+              <Button
+                label="Flagged Foods"
+                onPress={() => router.push('/(tabs)/profile/admin/flagged-foods')}
+                variant="secondary"
+              />
+              {role === 'admin' ? (
+                <Button
+                  label="User Roles"
+                  onPress={() => router.push('/(tabs)/profile/admin/user-roles')}
+                  variant="secondary"
+                />
+              ) : null}
+            </>
+          ) : null}
 
           {/* Actions */}
           <View style={styles.actions}>

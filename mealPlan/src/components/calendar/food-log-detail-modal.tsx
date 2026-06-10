@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Modal, View, Text, Pressable, TextInput, ScrollView, StyleSheet, Platform, Alert, type ViewStyle, type TextStyle } from 'react-native';
+import { Modal, View, Text, Pressable, TextInput, Switch, ScrollView, StyleSheet, Platform, Alert, type ViewStyle, type TextStyle } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import type { FoodLogWithItems, FoodLogItemInput } from '@/services/food-log-service';
 import type { FoodLogItem } from '@/models/food-log';
 import { FatSecretAttribution } from '@/components/food/fatsecret-attribution';
+import { sharePublicFood, flagPublicFood } from '@/services/public-food-service';
 import { LogFoodForm } from './log-food-form';
 
 interface FoodLogDetailModalProps {
@@ -55,6 +56,12 @@ function ItemRow({
   const [servingsText, setServingsText] = useState(String(item.servings_eaten));
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [shareEnabled, setShareEnabled] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [flagging, setFlagging] = useState(false);
+  const [flagged, setFlagged] = useState(false);
+  const [flagModalVisible, setFlagModalVisible] = useState(false);
+  const [flagReason, setFlagReason] = useState('');
 
   function commitServings() {
     const parsed = parseFloat(servingsText);
@@ -78,6 +85,56 @@ function ItemRow({
     }
   }
 
+  async function handleShareToggle(value: boolean) {
+    setShareEnabled(value);
+    if (!value) return;
+    setSharing(true);
+    try {
+      await sharePublicFood({
+        food_name: item.food_name,
+        brand_name: item.brand_name,
+        serving_size_amount: item.serving_size_amount,
+        serving_size_unit: item.serving_size_unit ?? undefined,
+        calories: item.calories,
+        protein: item.protein,
+        carbs: item.carbs,
+        fat: item.fat,
+        saturated_fat: item.saturated_fat,
+        trans_fat: item.trans_fat,
+        cholesterol: item.cholesterol,
+        sodium: item.sodium,
+        dietary_fiber: item.dietary_fiber,
+        total_sugar: item.total_sugar,
+        added_sugar: item.added_sugar,
+        fatsecret_id: item.source === 'fatsecret' ? item.source_id : null,
+        source: item.source === 'fatsecret' ? 'fatsecret' : 'manual',
+      });
+    } catch {
+      setShareEnabled(false);
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function handleFlag() {
+    if (flagging || flagged || !item.source_id) return;
+    setFlagging(true);
+    try {
+      const success = await flagPublicFood(item.source_id, flagReason.trim() || undefined);
+      if (success) {
+        setFlagged(true);
+      } else {
+        Alert.alert('Already flagged', 'You have already flagged this food.');
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to flag food. Please try again.');
+    } finally {
+      setFlagging(false);
+      setFlagModalVisible(false);
+      setFlagReason('');
+    }
+  }
+
   const displayServings = parseFloat(servingsText) > 0 ? parseFloat(servingsText) : item.servings_eaten;
 
   return (
@@ -89,6 +146,34 @@ function ItemRow({
         <Text style={[styles.foodName, { color: theme.text }]} numberOfLines={1}>{item.food_name}</Text>
         <Text style={[styles.macros, { color: theme.textSecondary }]}>{macroLine(item, displayServings)}</Text>
         {item.source === 'fatsecret' ? <FatSecretAttribution style={styles.attribution} /> : null}
+
+        {saved ? (
+          <View style={styles.shareRow}>
+            <Text style={[styles.shareLabel, { color: theme.textSecondary }]}>
+              {sharing ? 'Sharing…' : 'Share with community?'}
+            </Text>
+            <Switch
+              value={shareEnabled}
+              onValueChange={handleShareToggle}
+              disabled={sharing || shareEnabled}
+              trackColor={{ false: theme.border, true: Colors.accent }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        ) : null}
+
+        {item.source === 'community' && item.source_id ? (
+          <Pressable
+            onPress={() => setFlagModalVisible(true)}
+            disabled={flagged || flagging}
+            hitSlop={8}
+            style={styles.flagButton}
+          >
+            <Text style={[styles.flagButtonText, { color: flagged ? theme.textSecondary : '#E53E3E' }]}>
+              {flagged ? 'Flagged' : flagging ? 'Flagging…' : 'Flag'}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.itemRight}>
@@ -118,6 +203,37 @@ function ItemRow({
           <Text style={[styles.deleteIcon, { color: theme.textSecondary }]}>×</Text>
         </Pressable>
       </View>
+
+      <Modal visible={flagModalVisible} transparent animationType="fade" onRequestClose={() => setFlagModalVisible(false)}>
+        <Pressable style={styles.flagOverlay} onPress={() => setFlagModalVisible(false)}>
+          <Pressable style={[styles.flagCard, { backgroundColor: theme.background }]} onPress={() => {}}>
+            <Text style={[styles.flagTitle, { color: theme.text }]}>Flag this food</Text>
+            <Text style={[styles.flagSubtitle, { color: theme.textSecondary }]}>
+              Report incorrect or inappropriate nutrition data.
+            </Text>
+            <TextInput
+              style={[styles.flagInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.backgroundElement }]}
+              placeholder="Reason (optional)"
+              placeholderTextColor={theme.textSecondary}
+              value={flagReason}
+              onChangeText={setFlagReason}
+              multiline
+            />
+            <View style={styles.flagActions}>
+              <Pressable style={[styles.flagActionBtn, { borderColor: theme.border }]} onPress={() => setFlagModalVisible(false)}>
+                <Text style={[styles.flagActionText, { color: theme.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.flagActionBtn, styles.flagSubmitBtn]}
+                onPress={handleFlag}
+                disabled={flagging}
+              >
+                <Text style={styles.flagSubmitText}>{flagging ? 'Flagging…' : 'Submit'}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -432,6 +548,83 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: 2,
   } as ViewStyle,
+  shareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.xs,
+    gap: Spacing.sm,
+  } as ViewStyle,
+  shareLabel: {
+    fontSize: FontSizes.xs,
+    flex: 1,
+  } as TextStyle,
+  flagButton: {
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  } as ViewStyle,
+  flagButtonText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+  } as TextStyle,
+  flagOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    padding: Spacing.lg,
+  } as ViewStyle,
+  flagCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0px 4px 12px rgba(0,0,0,0.2)' }
+      : { shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, elevation: 6 }),
+  } as ViewStyle,
+  flagTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+  } as TextStyle,
+  flagSubtitle: {
+    fontSize: FontSizes.xs,
+  } as TextStyle,
+  flagInput: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.sm,
+    fontSize: FontSizes.sm,
+    minHeight: 64,
+    textAlignVertical: 'top',
+  } as TextStyle,
+  flagActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  } as ViewStyle,
+  flagActionBtn: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.lg,
+    alignItems: 'center',
+  } as ViewStyle,
+  flagActionText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  } as TextStyle,
+  flagSubmitBtn: {
+    backgroundColor: '#E53E3E',
+    borderColor: '#E53E3E',
+  } as ViewStyle,
+  flagSubmitText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  } as TextStyle,
   emptyText: {
     fontSize: FontSizes.sm,
     textAlign: 'center',
