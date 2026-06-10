@@ -15,20 +15,11 @@ export function Button({ label, onPress, variant = 'primary', disabled = false, 
 
   return (
     <Pressable
-      style={[
-        styles.button,
-        variant === 'secondary'
-          ? { backgroundColor: theme.backgroundElement, borderWidth: 1, borderColor: theme.border }
-          : styles.primary,
-        disabled && styles.disabled,
-        style,
-      ]}
+      style={[styles.button, variant === 'secondary' ? { backgroundColor: theme.backgroundElement, borderWidth: 1, borderColor: theme.border } : styles.primary, disabled && styles.disabled, style]}
       onPress={onPress}
       disabled={disabled}
     >
-      <Text style={[styles.label, variant === 'secondary' ? { color: theme.text } : styles.primaryLabel]}>
-        {label}
-      </Text>
+      <Text style={[styles.label, variant === 'secondary' ? { color: theme.text } : styles.primaryLabel]}>{label}</Text>
     </Pressable>
   );
 }
