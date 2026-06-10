@@ -1,20 +1,95 @@
-import { useState, useEffect } from 'react';
-import { View, Pressable, StyleSheet, Platform, type ViewStyle } from 'react-native';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { View, Pressable, StyleSheet, Platform, Text, type ViewStyle, type TextStyle } from 'react-native';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { Colors } from '@/constants/theme';
 import { ExternalEventBlock } from './external-event-block';
 import { MealSlotCard } from './meal-slot-card';
+import { FoodLogCard } from './food-log-card';
 import {
   minutesToY, parseTimeToMinutes, formatMinutes24, clampMinutes,
   DEFAULT_HOUR_HEIGHT, START_HOUR, END_HOUR, GRID_HEIGHT, DEFAULT_SLOT_DURATION,
 } from './day-column';
 import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
+import type { FoodLogWithItems } from '@/services/food-log-service';
 import type { CalendarEvent } from '@/services/calendar.types';
+
+function formatDragTime(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const display = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${display}:${String(m).padStart(2, '0')} ${suffix}`;
+}
+
+function DraggableFoodLog({
+  log,
+  top,
+  height,
+  compact,
+  isDragging,
+  hourHeight,
+  onPress,
+  onDelete,
+  onDragStart,
+  onDragUpdate,
+  onDragEnd,
+}: {
+  log: FoodLogWithItems;
+  top: number;
+  height: number;
+  compact: boolean;
+  isDragging: boolean;
+  hourHeight: number;
+  onPress: () => void;
+  onDelete: () => void;
+  onDragStart: (logId: string, currentMin: number) => void;
+  onDragUpdate: (logId: string, currentMin: number) => void;
+  onDragEnd: (logId: string, finalMin: number | null) => void;
+}) {
+  const startMin = parseTimeToMinutes(log.time_of_day)!;
+  const dragMinRef = useRef(startMin);
+
+  const gesture = useMemo(() =>
+    Gesture.Pan()
+      .runOnJS(true)
+      .activateAfterLongPress(350)
+      .onBegin(() => {
+        dragMinRef.current = startMin;
+      })
+      .onStart(() => {
+        onDragStart(log.id, startMin);
+      })
+      .onUpdate((e) => {
+        const rawDelta = (e.translationY / hourHeight) * 60;
+        const snapped = Math.round(rawDelta / 15) * 15;
+        const newMin = clampMinutes(startMin + snapped);
+        dragMinRef.current = newMin;
+        onDragUpdate(log.id, newMin);
+      })
+      .onFinalize((_e, success) => {
+        onDragEnd(log.id, success ? dragMinRef.current : null);
+      }),
+    [log.id, startMin, hourHeight, onDragStart, onDragUpdate, onDragEnd],
+  );
+
+  return (
+    <View style={[styles.absoluteItem, { top, height, left: 30, right: 2, opacity: isDragging ? 0.3 : 1 }]}>
+      <GestureDetector gesture={gesture}>
+        <View style={{ flex: 1 }}>
+          <FoodLogCard log={log} compact={compact} onPress={onPress} onDelete={onDelete} />
+        </View>
+      </GestureDetector>
+    </View>
+  );
+}
 
 export interface DayData {
   date: string;
   isToday: boolean;
   timedEvents: CalendarEvent[];
   timedSlots: MealSlotWithRecipe[];
+  timedFoodLogs: FoodLogWithItems[];
+  untimedFoodLogs: FoodLogWithItems[];
 }
 
 interface WeekEventsOverlayProps {
@@ -24,8 +99,12 @@ interface WeekEventsOverlayProps {
   gridHeight?: number;
   onAddSlot: (date: string, time: string) => void;
   onAssignRecipe: (slotId: string) => void;
+  onSlotPress: (slot: MealSlotWithRecipe) => void;
   onDeleteSlot: (slotId: string) => void;
+  onDeleteFoodLog: (id: string) => void;
   onEventPress: (event: CalendarEvent) => void;
+  onFoodLogPress: (log: FoodLogWithItems) => void;
+  onUpdateFoodLogTime: (logId: string, newTime: string) => void;
 }
 
 /**
@@ -39,8 +118,12 @@ export function WeekEventsOverlay({
   gridHeight = GRID_HEIGHT,
   onAddSlot,
   onAssignRecipe,
+  onSlotPress,
   onDeleteSlot,
+  onDeleteFoodLog,
   onEventPress,
+  onFoodLogPress,
+  onUpdateFoodLogTime,
 }: WeekEventsOverlayProps) {
   const [now, setNow] = useState(() => new Date());
 
@@ -63,8 +146,12 @@ export function WeekEventsOverlay({
           gridHeight={gridHeight}
           onAddSlot={onAddSlot}
           onAssignRecipe={onAssignRecipe}
+          onSlotPress={onSlotPress}
           onDeleteSlot={onDeleteSlot}
+          onDeleteFoodLog={onDeleteFoodLog}
           onEventPress={onEventPress}
+          onFoodLogPress={onFoodLogPress}
+          onUpdateFoodLogTime={onUpdateFoodLogTime}
         />
       ))}
     </View>
@@ -78,8 +165,12 @@ function DayEventsColumn({
   gridHeight,
   onAddSlot,
   onAssignRecipe,
+  onSlotPress,
   onDeleteSlot,
+  onDeleteFoodLog,
   onEventPress,
+  onFoodLogPress,
+  onUpdateFoodLogTime,
 }: {
   day: DayData;
   nowMinutes: number | null;
@@ -87,16 +178,42 @@ function DayEventsColumn({
   gridHeight: number;
   onAddSlot: (date: string, time: string) => void;
   onAssignRecipe: (slotId: string) => void;
+  onSlotPress: (slot: MealSlotWithRecipe) => void;
   onDeleteSlot: (slotId: string) => void;
+  onDeleteFoodLog: (id: string) => void;
   onEventPress: (event: CalendarEvent) => void;
+  onFoodLogPress: (log: FoodLogWithItems) => void;
+  onUpdateFoodLogTime: (logId: string, newTime: string) => void;
 }) {
+  const [dragInfo, setDragInfo] = useState<{ logId: string; currentMin: number } | null>(null);
+
+  const handleDragStart = useCallback((logId: string, currentMin: number) => {
+    setDragInfo({ logId, currentMin });
+  }, []);
+
+  const handleDragUpdate = useCallback((logId: string, currentMin: number) => {
+    setDragInfo({ logId, currentMin });
+  }, []);
+
+  const handleDragEnd = useCallback((logId: string, finalMin: number | null) => {
+    if (finalMin !== null) {
+      onUpdateFoodLogTime(logId, formatMinutes24(finalMin));
+    }
+    setDragInfo(null);
+  }, [onUpdateFoodLogTime]);
+
+  const draggingLog = dragInfo ? day.timedFoodLogs.find((l) => l.id === dragInfo.logId) ?? null : null;
+  const ghostHeight = (DEFAULT_SLOT_DURATION / 60) * hourHeight;
+  const ghostTop = dragInfo ? minutesToY(clampMinutes(dragInfo.currentMin), hourHeight) : 0;
+  const chipTop = dragInfo ? Math.max(0, ghostTop - 20) : 0;
+
   return (
     <View style={[styles.dayCol, { height: gridHeight }, styles.boxNonePointerEvents]}>
       {/* Single Pressable replaces 96 quarter-hour targets — time computed from locationY */}
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={(e) => {
-          // On web, nativeEvent is a DOM PointerEvent — locationY is undefined, use offsetY instead.
+          if (dragInfo) return;
           const y = Platform.OS === 'web'
             ? (e.nativeEvent as unknown as { offsetY: number }).offsetY
             : e.nativeEvent.locationY;
@@ -132,13 +249,53 @@ function DayEventsColumn({
             <MealSlotCard
               slot={slot}
               compact={height < 56}
-              onPress={() => {}}
+              onPress={() => onSlotPress(slot)}
               onAssignRecipe={() => onAssignRecipe(slot.id)}
               onDelete={() => onDeleteSlot(slot.id)}
             />
           </View>
         );
       })}
+
+      {day.timedFoodLogs.map((log) => {
+        const startMin = parseTimeToMinutes(log.time_of_day)!;
+        const cs = clampMinutes(startMin);
+        const ce = clampMinutes(startMin + DEFAULT_SLOT_DURATION);
+        if (ce <= cs) return null;
+        const top = minutesToY(cs, hourHeight);
+        const height = ((ce - cs) / 60) * hourHeight;
+        return (
+          <DraggableFoodLog
+            key={log.id}
+            log={log}
+            top={top}
+            height={height}
+            compact={height < 56}
+            isDragging={dragInfo?.logId === log.id}
+            hourHeight={hourHeight}
+            onPress={() => onFoodLogPress(log)}
+            onDelete={() => onDeleteFoodLog(log.id)}
+            onDragStart={handleDragStart}
+            onDragUpdate={handleDragUpdate}
+            onDragEnd={handleDragEnd}
+          />
+        );
+      })}
+
+      {/* Drag ghost — rendered above all events, no pointer events */}
+      {draggingLog && dragInfo && (
+        <>
+          <View style={[styles.dragChip, { top: chipTop, left: 30 }]} pointerEvents="none">
+            <Text style={styles.dragChipText}>{formatDragTime(dragInfo.currentMin)}</Text>
+          </View>
+          <View
+            style={[styles.absoluteItem, styles.dragGhost, { top: ghostTop, height: ghostHeight, left: 30, right: 2 }]}
+            pointerEvents="none"
+          >
+            <FoodLogCard log={draggingLog} compact={ghostHeight < 56} onPress={() => {}} onDelete={() => {}} />
+          </View>
+        </>
+      )}
 
       {nowMinutes !== null && nowMinutes >= START_HOUR * 60 && nowMinutes <= (END_HOUR + 1) * 60 && (
         <View style={[styles.nowLine, { top: minutesToY(nowMinutes, hourHeight) }]}>
@@ -185,4 +342,30 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: Colors.accent,
   } as ViewStyle,
+  dragGhost: {
+    zIndex: 99,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0px 4px 12px rgba(0,0,0,0.22)' }
+      : {
+          shadowColor: '#000',
+          shadowOpacity: 0.22,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 8,
+        }),
+  } as ViewStyle,
+  dragChip: {
+    position: 'absolute',
+    zIndex: 100,
+  } as ViewStyle,
+  dragChipText: {
+    backgroundColor: '#50C878',
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+  } as TextStyle,
 });

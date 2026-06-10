@@ -188,6 +188,14 @@ export default function ProfileScreen() {
             <Text style={[styles.fieldValue, { color: theme.textSecondary }]}>No calendar connected</Text>
           )}
 
+          {/* Food Library */}
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Food</Text>
+          <Button
+            label="My Food Library"
+            onPress={() => router.push('/(tabs)/profile/food-library')}
+            variant="secondary"
+          />
+
           {/* Actions */}
           <View style={styles.actions}>
             <Button label="Save" onPress={handleSave} />

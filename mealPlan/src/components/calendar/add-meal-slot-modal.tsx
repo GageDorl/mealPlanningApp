@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, Pressable, Animated, type ViewStyle, type TextStyle } from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable, Animated, Alert, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LogFoodForm, type LogFoodSubmitParams } from './log-food-form';
 
 interface AddMealSlotModalProps {
   visible: boolean;
   date: string;
   initialTime?: string;
+  userId?: string;
   onClose: () => void;
   onAdd: (label: string, time?: string) => void;
+  onLogFood: (date: string, params: LogFoodSubmitParams) => Promise<void>;
 }
 
 const QUICK_LABELS = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Post-workout'];
@@ -33,8 +36,11 @@ function to24(hour: string, minute: string, period: 'AM' | 'PM'): string {
   return `${String(h).padStart(2, '0')}:${minute.padStart(2, '0')}`;
 }
 
-export function AddMealSlotModal({ visible, date, initialTime, onClose, onAdd }: AddMealSlotModalProps) {
+type Mode = 'plan' | 'log';
+
+export function AddMealSlotModal({ visible, date, initialTime, userId, onClose, onAdd, onLogFood }: AddMealSlotModalProps) {
   const theme = useTheme();
+  const [mode, setMode] = useState<Mode>('plan');
   const [label, setLabel] = useState('');
 
   const init = initialTime ? parse24to12(initialTime) : { hour: '12', minute: '00', period: 'PM' as const };
@@ -44,6 +50,7 @@ export function AddMealSlotModal({ visible, date, initialTime, onClose, onAdd }:
 
   useEffect(() => {
     if (visible) {
+      setMode('plan');
       const parsed = initialTime ? parse24to12(initialTime) : { hour: '12', minute: '00', period: 'PM' as const };
       setHour(parsed.hour);
       setMinute(parsed.minute);
@@ -54,89 +61,114 @@ export function AddMealSlotModal({ visible, date, initialTime, onClose, onAdd }:
 
   const handleAdd = () => {
     if (!label.trim()) return;
-    const time24 = to24(hour, minute, period);
-    onAdd(label.trim(), time24 || undefined);
+    onAdd(label.trim(), to24(hour, minute, period) || undefined);
     onClose();
   };
 
-  const handleQuickLabel = (quickLabel: string) => {
-    setLabel(quickLabel);
+  const handleLogFood = async (params: LogFoodSubmitParams) => {
+    try {
+      await onLogFood(date, params);
+      onClose();
+    } catch (e) {
+      Alert.alert('Failed to log food', e instanceof Error ? e.message : 'Unknown error');
+    }
   };
 
   const keyboardSlide = useKeyboardSlide();
 
   const [year, month, day] = date.split('-').map(Number);
   const formattedDate = new Date(year, month - 1, day).toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
+    weekday: 'long', month: 'short', day: 'numeric',
   });
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Animated.View style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide }] }]} onStartShouldSetResponder={() => true}>
-          <Text style={[styles.title, { color: theme.text }]}>Add Meal Slot</Text>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Animated.View
+          style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide }] }]}
+        >
+          {/* Mode toggle */}
+          <View style={[styles.modeToggle, { backgroundColor: theme.backgroundElement }]}>
+            <Pressable
+              style={[styles.modeBtn, mode === 'plan' && styles.modeBtnActive]}
+              onPress={() => setMode('plan')}
+            >
+              <Text style={[styles.modeBtnText, { color: theme.text }, mode === 'plan' && styles.modeBtnTextActive]}>
+                Plan Recipe
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.modeBtn, mode === 'log' && styles.modeBtnActive]}
+              onPress={() => setMode('log')}
+            >
+              <Text style={[styles.modeBtnText, { color: theme.text }, mode === 'log' && styles.modeBtnTextActive]}>
+                Log Food
+              </Text>
+            </Pressable>
+          </View>
+
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{formattedDate}</Text>
 
-          <View style={styles.quickLabels}>
-            {QUICK_LABELS.map((ql) => (
-              <Pressable
-                key={ql}
-                style={[
-                  styles.chip,
-                  { borderColor: theme.border },
-                  label === ql && { backgroundColor: Colors.accent, borderColor: Colors.accent },
-                ]}
-                onPress={() => handleQuickLabel(ql)}
-              >
-                <Text style={[styles.chipText, { color: theme.text }, label === ql && { color: '#FFFFFF' }]}>{ql}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {mode === 'plan' ? (
+            <>
+              <View style={styles.quickLabels}>
+                {QUICK_LABELS.map((ql) => (
+                  <Pressable
+                    key={ql}
+                    style={[styles.chip, { borderColor: theme.border }, label === ql && styles.chipActive]}
+                    onPress={() => setLabel(ql)}
+                  >
+                    <Text style={[styles.chipText, { color: theme.text }, label === ql && styles.chipTextActive]}>{ql}</Text>
+                  </Pressable>
+                ))}
+              </View>
 
-          <Input placeholder="Custom label..." value={label} onChangeText={setLabel} />
+              <Input placeholder="Custom label..." value={label} onChangeText={setLabel} />
 
-          <View style={styles.timeRow}>
-            <Input
-              placeholder="12"
-              value={hour}
-              onChangeText={(v) => setHour(v.replace(/[^0-9]/g, '').slice(0, 2))}
-              keyboardType="number-pad"
-              style={styles.timeInput}
-              containerStyle={styles.timeInputContainer}
+              <View style={styles.timeRow}>
+                <Input
+                  placeholder="12"
+                  value={hour}
+                  onChangeText={(v) => setHour(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                  keyboardType="number-pad"
+                  style={styles.timeInput}
+                  containerStyle={styles.timeInputContainer}
+                />
+                <Text style={[styles.timeSeparator, { color: theme.text }]}>:</Text>
+                <Input
+                  placeholder="00"
+                  value={minute}
+                  onChangeText={(v) => setMinute(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                  keyboardType="number-pad"
+                  style={styles.timeInput}
+                  containerStyle={styles.timeInputContainer}
+                />
+                <View style={[styles.periodToggle, { borderColor: Colors.accent }]}>
+                  <Pressable style={[styles.periodBtn, period === 'AM' && styles.periodBtnActive]} onPress={() => setPeriod('AM')}>
+                    <Text style={[styles.periodText, period === 'AM' && styles.periodTextActive]}>AM</Text>
+                  </Pressable>
+                  <Pressable style={[styles.periodBtn, period === 'PM' && styles.periodBtnActive]} onPress={() => setPeriod('PM')}>
+                    <Text style={[styles.periodText, period === 'PM' && styles.periodTextActive]}>PM</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={styles.actions}>
+                <Button label="Cancel" onPress={onClose} variant="secondary" />
+                <Button label="Add Slot" onPress={handleAdd} disabled={!label.trim()} />
+              </View>
+            </>
+          ) : (
+            <LogFoodForm
+              initialTime={initialTime}
+              userId={userId}
+              onSubmit={handleLogFood}
+              onCancel={onClose}
             />
-            <Text style={[styles.timeSeparator, { color: theme.text }]}>:</Text>
-            <Input
-              placeholder="00"
-              value={minute}
-              onChangeText={(v) => setMinute(v.replace(/[^0-9]/g, '').slice(0, 2))}
-              keyboardType="number-pad"
-              style={styles.timeInput}
-              containerStyle={styles.timeInputContainer}
-            />
-            <View style={styles.periodToggle}>
-              <Pressable
-                style={[styles.periodBtn, period === 'AM' && { backgroundColor: Colors.accent }]}
-                onPress={() => setPeriod('AM')}
-              >
-                <Text style={[styles.periodText, period === 'AM' && { color: '#FFFFFF' }]}>AM</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.periodBtn, period === 'PM' && { backgroundColor: Colors.accent }]}
-                onPress={() => setPeriod('PM')}
-              >
-                <Text style={[styles.periodText, period === 'PM' && { color: '#FFFFFF' }]}>PM</Text>
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.actions}>
-            <Button label="Cancel" onPress={onClose} variant="secondary" />
-            <Button label="Add Slot" onPress={handleAdd} disabled={!label.trim()} />
-          </View>
+          )}
         </Animated.View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -147,6 +179,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   } as ViewStyle,
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  } as ViewStyle,
   sheet: {
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
@@ -154,9 +193,26 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxxl,
     gap: Spacing.md,
   } as ViewStyle,
-  title: {
-    fontSize: FontSizes.xl,
-    fontWeight: '700',
+  modeToggle: {
+    flexDirection: 'row',
+    borderRadius: BorderRadius.md,
+    padding: 3,
+  } as ViewStyle,
+  modeBtn: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    borderRadius: BorderRadius.sm,
+  } as ViewStyle,
+  modeBtnActive: {
+    backgroundColor: Colors.accent,
+  } as ViewStyle,
+  modeBtnText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  } as TextStyle,
+  modeBtnTextActive: {
+    color: '#FFFFFF',
   } as TextStyle,
   subtitle: {
     fontSize: FontSizes.sm,
@@ -172,9 +228,16 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   } as ViewStyle,
+  chipActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  } as ViewStyle,
   chipText: {
     fontSize: FontSizes.sm,
     fontWeight: '500',
+  } as TextStyle,
+  chipTextActive: {
+    color: '#FFFFFF',
   } as TextStyle,
   timeRow: {
     flexDirection: 'row',
@@ -196,17 +259,22 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.accent,
     marginLeft: Spacing.sm,
   } as ViewStyle,
   periodBtn: {
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.md,
   } as ViewStyle,
+  periodBtnActive: {
+    backgroundColor: Colors.accent,
+  } as ViewStyle,
   periodText: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
     color: Colors.accent,
+  } as TextStyle,
+  periodTextActive: {
+    color: '#FFFFFF',
   } as TextStyle,
   actions: {
     flexDirection: 'row',

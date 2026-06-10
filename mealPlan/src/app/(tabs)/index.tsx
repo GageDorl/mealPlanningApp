@@ -37,20 +37,24 @@ export default function HomeScreen() {
 
   const handleNudgePress = useCallback(() => {
     if (!calendarConnected) {
-      router.push('/calendar-connect' as any);
-    } else if (profile && profile.macroGoals.length === 0) {
-      router.push('/macro-goals' as any);
+      router.push('/profile');
+    } else if (!profile || profile.macroGoals.length === 0) {
+      router.push('/macros');
     } else {
       router.push('/profile');
     }
   }, [calendarConnected, profile, router]);
 
-  if (!profile) {
+  if (profileLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <LoadingModal visible={profileLoading} message="Loading…" />
+        <LoadingModal visible message="Loading…" />
       </View>
     );
+  }
+
+  if (!profile) {
+    return null;
   }
 
   const greeting = getGreeting();

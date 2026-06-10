@@ -27,7 +27,7 @@ function isToday(date: Date): boolean {
 
 export default function MacrosScreen() {
   const theme = useTheme();
-  const { selectedDate, dailyProgress, loading, error, goToPrevDay, goToNextDay, goToToday, refresh } = useMacros();
+  const { selectedDate, dailyProgress, loading, error, goToPrevDay, goToNextDay, goToToday, refresh, deleteMealSlot } = useMacros();
 
   useFocusEffect(
     useCallback(() => {
@@ -100,7 +100,7 @@ export default function MacrosScreen() {
           {/* Per-meal breakdown */}
           <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Meal Breakdown</Text>
-            <MealMacroBreakdown entries={dailyProgress?.meal_breakdown ?? []} />
+            <MealMacroBreakdown entries={dailyProgress?.meal_breakdown ?? []} onDeletePlannedMeal={deleteMealSlot} />
           </View>
         </ScrollView>
       )}

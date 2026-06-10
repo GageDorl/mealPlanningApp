@@ -62,6 +62,19 @@ export function useMealPlan(weekStart: Date) {
     });
   }, []);
 
+  const updateServingsEaten = useCallback(async (slotId: string, servings: number | null) => {
+    await mealPlanService.updateServingsEaten(slotId, servings);
+    setWeekPlan((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        slots: prev.slots.map((s) =>
+          s.id === slotId ? { ...s, servings_eaten: servings } : s,
+        ),
+      };
+    });
+  }, []);
+
   const refresh = loadWeek;
 
   return {
@@ -72,6 +85,7 @@ export function useMealPlan(weekStart: Date) {
     assignRecipe,
     removeRecipe,
     deleteSlot,
+    updateServingsEaten,
     refresh,
   };
 }

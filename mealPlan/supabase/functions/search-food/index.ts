@@ -31,6 +31,7 @@ async function getFatSecretToken(): Promise<string> {
 interface FoodResult {
   id: string;
   name: string;
+  brand_name?: string;
   caloriesPer100g: number;
   proteinPer100g: number;
   carbsPer100g: number;
@@ -42,7 +43,32 @@ interface FoodResult {
   fatPerServing?: number;
 }
 
-function parseDescription(desc: string): Omit<FoodResult, 'id' | 'name'> | null {
+interface FatSecretServing {
+  serving_id: string;
+  serving_description: string;
+  metric_serving_amount?: number;
+  metric_serving_unit?: string;
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  saturated_fat?: number;
+  trans_fat?: number;
+  cholesterol?: number;
+  sodium?: number;
+  fiber?: number;
+  sugar?: number;
+  added_sugar?: number;
+}
+
+interface FoodDetails {
+  id: string;
+  name: string;
+  brand_name?: string;
+  servings: FatSecretServing[];
+}
+
+function parseDescription(desc: string): Omit<FoodResult, 'id' | 'name' | 'brand_name'> | null {
   const calStr = /Calories:\s*([\d.]+)/i.exec(desc)?.[1];
   const fatStr = /Fat:\s*([\d.]+)/i.exec(desc)?.[1];
   const carbsStr = /Carbs:\s*([\d.]+)/i.exec(desc)?.[1];
@@ -68,7 +94,7 @@ function parseDescription(desc: string): Omit<FoodResult, 'id' | 'name'> | null 
 
   const scale = servingG != null ? 100 / servingG : 1;
 
-  const result: Omit<FoodResult, 'id' | 'name'> = {
+  const result: Omit<FoodResult, 'id' | 'name' | 'brand_name'> = {
     caloriesPer100g: Math.round(cal * scale),
     proteinPer100g: parseFloat((protein * scale).toFixed(1)),
     carbsPer100g: parseFloat((carbs * scale).toFixed(1)),
@@ -86,6 +112,27 @@ function parseDescription(desc: string): Omit<FoodResult, 'id' | 'name'> | null 
   }
 
   return result;
+}
+
+function parseServing(s: Record<string, string>): FatSecretServing {
+  const f = (v: string | undefined) => (v != null && v !== '' ? parseFloat(v) : undefined);
+  return {
+    serving_id: s.serving_id ?? '',
+    serving_description: s.serving_description ?? '',
+    metric_serving_amount: f(s.metric_serving_amount),
+    metric_serving_unit: s.metric_serving_unit || undefined,
+    calories: f(s.calories),
+    protein: f(s.protein),
+    carbs: f(s.carbohydrate),
+    fat: f(s.fat),
+    saturated_fat: f(s.saturated_fat),
+    trans_fat: f(s.trans_fat),
+    cholesterol: f(s.cholesterol),
+    sodium: f(s.sodium),
+    fiber: f(s.fiber),
+    sugar: f(s.sugar),
+    added_sugar: f(s.added_sugars),
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -112,16 +159,17 @@ Deno.serve(async (req: Request) => {
     return new Response('Unauthorized', { status: 401, headers: corsHeaders });
   }
 
-  let body: { query?: string; page?: number };
+  let body: { query?: string; page?: number; food_id?: string; barcode?: string };
   try {
     body = await req.json();
   } catch {
     return new Response('Invalid JSON', { status: 400, headers: corsHeaders });
   }
 
-  const { query, page = 1 } = body;
-  if (!query || typeof query !== 'string') {
-    return new Response('Missing query', { status: 400, headers: corsHeaders });
+  const { query, page = 1, food_id, barcode } = body;
+
+  if (!query && !food_id && !barcode) {
+    return new Response('Missing query, food_id, or barcode', { status: 400, headers: corsHeaders });
   }
 
   try {
@@ -129,16 +177,114 @@ Deno.serve(async (req: Request) => {
 
     const proxyUrl = Deno.env.get('FATSECRET_PROXY_URL') ?? 'https://platform.fatsecret.com';
     const proxySecret = Deno.env.get('FATSECRET_PROXY_SECRET');
+    const fetchHeaders: Record<string, string> = { Authorization: `Bearer ${token}` };
+    if (proxySecret) fetchHeaders['x-proxy-secret'] = proxySecret;
 
+    // food_id path: return full food details via food.get.v4
+    if (food_id) {
+      const url = new URL(`${proxyUrl}/rest/server.api`);
+      url.searchParams.set('method', 'food.get.v4');
+      url.searchParams.set('food_id', food_id);
+      url.searchParams.set('format', 'json');
+
+      const res = await fetch(url.toString(), { headers: fetchHeaders });
+      if (!res.ok) {
+        return new Response('null', {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const data = await res.json();
+      const food = data?.food;
+      if (!food) {
+        return new Response('null', {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const rawServings = food.servings?.serving;
+      const servingsArray: Record<string, string>[] = Array.isArray(rawServings)
+        ? rawServings
+        : rawServings
+        ? [rawServings]
+        : [];
+
+      const details: FoodDetails = {
+        id: food.food_id,
+        name: food.food_name,
+        brand_name: food.brand_name || undefined,
+        servings: servingsArray.map(parseServing),
+      };
+
+      return new Response(JSON.stringify(details), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // barcode path: find food by barcode then return full details
+    if (barcode) {
+      const barcodeUrl = new URL(`${proxyUrl}/rest/server.api`);
+      barcodeUrl.searchParams.set('method', 'food.find_id_for_barcode');
+      barcodeUrl.searchParams.set('barcode', barcode);
+      barcodeUrl.searchParams.set('format', 'json');
+
+      const barcodeRes = await fetch(barcodeUrl.toString(), { headers: fetchHeaders });
+      if (!barcodeRes.ok) {
+        return new Response('null', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const barcodeData = await barcodeRes.json();
+      const foundFoodId = barcodeData?.food_id?.value;
+      if (!foundFoodId) {
+        return new Response('null', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const detailUrl = new URL(`${proxyUrl}/rest/server.api`);
+      detailUrl.searchParams.set('method', 'food.get.v4');
+      detailUrl.searchParams.set('food_id', foundFoodId);
+      detailUrl.searchParams.set('format', 'json');
+
+      const detailRes = await fetch(detailUrl.toString(), { headers: fetchHeaders });
+      if (!detailRes.ok) {
+        return new Response('null', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const detailData = await detailRes.json();
+      const food = detailData?.food;
+      if (!food) {
+        return new Response('null', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const rawServings = food.servings?.serving;
+      const servingsArray: Record<string, string>[] = Array.isArray(rawServings)
+        ? rawServings
+        : rawServings
+        ? [rawServings]
+        : [];
+
+      const details: FoodDetails = {
+        id: food.food_id,
+        name: food.food_name,
+        brand_name: food.brand_name || undefined,
+        servings: servingsArray.map(parseServing),
+      };
+
+      return new Response(JSON.stringify(details), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // query path: search foods
     const url = new URL(`${proxyUrl}/rest/server.api`);
     url.searchParams.set('method', 'foods.search');
-    url.searchParams.set('search_expression', query.trim());
+    url.searchParams.set('search_expression', query!.trim());
     url.searchParams.set('format', 'json');
     url.searchParams.set('max_results', '10');
     url.searchParams.set('page_number', String(page - 1)); // FatSecret is 0-indexed
-
-    const fetchHeaders: Record<string, string> = { Authorization: `Bearer ${token}` };
-    if (proxySecret) fetchHeaders['x-proxy-secret'] = proxySecret;
 
     const res = await fetch(url.toString(), { headers: fetchHeaders });
 
@@ -170,7 +316,12 @@ Deno.serve(async (req: Request) => {
       .map((f) => {
         const nutrition = parseDescription(f.food_description ?? '');
         if (!nutrition) return null;
-        return { id: f.food_id, name: f.food_name, ...nutrition };
+        return {
+          id: f.food_id,
+          name: f.food_name,
+          brand_name: f.brand_name || undefined,
+          ...nutrition,
+        };
       })
       .filter((r): r is FoodResult => r !== null);
 

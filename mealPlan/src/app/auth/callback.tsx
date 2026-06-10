@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
@@ -16,7 +16,7 @@ export default function AuthCallbackScreen() {
 
     const finishSignIn = async () => {
       try {
-        if (typeof window !== 'undefined') {
+        if (Platform.OS === 'web') {
           await createSessionFromUrl(window.location.href);
         }
 

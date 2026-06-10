@@ -154,6 +154,13 @@ export async function removeRecipe(slotId: string): Promise<void> {
   await cancelMealReminder(slotId).catch(() => {});
 }
 
+export async function updateServingsEaten(slotId: string, servingsEaten: number | null): Promise<void> {
+  await supabase
+    .from('meal_slots')
+    .update({ servings_eaten: servingsEaten, updated_at: nowIso() })
+    .eq('id', slotId);
+}
+
 export async function deleteSlot(slotId: string): Promise<void> {
   await cancelMealReminder(slotId).catch(() => {});
   await supabase.from('meal_slots').delete().eq('id', slotId);
