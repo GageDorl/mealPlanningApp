@@ -18,7 +18,7 @@ async function getFatSecretToken(): Promise<string> {
       grant_type: 'client_credentials',
       client_id: Deno.env.get('FATSECRET_CLIENT_ID')!,
       client_secret: Deno.env.get('FATSECRET_CLIENT_SECRET')!,
-      scope: 'basic',
+      scope: 'basic barcode',
     }),
   });
 
@@ -180,6 +180,12 @@ Deno.serve(async (req: Request) => {
     const fetchHeaders: Record<string, string> = { Authorization: `Bearer ${token}` };
     if (proxySecret) fetchHeaders['x-proxy-secret'] = proxySecret;
 
+    const fetchWithTimeout = (url: string) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 10000);
+      return fetch(url, { headers: fetchHeaders, signal: controller.signal });
+    };
+
     // food_id path: return full food details via food.get.v4
     if (food_id) {
       const url = new URL(`${proxyUrl}/rest/server.api`);
@@ -187,7 +193,7 @@ Deno.serve(async (req: Request) => {
       url.searchParams.set('food_id', food_id);
       url.searchParams.set('format', 'json');
 
-      const res = await fetch(url.toString(), { headers: fetchHeaders });
+      const res = await fetchWithTimeout(url.toString());
       if (!res.ok) {
         return new Response('null', {
           status: 200,
@@ -227,33 +233,17 @@ Deno.serve(async (req: Request) => {
     // barcode path: find food by barcode then return full details
     if (barcode) {
       const barcodeUrl = new URL(`${proxyUrl}/rest/server.api`);
-      barcodeUrl.searchParams.set('method', 'food.find_id_for_barcode');
+      barcodeUrl.searchParams.set('method', 'food.find_id_for_barcode.v2');
       barcodeUrl.searchParams.set('barcode', barcode);
       barcodeUrl.searchParams.set('format', 'json');
 
-      const barcodeRes = await fetch(barcodeUrl.toString(), { headers: fetchHeaders });
+      const barcodeRes = await fetchWithTimeout(barcodeUrl.toString());
       if (!barcodeRes.ok) {
         return new Response('null', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       const barcodeData = await barcodeRes.json();
-      const foundFoodId = barcodeData?.food_id?.value;
-      if (!foundFoodId) {
-        return new Response('null', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-
-      const detailUrl = new URL(`${proxyUrl}/rest/server.api`);
-      detailUrl.searchParams.set('method', 'food.get.v4');
-      detailUrl.searchParams.set('food_id', foundFoodId);
-      detailUrl.searchParams.set('format', 'json');
-
-      const detailRes = await fetch(detailUrl.toString(), { headers: fetchHeaders });
-      if (!detailRes.ok) {
-        return new Response('null', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-
-      const detailData = await detailRes.json();
-      const food = detailData?.food;
+      const food = barcodeData?.food;
       if (!food) {
         return new Response('null', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -286,7 +276,7 @@ Deno.serve(async (req: Request) => {
     url.searchParams.set('max_results', '10');
     url.searchParams.set('page_number', String(page - 1)); // FatSecret is 0-indexed
 
-    const res = await fetch(url.toString(), { headers: fetchHeaders });
+    const res = await fetchWithTimeout(url.toString());
 
     if (!res.ok) {
       return new Response(JSON.stringify({ results: [], page, hasMore: false }), {

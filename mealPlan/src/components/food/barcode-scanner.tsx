@@ -10,7 +10,7 @@ import { lookupBarcode } from '@/services/fatsecret';
 import type { FoodDetails } from '@/services/fatsecret';
 
 interface BarcodeScannerProps {
-  onFoodFound: (details: FoodDetails) => void;
+  onFoodFound: (details: FoodDetails, barcode: string) => void;
   onNotFound: () => void;
   onDismiss: () => void;
 }
@@ -28,9 +28,10 @@ export function BarcodeScanner({ onFoodFound, onNotFound, onDismiss }: BarcodeSc
     setLoading(true);
     setNotFound(false);
     try {
-      const details = await lookupBarcode(data);
+      const normalizedBarcode = data.padStart(13, '0');
+      const details = await lookupBarcode(normalizedBarcode);
       if (details) {
-        onFoodFound(details);
+        onFoodFound(details, data);
       } else {
         setNotFound(true);
         scannedRef.current = false;
@@ -73,7 +74,7 @@ export function BarcodeScanner({ onFoodFound, onNotFound, onDismiss }: BarcodeSc
         style={StyleSheet.absoluteFill}
         facing="back"
         barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'] }}
-        onBarcodeScanned={loading ? undefined : handleBarcode}
+        onBarcodeScanned={loading || notFound ? undefined : handleBarcode}
       />
 
       {/* Dimmed overlay with cut-out */}
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   } as ViewStyle,
   permissionText: {
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.md,
     textAlign: 'center',
     lineHeight: 22,
   } as TextStyle,
@@ -144,7 +145,7 @@ const styles = StyleSheet.create({
   permissionBtnText: {
     color: '#FFFFFF',
     fontWeight: '600',
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.md,
   } as TextStyle,
   dismissLink: {
     paddingVertical: Spacing.sm,
@@ -154,7 +155,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   } as TextStyle,
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'column',
   } as ViewStyle,
   overlayTop: {
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   statusText: {
     color: '#FFFFFF',
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.md,
     fontWeight: '500',
   } as TextStyle,
   notFoundBox: {
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   notFoundText: {
     color: '#FFFFFF',
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.md,
     textAlign: 'center',
   } as TextStyle,
   manualBtn: {
@@ -255,6 +256,6 @@ const styles = StyleSheet.create({
   cancelBtnText: {
     color: '#FFFFFF',
     fontWeight: '500',
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.md,
   } as TextStyle,
 });

@@ -93,14 +93,19 @@ export async function lookupBarcode(barcode: string): Promise<FoodDetails | null
   const cacheKey = `fatsecret:barcode:${barcode}`;
   const cached = await getFromCache<FoodDetails>(cacheKey);
   if (cached) return cached;
-
-  const { data, error } = await supabase.functions.invoke<FoodDetails>(
-    'search-food',
-    { body: { barcode } }
-  );
+  let invokeResult: { data: FoodDetails | null; error: unknown };
+  try {
+    invokeResult = await Promise.race([
+      supabase.functions.invoke<FoodDetails>('search-food', { body: { barcode } }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+    ]);
+  } catch (e) {
+    console.log('[lookupBarcode] invoke failed or timed out:', e);
+    return null;
+  }
+  const { data, error } = invokeResult;
 
   if (error || !data) return null;
-
   await setCache(cacheKey, data);
   return data;
 }
