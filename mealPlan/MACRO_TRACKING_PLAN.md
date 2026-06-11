@@ -321,24 +321,55 @@ updated_at timestamptz
 
 ## Phase 8 — Historical Macro Trends
 
-- [ ] Add week summary strip to `src/app/(tabs)/macros/index.tsx`
-  - [ ] 7 day-chips (Mon–Sun) for the current week
-  - [ ] Color each chip by proximity to calorie goal: green (within 10%) / amber (10–25% off) / grey (no data)
-  - [ ] Tapping a chip navigates to that day's detail view (reuses existing day view)
-  - [ ] Calls existing `getWeeklyProgress`
-- [ ] Add `getHistoricalProgress(userId, startDate, endDate)` to `src/services/macro-service.ts`
-  - [ ] Single date-range query for `meal_slots` and `food_log_items` (not N parallel day calls)
-  - [ ] Group results by date client-side, return `DailyMacroProgress[]`
-- [ ] Decide on charting library (options: `react-native-gifted-charts`, `victory-native`) — confirm RN compatibility before installing
-- [ ] Create `src/components/macros/macro-trend-chart.tsx`
-  - [ ] Bar or line chart of daily totals for a selected macro over 7 or 30 days
-  - [ ] Macro selector chips (Calories / Protein / Carbs / Fat) above the chart
-  - [ ] 7-day / 30-day toggle
-  - [ ] Render below the week summary strip on the macros screen
-- [ ] Update prev/next day navigation in macros screen
-  - [ ] Allow navigation to any past date (no lower bound restriction)
-  - [ ] Show "Today" button when viewing a past day
-  - [ ] Block navigation to future dates
+> Decisions: week strip follows the viewed day (not pinned to current week); chip colors: green (within 10%) / amber (10–25% off) / red (over goal) / grey (zero total from both sources); chart has bar/line toggle; date label opens a date picker (past dates only).
+
+### 8.1 — `getHistoricalProgress` service function
+
+- [x] Add `getHistoricalProgress(userId, startDate, endDate)` to `src/services/macro-service.ts`
+  - [x] Single range query for `meal_slots` + `food_log_items` (not N parallel `getDailyProgress` calls)
+  - [x] Fetch `macro_goals` once; group results by date client-side; return `DailyMacroProgress[]`
+  - [x] Refactor `getWeeklyProgress` to call `getHistoricalProgress` internally
+
+### 8.2 — Charting library
+
+- [x] Research and install the best bar/line chart library for Android + Web
+  - [x] Evaluate `react-native-gifted-charts` (react-native-svg based) for web compatibility via `react-native-web`
+  - [x] Fall back to a platform split (`recharts` on web, `gifted-charts` on Android) if web rendering is broken
+  - [x] Confirm renders correctly on both targets before building the component
+  - **Decision**: `react-native-gifted-charts@1.4.77` + `react-native-svg@15.15.4`. No platform split needed — svg has full Expo web support, gradient peer deps not used. Visual web confirmation pending first `npm run web`.
+
+### 8.3 — Week summary strip component
+
+- [x] Create `src/components/macros/week-summary-strip.tsx`
+  - [x] 7 day-chips (Mon–Sun) for the **week containing the currently-viewed day** (updates when user navigates to a different week)
+  - [x] Load that week's calorie data via `getHistoricalProgress`
+  - [x] Chip color: **green** (within 10% of calorie goal) / **amber** (10–25% off) / **red** (over goal) / **grey** (zero calories from both planned + logged)
+  - [x] Currently-selected day chip is visually highlighted
+  - [x] Tapping a chip calls `goToDate(date)` to update the viewed day
+
+### 8.4 — Macro trend chart component
+
+- [x] Create `src/components/macros/macro-trend-chart.tsx`
+  - [x] Bar/line toggle switch
+  - [x] Macro selector chips: Calories / Protein / Carbs / Fat
+  - [x] 7-day / 30-day data range toggle (fetches via `getHistoricalProgress`)
+  - [x] Goal reference line on the chart for the selected macro
+  - [x] Uses the library installed in 8.2
+
+### 8.5 — Navigation updates
+
+- [x] Add `goToDate(date: Date)` to `useMacros` hook (used by week strip chip taps)
+- [x] Remove future-date guard from `goToNextDay` — block only at today
+- [x] Tapping the date label in the header opens a date-picker modal (selectable range: any past date up to today)
+  - Built `src/components/ui/date-picker-modal.tsx` — custom month-grid, no extra deps, works on Android + Web
+- [x] "Today" button appears in the header whenever the viewed day is not today
+
+### 8.6 — Wire into macros screen
+
+- [x] Update `src/app/(tabs)/macros/index.tsx`
+  - [x] Render `WeekSummaryStrip` below the date header, above the scroll content
+  - [x] Render `MacroTrendChart` card at the bottom of the scroll view, after the meal breakdown card
+  - [x] Wire `goToDate` through to the strip and the date picker
 
 ---
 

@@ -22,7 +22,7 @@ export default function ProfileScreen() {
   const { themeMode, setTheme } = useThemeToggle();
   const { profile, loading, reload } = useUserProfile();
   const { role } = useUserRole();
-  const { connected, calendarExportEnabled, setExportEnabled, disconnect } = useCalendar();
+  const { connected, connectError, calendarExportEnabled, setExportEnabled, connect, disconnect } = useCalendar();
   const [displayName, setDisplayName] = useState('');
   const [macros, setMacros] = useState<MacroDefinition[]>(DefaultMacros);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -189,7 +189,12 @@ export default function ProfileScreen() {
           {connected ? (
             <Button label="Disconnect Google Calendar" onPress={disconnect} variant="secondary" />
           ) : (
-            <Text style={[styles.fieldValue, { color: theme.textSecondary }]}>No calendar connected</Text>
+            <>
+              <Button label="Connect Google Calendar" onPress={connect} />
+              {connectError ? (
+                <Text style={[styles.fieldValue, { color: theme.error }]}>{connectError}</Text>
+              ) : null}
+            </>
           )}
 
           {/* Appearance */}

@@ -51,8 +51,14 @@ export function useMacros(initialDate?: Date) {
     setSelectedDate((d) => {
       const next = new Date(d);
       next.setDate(next.getDate() + 1);
-      return next;
+      const today = new Date();
+      return next > today ? d : next;
     });
+  }, []);
+
+  const goToDate = useCallback((date: Date) => {
+    const today = new Date();
+    setSelectedDate(date > today ? today : date);
   }, []);
 
   const goToToday = useCallback(() => {
@@ -74,6 +80,7 @@ export function useMacros(initialDate?: Date) {
     goToPrevDay,
     goToNextDay,
     goToToday,
+    goToDate,
     refresh,
     deleteMealSlot,
   };

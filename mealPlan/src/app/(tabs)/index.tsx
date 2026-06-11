@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { View, Text, ScrollView, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
@@ -25,8 +26,10 @@ export default function HomeScreen() {
 
   const { profile, loading: profileLoading } = useUserProfile();
   const { recipes: topRecipes } = useTopRecipes();
-  const { dailyProgress } = useMacros(TODAY_DATE);
-  const { state: grocery } = useGrocery();
+  const { dailyProgress, refresh: refreshMacros } = useMacros(TODAY_DATE);
+
+  const { state: grocery, refresh: refreshGrocery } = useGrocery();
+  useFocusEffect(useCallback(() => { refreshMacros(); refreshGrocery(); }, [refreshMacros, refreshGrocery]));
   const { connected: calendarConnected } = useCalendar();
 
   useEffect(() => {

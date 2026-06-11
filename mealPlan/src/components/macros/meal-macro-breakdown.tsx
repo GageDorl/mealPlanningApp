@@ -34,6 +34,7 @@ export function MealMacroBreakdown({ entries, onDeletePlannedMeal }: MealMacroBr
         const hasData = isPlanned ? !!entry.recipe_title : true;
         const primaryName = isPlanned ? entry.recipe_title : entry.food_name;
 
+
         return (
           <View key={entry.id} style={[styles.row, { borderBottomColor: theme.border }]}>
             <View style={styles.colLabel}>
@@ -41,13 +42,15 @@ export function MealMacroBreakdown({ entries, onDeletePlannedMeal }: MealMacroBr
                 {!isPlanned && (
                   <View style={[styles.loggedDot, { backgroundColor: theme.textSecondary }]} />
                 )}
-                <Text style={[styles.mealLabel, { color: theme.text }]} numberOfLines={1}>
-                  {entry.label ?? (isPlanned ? 'Meal' : 'Food')}
-                </Text>
+                {primaryName ? (
+                  <Text style={[styles.recipeTitle, { color: theme.textSecondary }]} numberOfLines={1}>
+                    {primaryName}
+                  </Text>
+                ) : null}
               </View>
-              {primaryName ? (
-                <Text style={[styles.recipeTitle, { color: theme.textSecondary }]} numberOfLines={1}>
-                  {primaryName}
+              {!isPlanned && entry.brand_name ? (
+                <Text style={[styles.brandName, { color: theme.textSecondary }]} numberOfLines={1}>
+                  {entry.brand_name}
                 </Text>
               ) : (
                 isPlanned && (
@@ -133,6 +136,11 @@ const styles = StyleSheet.create({
   recipeTitle: {
     fontSize: FontSizes.xs,
     marginTop: 1,
+  } as TextStyle,
+  brandName: {
+    fontSize: FontSizes.xs,
+    marginTop: 1,
+    opacity: 0.6,
   } as TextStyle,
   emptySlot: {
     fontSize: FontSizes.xs,

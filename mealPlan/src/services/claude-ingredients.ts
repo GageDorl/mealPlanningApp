@@ -78,13 +78,13 @@ export async function parseIngredientsWithAI(rawStrings: string[]): Promise<Reci
 
 /**
  * Generates a consolidated grocery list using Claude Haiku.
- * Handles duplicate ingredients across different units, pantry filtering, and categorization
- * in a single API call. Falls back to an empty array (caller uses legacy aggregator).
+ * Returns the AI's item list (may be empty if all ingredients are covered by pantry).
+ * Returns null on error so the caller can fall back to the legacy aggregator.
  */
 export async function generateGroceryListWithAI(
   ingredients: Array<{ name: string; quantity: number | null; unit: string | null }>,
   pantryItems: PantryItemForCheck[]
-): Promise<AIGroceryItem[]> {
+): Promise<AIGroceryItem[] | null> {
   if (ingredients.length === 0) return []
 
   try {
@@ -93,11 +93,11 @@ export async function generateGroceryListWithAI(
       { body: { ingredients, pantryItems } }
     )
 
-    if (error || !data?.items) throw new Error(error?.message ?? 'Empty response')
-    return data.items
+    if (error || !data) throw new Error(error?.message ?? 'Empty response')
+    return data.items ?? []
   } catch (err) {
     console.warn('[claude-ingredients] generate-grocery-list failed:', err)
-    return []
+    return null
   }
 }
 

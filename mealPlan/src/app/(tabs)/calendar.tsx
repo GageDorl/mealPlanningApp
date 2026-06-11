@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { LoadingModal } from '@/components/ui/loading-modal';
 import { View, Text, ScrollView, Pressable, Platform, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, type ViewStyle, type TextStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -76,7 +77,9 @@ export default function WeeklyPlannerScreen() {
   const currentWeekStart = getSunday(addDays(today, weekOffset * 7));
   const currentWeekEnd = addDays(currentWeekStart, 7);
 
-  const { weekPlan, loading, createSlot, assignRecipe, deleteSlot, updateServingsEaten } = useMealPlan(currentWeekStart);
+  const { weekPlan, loading, createSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, deleteSlot, refresh } = useMealPlan(currentWeekStart);
+
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
   const { weekLogs, userId: currentUserId, createFoodLog, deleteFoodLog, deleteFoodLogItem, updateFoodLogItem, updateFoodLog, addItemsToFoodLog } = useFoodLog(currentWeekStart);
   const {
     connected, events, loading: calendarLoading, connectError, loadError,
@@ -122,6 +125,8 @@ export default function WeeklyPlannerScreen() {
   const verticalScrollRef = useRef<ScrollView>(null);
 
   const hourHeightRef = useRef(hourHeight);
+  const viewportHeightRef = useRef(viewportHeight);
+  viewportHeightRef.current = viewportHeight;
   const pinchStartHeightRef = useRef(hourHeight);
   const pinchPreviewScaleRef = useRef(new Animated.Value(1));
   const pendingPinchHeightRef = useRef<number | null>(null);
@@ -139,6 +144,16 @@ export default function WeeklyPlannerScreen() {
         pinchPreviewScaleRef.current.setValue(1);
         pendingPinchHeightRef.current = null;
       }
+    }
+
+    // Re-clamp pan.y to the new grid height bounds. The addListener effect
+    // won't fire unless panOffset changes, so we force-clamp here after commit.
+    const newGridHeight = (END_HOUR - START_HOUR + 1) * hourHeight;
+    const newMaxY = Math.min(0, viewportHeightRef.current - newGridHeight);
+    const cy = Math.max(newMaxY, Math.min(0, panCurrentXY.current.y));
+    if (cy !== panCurrentXY.current.y) {
+      panCurrentXY.current = { x: panCurrentXY.current.x, y: cy };
+      panOffset.setValue({ x: panCurrentXY.current.x, y: cy });
     }
   }, [hourHeight]);
 
@@ -169,6 +184,16 @@ export default function WeeklyPlannerScreen() {
           Math.min(MAX_HOUR_HEIGHT, pinchStartHeightRef.current * e.scale)
         );
         pinchPreviewScaleRef.current.setValue(nextHeight / pinchStartHeightRef.current);
+        // Clamp pan.y during preview so the grid's visual bottom stays in the viewport.
+        // The preview transform pins the top edge and shrinks the bottom upward, so
+        // visual bottom = pan.y + hours * nextHeight. Clamp when this would go off-screen.
+        const visualGridHeight = (END_HOUR - START_HOUR + 1) * nextHeight;
+        const newMaxY = Math.min(0, viewportHeightRef.current - visualGridHeight);
+        const cy = Math.max(newMaxY, Math.min(0, panCurrentXY.current.y));
+        if (cy !== panCurrentXY.current.y) {
+          panCurrentXY.current = { x: panCurrentXY.current.x, y: cy };
+          panOffset.setValue({ x: panCurrentXY.current.x, y: cy });
+        }
       })
       .onEnd((e) => {
         const nextHeight = Math.max(
@@ -310,14 +335,27 @@ export default function WeeklyPlannerScreen() {
     setAddSlotVisible(true);
   }, []);
 
-  const handleCreateSlot = async (label: string, time?: string) => {
+  const pendingRecipeCallback = useRef<((recipe: Recipe) => void) | null>(null);
+
+  const handleCreateSlot = async (label: string, time?: string, recipe?: Recipe) => {
     const daySlots = weekPlan?.slots.filter((s) => s.date === addSlotDate) ?? [];
-    await createSlot({
+    const slotId = await createSlot({
       label,
       date: addSlotDate,
       time,
       displayOrder: daySlots.length,
     });
+    if (recipe && slotId) {
+      await addRecipeToSlot(slotId, recipe.id);
+      if (connected) {
+        await createMealEvent({
+          title: recipe.title,
+          date: addSlotDate,
+          timeOfDay: time || null,
+          slotId,
+        });
+      }
+    }
   };
 
   const handleAssignRecipe = useCallback((slotId: string) => {
@@ -325,19 +363,30 @@ export default function WeeklyPlannerScreen() {
     setPickerVisible(true);
   }, []);
 
+  const handlePickRecipe = useCallback((onPicked: (recipe: Recipe) => void) => {
+    pendingRecipeCallback.current = onPicked;
+    setPickerVisible(true);
+  }, []);
+
   const handleRecipeSelected = async (recipe: Recipe) => {
-    if (!activeSlotId) return;
-    await assignRecipe(activeSlotId, recipe.id);
+    if (pendingRecipeCallback.current) {
+      pendingRecipeCallback.current(recipe);
+      pendingRecipeCallback.current = null;
+      return;
+    }
+    const slotId = activeSlotId;
+    if (!slotId) return;
+    await addRecipeToSlot(slotId, recipe.id);
 
     // Calendar write-back (T071)
     if (connected) {
-      const slot = weekPlan?.slots.find((s) => s.id === activeSlotId);
+      const slot = weekPlan?.slots.find((s) => s.id === slotId);
       if (slot) {
         await createMealEvent({
           title: recipe.title,
           date: slot.date,
           timeOfDay: slot.time_of_day || null,
-          slotId: activeSlotId,
+          slotId,
         });
       }
     }
@@ -348,13 +397,27 @@ export default function WeeklyPlannerScreen() {
   }, [deleteSlot]);
 
   const handleSlotPress = useCallback((slot: import('@/services/meal-plan-service').MealSlotWithRecipe) => {
-    if (slot.recipe) setSelectedSlot(slot);
+    if (slot.recipes.length > 0) setSelectedSlot(slot);
     else handleAssignRecipe(slot.id);
   }, [handleAssignRecipe]);
 
-  const handleSaveServings = useCallback(async (slotId: string, servings: number | null) => {
-    await updateServingsEaten(slotId, servings);
-  }, [updateServingsEaten]);
+  const handleAddRecipeToSlot = useCallback(() => {
+    if (!selectedSlot) return;
+    setActiveSlotId(selectedSlot.id);
+    setSelectedSlot(null);
+    setPickerVisible(true);
+  }, [selectedSlot]);
+
+  const handleRemoveRecipeFromSlot = useCallback(async (slotRecipeId: string) => {
+    await removeRecipeFromSlot(slotRecipeId);
+    setSelectedSlot((prev) =>
+      prev ? { ...prev, recipes: prev.recipes.filter((r) => r.id !== slotRecipeId) } : null
+    );
+  }, [removeRecipeFromSlot]);
+
+  const handleSaveRecipeServings = useCallback(async (slotRecipeId: string, servings: number | null) => {
+    await updateSlotRecipeServings(slotRecipeId, servings);
+  }, [updateSlotRecipeServings]);
 
   const handleFoodLogPress = useCallback((log: import('@/services/food-log-service').FoodLogWithItems) => {
     setSelectedLog(log);
@@ -687,6 +750,7 @@ export default function WeeklyPlannerScreen() {
         onClose={() => setAddSlotVisible(false)}
         onAdd={handleCreateSlot}
         onLogFood={handleLogFood}
+        onPickRecipe={handlePickRecipe}
       />
 
       <RecipePickerModal
@@ -708,7 +772,9 @@ export default function WeeklyPlannerScreen() {
       <MealSlotDetailModal
         slot={selectedSlot}
         onClose={() => setSelectedSlot(null)}
-        onSaveServings={handleSaveServings}
+        onAddRecipe={handleAddRecipeToSlot}
+        onRemoveRecipe={handleRemoveRecipeFromSlot}
+        onSaveRecipeServings={handleSaveRecipeServings}
       />
 
       <FoodLogDetailModal

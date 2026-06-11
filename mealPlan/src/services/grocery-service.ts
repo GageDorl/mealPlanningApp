@@ -60,11 +60,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
-function getMonday(date: Date): string {
+function getWeekStart(date: Date): string {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? 1 : 1 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() - d.getDay()); // back to Sunday, matching calendar week_start
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -99,32 +97,43 @@ function groupItemsByCategory(items: GroceryItemRow[]): GroceryDisplayGroup[] {
 }
 
 export async function generateList(userId: string, weekStart: Date): Promise<GroceryState> {
-  const weekStartStr = getMonday(weekStart);
-
-  const { data: planData } = await supabase
+  const weekStartStr = getWeekStart(weekStart);
+  console.log(`[grocery] Generating list for user ${userId} and week starting ${weekStartStr}`);
+  const { data: planRows } = await supabase
     .from('meal_plans')
     .select('id')
     .eq('user_id', userId)
     .eq('week_start', weekStartStr)
-    .maybeSingle();
+    .order('created_at', { ascending: true })
+    .limit(1);
+  const planData = (planRows as { id: string }[] | null)?.[0] ?? null;
 
   if (!planData) {
+    console.log(`[grocery] No meal plan found for user ${userId} and week starting ${weekStartStr}`);
     return { list: null, items: [], displayGroups: [], checkedCount: 0, totalCount: 0 };
   }
-
+  console.log(`[grocery] Found meal plan ${planData.id} for user ${userId} and week starting ${weekStartStr}`);
   const { data: slotsData } = await supabase
     .from('meal_slots')
-    .select('recipe_id')
-    .eq('meal_plan_id', planData.id)
-    .not('recipe_id', 'is', null);
-
-  const recipeIds = [
-    ...new Set(
-      ((slotsData ?? []) as Array<{ recipe_id: string }>)
-        .map((s) => s.recipe_id)
-        .filter(Boolean)
-    ),
-  ];
+    .select('id')
+    .eq('meal_plan_id', planData.id);
+  console.log(`[grocery] Found ${slotsData?.length ?? 0} meal slots for meal plan ${planData.id}`);
+  const slotIds = ((slotsData ?? []) as Array<{ id: string }>).map((s) => s.id);
+console.log(`[grocery] Extracted slot IDs: ${slotIds.join(', ')}`);
+  const recipeIds: string[] = [];
+  if (slotIds.length > 0) {
+    const { data: slotRecipesData } = await supabase
+      .from('meal_slot_recipes')
+      .select('recipe_id')
+      .in('meal_slot_id', slotIds);
+    recipeIds.push(
+      ...new Set(
+        ((slotRecipesData ?? []) as Array<{ recipe_id: string }>)
+          .map((sr) => sr.recipe_id)
+          .filter(Boolean)
+      )
+    );
+  }
 
   interface RecipeIngredientRow {
     name: string;
@@ -185,7 +194,7 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
     pantryItems
   );
 
-  const finalAggregated: AggregatedItem[] = aiItems.length > 0
+  const finalAggregated: AggregatedItem[] = aiItems !== null
     ? aiItems.map((item) => ({
         name: item.name,
         quantity: item.quantity,
@@ -271,14 +280,16 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
 }
 
 export async function getList(userId: string, weekStart: Date): Promise<GroceryState> {
-  const weekStartStr = getMonday(weekStart);
+  const weekStartStr = getWeekStart(weekStart);
 
-  const { data: planData } = await supabase
+  const { data: planRows } = await supabase
     .from('meal_plans')
     .select('id')
     .eq('user_id', userId)
     .eq('week_start', weekStartStr)
-    .maybeSingle();
+    .order('created_at', { ascending: true })
+    .limit(1);
+  const planData = (planRows as { id: string }[] | null)?.[0] ?? null;
 
   if (!planData) {
     return { list: null, items: [], displayGroups: [], checkedCount: 0, totalCount: 0 };

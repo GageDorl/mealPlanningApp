@@ -228,15 +228,22 @@ export async function getTopRecipes(userId: string, limit = 4): Promise<Recipe[]
 
   const { data: slots } = await supabase
     .from('meal_slots')
-    .select('recipe_id')
-    .in('meal_plan_id', planIds)
-    .not('recipe_id', 'is', null);
+    .select('id')
+    .in('meal_plan_id', planIds);
 
   if (!slots || slots.length === 0) return [];
 
+  const slotIds = (slots as { id: string }[]).map((s) => s.id);
+  const { data: slotRecipes } = await supabase
+    .from('meal_slot_recipes')
+    .select('recipe_id')
+    .in('meal_slot_id', slotIds);
+
+  if (!slotRecipes || slotRecipes.length === 0) return [];
+
   const counts: Record<string, number> = {};
-  for (const slot of slots as { recipe_id: string }[]) {
-    counts[slot.recipe_id] = (counts[slot.recipe_id] ?? 0) + 1;
+  for (const sr of slotRecipes as { recipe_id: string }[]) {
+    counts[sr.recipe_id] = (counts[sr.recipe_id] ?? 0) + 1;
   }
 
   const topIds = Object.entries(counts)
@@ -259,4 +266,14 @@ export async function isRecipeSaved(userId: string, sourceApiId: string): Promis
     .eq('source_api_id', sourceApiId)
     .maybeSingle();
   return !!data;
+}
+
+export async function getSavedRecipeIdByApiId(userId: string, sourceApiId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('recipes')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('source_api_id', sourceApiId)
+    .maybeSingle();
+  return (data as { id: string } | null)?.id ?? null;
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as mealPlanService from '@/services/meal-plan-service';
-import type { WeekPlan } from '@/services/meal-plan-service';
+import type { WeekPlan, MealSlotWithRecipe } from '@/services/meal-plan-service';
 
 export function useMealPlan(weekStart: Date) {
   const [weekPlan, setWeekPlan] = useState<WeekPlan | null>(null);
@@ -25,31 +25,47 @@ export function useMealPlan(weekStart: Date) {
   }, [loadWeek]);
 
   const createSlot = useCallback(
-    async (params: { label: string; date: string; time?: string; displayOrder: number }) => {
-      if (!weekPlan) return;
+    async (params: { label: string; date: string; time?: string; displayOrder: number }): Promise<string | null> => {
+      if (!weekPlan) return null;
       const slot = await mealPlanService.createSlot({
         mealPlanId: weekPlan.mealPlan.id,
         ...params,
       });
-      setWeekPlan((prev) => (prev ? { ...prev, slots: [...prev.slots, { ...slot, recipe: null }] } : prev));
+      setWeekPlan((prev) => (prev ? { ...prev, slots: [...prev.slots, { ...slot, recipes: [] } as MealSlotWithRecipe] } : prev));
+      return slot.id;
     },
     [weekPlan],
   );
 
-  const assignRecipe = useCallback(async (slotId: string, recipeId: string) => {
-    await mealPlanService.assignRecipe(slotId, recipeId);
+  const addRecipeToSlot = useCallback(async (slotId: string, recipeId: string) => {
+    await mealPlanService.addRecipeToSlot(slotId, recipeId);
     await loadWeek();
   }, [loadWeek]);
 
-  const removeRecipe = useCallback(async (slotId: string) => {
-    await mealPlanService.removeRecipe(slotId);
+  const removeRecipeFromSlot = useCallback(async (slotRecipeId: string) => {
+    await mealPlanService.removeRecipeFromSlot(slotRecipeId);
     setWeekPlan((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        slots: prev.slots.map((s) =>
-          s.id === slotId ? { ...s, recipe_id: null, recipe: null } : s,
-        ),
+        slots: prev.slots.map((s) => ({
+          ...s,
+          recipes: s.recipes.filter((r) => r.id !== slotRecipeId),
+        })),
+      };
+    });
+  }, []);
+
+  const updateSlotRecipeServings = useCallback(async (slotRecipeId: string, servings: number | null) => {
+    await mealPlanService.updateSlotRecipeServings(slotRecipeId, servings);
+    setWeekPlan((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        slots: prev.slots.map((s) => ({
+          ...s,
+          recipes: s.recipes.map((r) => r.id === slotRecipeId ? { ...r, servings_eaten: servings } : r),
+        })),
       };
     });
   }, []);
@@ -62,18 +78,6 @@ export function useMealPlan(weekStart: Date) {
     });
   }, []);
 
-  const updateServingsEaten = useCallback(async (slotId: string, servings: number | null) => {
-    await mealPlanService.updateServingsEaten(slotId, servings);
-    setWeekPlan((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        slots: prev.slots.map((s) =>
-          s.id === slotId ? { ...s, servings_eaten: servings } : s,
-        ),
-      };
-    });
-  }, []);
 
   const refresh = loadWeek;
 
@@ -82,10 +86,10 @@ export function useMealPlan(weekStart: Date) {
     loading,
     error,
     createSlot,
-    assignRecipe,
-    removeRecipe,
+    addRecipeToSlot,
+    removeRecipeFromSlot,
+    updateSlotRecipeServings,
     deleteSlot,
-    updateServingsEaten,
     refresh,
   };
 }

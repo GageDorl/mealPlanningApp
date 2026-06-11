@@ -6,6 +6,7 @@ import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LogFoodForm, type LogFoodSubmitParams } from './log-food-form';
+import type { Recipe } from '@/models/recipe';
 
 interface AddMealSlotModalProps {
   visible: boolean;
@@ -13,8 +14,9 @@ interface AddMealSlotModalProps {
   initialTime?: string;
   userId?: string;
   onClose: () => void;
-  onAdd: (label: string, time?: string) => void;
+  onAdd: (label: string, time?: string, recipe?: Recipe) => void;
   onLogFood: (date: string, params: LogFoodSubmitParams) => Promise<void>;
+  onPickRecipe: (onPicked: (recipe: Recipe) => void) => void;
 }
 
 const QUICK_LABELS = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Post-workout'];
@@ -38,10 +40,11 @@ function to24(hour: string, minute: string, period: 'AM' | 'PM'): string {
 
 type Mode = 'plan' | 'log';
 
-export function AddMealSlotModal({ visible, date, initialTime, userId, onClose, onAdd, onLogFood }: AddMealSlotModalProps) {
+export function AddMealSlotModal({ visible, date, initialTime, userId, onClose, onAdd, onLogFood, onPickRecipe }: AddMealSlotModalProps) {
   const theme = useTheme();
   const [mode, setMode] = useState<Mode>('plan');
   const [label, setLabel] = useState('');
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   const init = initialTime ? parse24to12(initialTime) : { hour: '12', minute: '00', period: 'PM' as const };
   const [hour, setHour] = useState(init.hour);
@@ -56,12 +59,13 @@ export function AddMealSlotModal({ visible, date, initialTime, userId, onClose, 
       setMinute(parsed.minute);
       setPeriod(parsed.period);
       setLabel('');
+      setSelectedRecipe(null);
     }
   }, [visible, initialTime]);
 
   const handleAdd = () => {
     if (!label.trim()) return;
-    onAdd(label.trim(), to24(hour, minute, period) || undefined);
+    onAdd(label.trim(), to24(hour, minute, period) || undefined, selectedRecipe ?? undefined);
     onClose();
   };
 
@@ -153,6 +157,26 @@ export function AddMealSlotModal({ visible, date, initialTime, userId, onClose, 
                   </Pressable>
                 </View>
               </View>
+
+              <Pressable
+                style={[styles.recipePicker, { borderColor: selectedRecipe ? Colors.accent : theme.border }]}
+                onPress={() => onPickRecipe(setSelectedRecipe)}
+              >
+                {selectedRecipe ? (
+                  <View style={styles.recipePickerFilled}>
+                    <Text style={[styles.recipePickerText, { color: theme.text }]} numberOfLines={1}>
+                      {selectedRecipe.title}
+                    </Text>
+                    <Pressable onPress={() => setSelectedRecipe(null)} hitSlop={8}>
+                      <Text style={[styles.recipePickerClear, { color: theme.textSecondary }]}>×</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Text style={[styles.recipePickerEmpty, { color: theme.textSecondary }]}>
+                    + Add recipe (optional)
+                  </Text>
+                )}
+              </Pressable>
 
               <View style={styles.actions}>
                 <Button label="Cancel" onPress={onClose} variant="secondary" />
@@ -282,4 +306,31 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginTop: Spacing.sm,
   } as ViewStyle,
+  recipePicker: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  } as ViewStyle,
+  recipePickerFilled: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  recipePickerText: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    fontWeight: '500',
+  } as TextStyle,
+  recipePickerClear: {
+    fontSize: 20,
+    lineHeight: 20,
+    fontWeight: '300',
+  } as TextStyle,
+  recipePickerEmpty: {
+    fontSize: FontSizes.sm,
+    fontWeight: '500',
+    textAlign: 'center',
+  } as TextStyle,
 });
