@@ -12,6 +12,7 @@ export interface UserProfile {
   id: string;
   email: string;
   display_name: string | null;
+  theme_preference: 'light' | 'dark' | null;
   onboarding_completed: boolean;
   notification_meal_reminders: boolean;
   notification_planning_nudges: boolean;
@@ -112,4 +113,8 @@ export async function updateNotificationSettings(userId: string, settings: {
   notification_macro_checkins: boolean;
 }) {
   return supabase.from('users').update(settings).eq('id', userId);
+}
+
+export async function updateThemePreference(userId: string, mode: 'light' | 'dark' | null) {
+  return supabase.from('users').update({ theme_preference: mode }).eq('id', userId);
 }

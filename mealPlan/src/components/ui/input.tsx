@@ -1,4 +1,4 @@
-import { StyleSheet, TextInput, View, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
+import { StyleSheet, TextInput, View, type TextInputProps, type ViewStyle, type TextStyle } from 'react-native';
 import { Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -9,14 +9,16 @@ interface InputProps extends TextInputProps {
 export function Input({ containerStyle, style, ...props }: InputProps) {
   const theme = useTheme();
 
+  const inputStyle: TextStyle = {
+    borderColor: theme.border,
+    color: theme.text,
+    backgroundColor: theme.background,
+  };
+
   return (
     <View style={[styles.container, containerStyle]}>
       <TextInput
-        style={[
-          styles.input,
-          { borderColor: theme.border, color: theme.text, backgroundColor: theme.background },
-          style,
-        ]}
+        style={[inputStyle, styles.input, style]}
         placeholderTextColor={theme.textSecondary}
         {...props}
       />

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View, type ViewStyle, type TextStyle } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View, type ViewStyle, type TextStyle, Pressable } from 'react-native';
 import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
 
@@ -9,6 +9,7 @@ import { DietaryTags } from '@/constants/dietary-tags';
 import { DefaultMacros, type MacroDefinition } from '@/constants/macros';
 import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useThemeToggle } from '@/hooks/use-theme-toggle';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useUserRole } from '@/hooks/use-user-role';
 import { useCalendar } from '@/hooks/use-calendar';
@@ -18,6 +19,7 @@ import { updateDietaryPreferences, updateMacroGoals, updateNotificationSettings 
 export default function ProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { themeMode, setTheme } = useThemeToggle();
   const { profile, loading, reload } = useUserProfile();
   const { role } = useUserRole();
   const { connected, calendarExportEnabled, setExportEnabled, disconnect } = useCalendar();
@@ -190,6 +192,26 @@ export default function ProfileScreen() {
             <Text style={[styles.fieldValue, { color: theme.textSecondary }]}>No calendar connected</Text>
           )}
 
+          {/* Appearance */}
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Appearance</Text>
+          <View style={styles.themeButtonGroup}>
+            {(['light', 'dark', null] as const).map((mode) => (
+              <Pressable
+                key={mode ?? 'system'}
+                onPress={() => setTheme(mode)}
+                style={[
+                  styles.themeButton,
+                  themeMode === mode && [styles.themeButtonActive, { backgroundColor: Colors.accent }],
+                  themeMode !== mode && [{ backgroundColor: theme.backgroundElement, borderColor: theme.border }],
+                ]}
+              >
+                <Text style={[styles.themeButtonLabel, themeMode === mode ? { color: '#FFFFFF' } : { color: theme.text }]}>
+                  {mode === 'light' ? '☀️ Light' : mode === 'dark' ? '🌙 Dark' : '🖥️ System'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
           {/* Food Library */}
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Food</Text>
           <Button
@@ -342,5 +364,26 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   statusText: {
     fontSize: FontSizes.md,
+  } as TextStyle,
+  themeButtonGroup: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  themeButton: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  } as ViewStyle,
+  themeButtonActive: {
+    borderWidth: 0,
+  } as ViewStyle,
+  themeButtonLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
   } as TextStyle,
 });

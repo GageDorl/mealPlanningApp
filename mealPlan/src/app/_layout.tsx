@@ -1,30 +1,74 @@
+import { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { Slot } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Provider } from 'react-redux';
+import { Provider, useDispatch, useSelector } from 'react-redux';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { PowerSyncProvider } from '@/services/powersync';
+import { supabase } from '@/services/supabase';
+import { getProfile } from '@/services/user-service';
 import { store } from '@/store';
+import { setThemeMode } from '@/store/slices/preferences-slice';
+import type { RootState } from '@/store';
 import { LoadingProvider } from '@/contexts/loading-context';
 
-export default function RootLayout() {
+function LayoutContent() {
   const colorScheme = useColorScheme();
+  const dispatch = useDispatch();
+  const userThemeMode = useSelector((state: RootState) => state.preferences.themeMode);
 
+  useEffect(() => {
+    const loadUserTheme = async () => {
+      const sessionResult = await supabase.auth.getSession();
+      const userId = sessionResult.data.session?.user.id;
+
+      if (userId) {
+        const profile = await getProfile(userId);
+        if (profile?.user.theme_preference) {
+          dispatch(setThemeMode(profile.user.theme_preference));
+        }
+      }
+    };
+
+    loadUserTheme();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user.id) {
+        const profile = await getProfile(session.user.id);
+        if (profile?.user.theme_preference) {
+          dispatch(setThemeMode(profile.user.theme_preference));
+        }
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [dispatch]);
+
+  const theme = userThemeMode ? (userThemeMode === 'dark' ? DarkTheme : DefaultTheme) : (colorScheme === 'dark' ? DarkTheme : DefaultTheme);
+
+  return (
+    <ThemeProvider value={theme}>
+      <LoadingProvider>
+        <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+          <Slot />
+        </SafeAreaView>
+      </LoadingProvider>
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <Provider store={store}>
           <PowerSyncProvider>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <LoadingProvider>
-                <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
-                  <Slot />
-                </SafeAreaView>
-              </LoadingProvider>
-            </ThemeProvider>
+            <LayoutContent />
           </PowerSyncProvider>
         </Provider>
       </SafeAreaProvider>
