@@ -150,17 +150,16 @@ export async function getDailyProgress(userId: string, date: string): Promise<Da
     return entries.map((sr) => {
       const recipe = sr.recipes;
       const servings = sr.servings_eaten ?? recipe.servings ?? 1;
-      const scale = servings / (recipe.servings || 1);
       return {
         id: sr.id,
         entry_type: 'planned',
         label: slot.label,
         recipe_title: recipe.title,
         time_of_day: slot.time_of_day,
-        calories: Math.round((recipe.calories_per_serving ?? 0) * scale),
-        protein: Math.round(((recipe.protein_per_serving ?? 0) * scale) * 10) / 10,
-        carbs: Math.round(((recipe.carbs_per_serving ?? 0) * scale) * 10) / 10,
-        fat: Math.round(((recipe.fat_per_serving ?? 0) * scale) * 10) / 10,
+        calories: Math.round((recipe.calories_per_serving ?? 0) * servings),
+        protein: Math.round(((recipe.protein_per_serving ?? 0) * servings) * 10) / 10,
+        carbs: Math.round(((recipe.carbs_per_serving ?? 0) * servings) * 10) / 10,
+        fat: Math.round(((recipe.fat_per_serving ?? 0) * servings) * 10) / 10,
       };
     });
   });
@@ -280,17 +279,16 @@ export async function getHistoricalProgress(
       return entries.map((sr) => {
         const recipe = sr.recipes;
         const servings = sr.servings_eaten ?? recipe.servings ?? 1;
-        const scale = servings / (recipe.servings || 1);
         return {
           id: sr.id,
           entry_type: 'planned',
           label: slot.label,
           recipe_title: recipe.title,
           time_of_day: slot.time_of_day,
-          calories: Math.round((recipe.calories_per_serving ?? 0) * scale),
-          protein: Math.round(((recipe.protein_per_serving ?? 0) * scale) * 10) / 10,
-          carbs: Math.round(((recipe.carbs_per_serving ?? 0) * scale) * 10) / 10,
-          fat: Math.round(((recipe.fat_per_serving ?? 0) * scale) * 10) / 10,
+          calories: Math.round((recipe.calories_per_serving ?? 0) * servings),
+          protein: Math.round(((recipe.protein_per_serving ?? 0) * servings) * 10) / 10,
+          carbs: Math.round(((recipe.carbs_per_serving ?? 0) * servings) * 10) / 10,
+          fat: Math.round(((recipe.fat_per_serving ?? 0) * servings) * 10) / 10,
         };
       });
     });
@@ -368,9 +366,8 @@ function buildMacroProgress(
 
     const fromPlanned = recipeField
       ? contributions.reduce((sum, { recipe, servings }) => {
-          const scale = servings / (recipe.servings || 1);
           const value = (recipe[recipeField] as number | null | undefined) ?? 0;
-          return sum + value * scale;
+          return sum + value * servings;
         }, 0)
       : 0;
 

@@ -64,16 +64,32 @@ Deno.serve(async (req: Request) => {
 
   // Increment flag_count and ensure flagged = true.
   // Two-query pattern is acceptable here — flag counts don't need sub-millisecond accuracy.
-  const { data: food } = await adminClient
+  const { data: food, error: selectError } = await adminClient
     .from('public_foods')
     .select('flag_count')
     .eq('id', body.food_id)
     .single();
 
-  await adminClient
+  if (selectError) {
+    console.error('[flag-food] select flag_count error:', selectError.message);
+    return new Response(JSON.stringify({ error: selectError.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const { error: updateError } = await adminClient
     .from('public_foods')
     .update({ flagged: true, flag_count: (food?.flag_count ?? 0) + 1 })
     .eq('id', body.food_id);
+
+  if (updateError) {
+    console.error('[flag-food] update error:', updateError.message);
+    return new Response(JSON.stringify({ error: updateError.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,

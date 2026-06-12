@@ -99,19 +99,40 @@ Deno.serve(async (req: Request) => {
 
   if (isFatSecret && body.fatsecret_id) {
     // Upsert on the partial unique index — if already cached, skip (keep original submitted_by)
-    await adminClient
+    const { error } = await adminClient
       .from('public_foods')
       .upsert(publicFoodPayload, { onConflict: 'fatsecret_id', ignoreDuplicates: true });
+    if (error) {
+      console.error('[submit-public-food] upsert error:', error.message);
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
   } else {
-    await adminClient.from('public_foods').insert(publicFoodPayload);
+    const { error } = await adminClient.from('public_foods').insert(publicFoodPayload);
+    if (error) {
+      console.error('[submit-public-food] insert error:', error.message);
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
   }
 
-  // Optionally save to the caller's personal library (used by the 7c share toggle)
+  // Optionally save to the caller's personal library (used by the share toggle)
   if (body.save_to_library) {
-    await adminClient.from('personal_foods').insert({
+    const { error } = await adminClient.from('personal_foods').insert({
       user_id: user.id,
       ...baseNutrition,
     });
+    if (error) {
+      console.error('[submit-public-food] personal library insert error:', error.message);
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
   }
 
   return new Response(JSON.stringify({ ok: true }), {

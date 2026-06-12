@@ -95,11 +95,17 @@ Deno.serve(async (req: Request) => {
     }
 
     case 'clear-flags': {
-      await adminClient
+      const { error: flagsError } = await adminClient
         .from('food_flags')
         .update({ resolved: true })
         .eq('food_id', food_id)
         .eq('resolved', false);
+      if (flagsError) {
+        return new Response(JSON.stringify({ error: flagsError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       const { error } = await adminClient
         .from('public_foods')
         .update({ flagged: false, flag_count: 0 })

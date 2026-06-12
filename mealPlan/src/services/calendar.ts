@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from './supabase';
+import env from '@/constants/env';
 import type { CalendarEvent, CalendarInfo, MealEventInput } from './calendar.types';
 
 export type { CalendarEvent, CalendarInfo, MealEventInput };
@@ -55,7 +56,7 @@ export async function restoreSession(): Promise<boolean> {
   }
 }
 
-const MOBILE_CALLBACK_URL = 'https://uyvsvsmspdlhbhavevuc.supabase.co/functions/v1/google-oauth-mobile-callback';
+const MOBILE_CALLBACK_URL = `${env.SUPABASE_URL}/functions/v1/google-oauth-mobile-callback`;
 
 export async function connect(): Promise<{ granted: boolean }> {
   try {
@@ -81,9 +82,9 @@ export async function connect(): Promise<{ granted: boolean }> {
 export async function getCalendarExportEnabled(): Promise<boolean> {
   try {
     const stored = await AsyncStorage.getItem(EXPORT_ENABLED_KEY);
-    return stored === null ? true : stored === 'true';
+    return stored === 'true';
   } catch {
-    return true;
+    return false;
   }
 }
 

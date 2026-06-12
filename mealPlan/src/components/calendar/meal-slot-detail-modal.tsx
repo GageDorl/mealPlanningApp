@@ -34,7 +34,7 @@ function RecipeRow({
   }, [input, onSaveServings]);
 
   const scaledCal = entry.recipe.calories_per_serving != null
-    ? Math.round(entry.recipe.calories_per_serving * (parseFloat(input) || defaultServings) / (entry.recipe.servings || 1))
+    ? Math.round(entry.recipe.calories_per_serving * (parseFloat(input) || defaultServings))
     : null;
 
   return (
