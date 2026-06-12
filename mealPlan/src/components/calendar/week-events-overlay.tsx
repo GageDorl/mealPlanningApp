@@ -13,6 +13,10 @@ import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
 import type { FoodLogWithItems } from '@/services/food-log-service';
 import type { CalendarEvent } from '@/services/calendar.types';
 
+// Pixels that Prepd cards shift down when a Google event is behind them,
+// exposing enough of the Google event header to be readable and tappable.
+const CARD_FAN_OFFSET = 10;
+
 function formatDragTime(totalMinutes: number): string {
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
@@ -25,6 +29,7 @@ function DraggableFoodLog({
   log,
   top,
   height,
+  zIndex,
   compact,
   isDragging,
   hourHeight,
@@ -37,6 +42,7 @@ function DraggableFoodLog({
   log: FoodLogWithItems;
   top: number;
   height: number;
+  zIndex: number;
   compact: boolean;
   isDragging: boolean;
   hourHeight: number;
@@ -73,7 +79,7 @@ function DraggableFoodLog({
   );
 
   return (
-    <View style={[styles.absoluteItem, { top, height, left: 30, right: 2, opacity: isDragging ? 0.3 : 1 }]}>
+    <View style={[styles.absoluteItem, { top, height, left: 30, right: 2, zIndex, opacity: isDragging ? 0.3 : 1 }]}>
       <GestureDetector gesture={gesture}>
         <View style={{ flex: 1 }}>
           <FoodLogCard log={log} compact={compact} onPress={onPress} onDelete={onDelete} />
@@ -186,6 +192,52 @@ function DayEventsColumn({
   onUpdateFoodLogTime: (logId: string, newTime: string) => void;
 }) {
   const [dragInfo, setDragInfo] = useState<{ logId: string; currentMin: number } | null>(null);
+  // ID of the Google event the user has tapped to bring to the front
+  const [elevatedEventId, setElevatedEventId] = useState<string | null>(null);
+
+  // Precompute clamped Google event ranges once per render for overlap checks
+  const gcalRanges = useMemo(() =>
+    day.timedEvents.map(e => ({
+      id: e.id,
+      start: e.startDate.getHours() * 60 + e.startDate.getMinutes(),
+      end: e.startDate.getHours() * 60 + e.startDate.getMinutes() +
+           Math.max((e.endDate.getTime() - e.startDate.getTime()) / 60000, 30),
+    })),
+    [day.timedEvents],
+  );
+
+  // Google event IDs whose time range overlaps at least one Prepd item
+  const gcalConflictSet = useMemo(() => {
+    const prependRanges = [
+      ...day.timedSlots.map(s => {
+        const start = parseTimeToMinutes(s.time_of_day) ?? 0;
+        return { start, end: start + DEFAULT_SLOT_DURATION };
+      }),
+      ...day.timedFoodLogs.map(l => {
+        const start = parseTimeToMinutes(l.time_of_day) ?? 0;
+        return { start, end: start + DEFAULT_SLOT_DURATION };
+      }),
+    ];
+    return new Set(
+      gcalRanges
+        .filter(g => prependRanges.some(p => g.start < p.end && g.end > p.start))
+        .map(g => g.id),
+    );
+  }, [gcalRanges, day.timedSlots, day.timedFoodLogs]);
+
+  // Prepd item IDs (slots + food logs) whose time range overlaps at least one Google event
+  const prependConflictSet = useMemo(() => {
+    const ids = new Set<string>();
+    const check = (id: string, time_of_day: string | null | undefined) => {
+      if (!time_of_day) return;
+      const start = parseTimeToMinutes(time_of_day) ?? 0;
+      const end = start + DEFAULT_SLOT_DURATION;
+      if (gcalRanges.some(g => start < g.end && end > g.start)) ids.add(id);
+    };
+    day.timedSlots.forEach(s => check(s.id, s.time_of_day));
+    day.timedFoodLogs.forEach(l => check(l.id, l.time_of_day));
+    return ids;
+  }, [gcalRanges, day.timedSlots, day.timedFoodLogs]);
 
   const handleDragStart = useCallback((logId: string, currentMin: number) => {
     setDragInfo({ logId, currentMin });
@@ -230,9 +282,20 @@ function DayEventsColumn({
         if (ce <= cs) return null;
         const top = minutesToY(cs, hourHeight);
         const height = ((ce - cs) / 60) * hourHeight;
+        const hasConflict = gcalConflictSet.has(event.id);
+        const isElevated = elevatedEventId === event.id;
+        // Conflicted events start behind Prepd items (z:1); tapping brings them to z:5
+        const zIndex = hasConflict ? (isElevated ? 5 : 1) : 2;
         return (
-          <View key={event.id} style={[styles.absoluteItem, { top, height, left: 30, right: 2 }]}>
-            <ExternalEventBlock event={event} compact={height < 56} onPress={() => onEventPress(event)} />
+          <View key={event.id} style={[styles.absoluteItem, { top, height, left: 30, right: 2, zIndex }]}>
+            <ExternalEventBlock
+              event={event}
+              compact={height < 56}
+              onPress={hasConflict
+                ? () => setElevatedEventId(isElevated ? null : event.id)
+                : () => onEventPress(event)
+              }
+            />
           </View>
         );
       })}
@@ -242,10 +305,14 @@ function DayEventsColumn({
         const cs = clampMinutes(startMin);
         const ce = clampMinutes(startMin + DEFAULT_SLOT_DURATION);
         if (ce <= cs) return null;
-        const top = minutesToY(cs, hourHeight);
-        const height = ((ce - cs) / 60) * hourHeight;
+        const baseTop = minutesToY(cs, hourHeight);
+        const baseHeight = ((ce - cs) / 60) * hourHeight;
+        // Fan down when a Google event is behind this slot so its header peeks above
+        const fanned = prependConflictSet.has(slot.id);
+        const top = fanned ? baseTop + CARD_FAN_OFFSET : baseTop;
+        const height = fanned ? baseHeight - CARD_FAN_OFFSET : baseHeight;
         return (
-          <View key={slot.id} style={[styles.absoluteItem, { top, height, left: 30, right: 2 }]}>
+          <View key={slot.id} style={[styles.absoluteItem, { top, height, left: 30, right: 2, zIndex: 3 }]}>
             <MealSlotCard
               slot={slot}
               compact={height < 56}
@@ -262,14 +329,18 @@ function DayEventsColumn({
         const cs = clampMinutes(startMin);
         const ce = clampMinutes(startMin + DEFAULT_SLOT_DURATION);
         if (ce <= cs) return null;
-        const top = minutesToY(cs, hourHeight);
-        const height = ((ce - cs) / 60) * hourHeight;
+        const baseTop = minutesToY(cs, hourHeight);
+        const baseHeight = ((ce - cs) / 60) * hourHeight;
+        const fanned = prependConflictSet.has(log.id);
+        const top = fanned ? baseTop + CARD_FAN_OFFSET : baseTop;
+        const height = fanned ? baseHeight - CARD_FAN_OFFSET : baseHeight;
         return (
           <DraggableFoodLog
             key={log.id}
             log={log}
             top={top}
             height={height}
+            zIndex={4}
             compact={height < 56}
             isDragging={dragInfo?.logId === log.id}
             hourHeight={hourHeight}

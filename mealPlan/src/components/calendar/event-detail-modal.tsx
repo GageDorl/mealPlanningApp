@@ -40,6 +40,11 @@ export function EventDetailModal({ event, onClose }: EventDetailModalProps) {
           <View style={styles.strip} />
 
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            {event.isPrepd && (
+              <View style={styles.prepdBadge}>
+                <Text style={styles.prepdBadgeText}>Prepd meal</Text>
+              </View>
+            )}
             <Text style={[styles.title, { color: theme.text }]}>{event.title}</Text>
 
             {event.isAllDay ? (
@@ -110,6 +115,19 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing.sm,
   } as ViewStyle,
+  prepdBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.accent,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  prepdBadgeText: {
+    color: '#FFFFFF',
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+  } as TextStyle,
   title: {
     fontSize: FontSizes.lg,
     fontWeight: '700',

@@ -27,9 +27,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const nowSecs = Date.now() / 1000;
+      // Only refresh an *existing* expiring session — don't block the UI when
+      // there's no session yet (e.g. during the OAuth sign-in callback).
       const needsRefresh =
-        !session?.access_token ||
-        (session.expires_at !== undefined && session.expires_at < nowSecs + 30);
+        !!session?.access_token &&
+        (session.expires_at === undefined || session.expires_at < nowSecs + 30);
 
       if (!needsRefresh) return;
 

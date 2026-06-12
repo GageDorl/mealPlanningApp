@@ -2,85 +2,118 @@
 
 ## Current State
 
-OAuth token storage is in place (`google-oauth-mobile-callback` writes to `calendar_tokens`), but all actual calendar operations call a non-existent `recal-calendar` edge function. The connect flow also calls a non-existent `google-oauth-link` function. Everything beyond token storage is currently broken.
+OAuth token storage is working (`google-oauth-link` + `google-oauth-mobile-callback` write to `calendar_tokens`). The `recal-calendar` edge function calls Google's API directly but is a leftover from the old Recal proxy era — it will be deleted and replaced with a clean `google-calendar` function. `calendar.web.ts` stubs out `getAvailableCalendars`, `getSelectedCalendarIds`, and `setSelectedCalendarIds` with empty returns. Google events load after app events are already visible, causing a jarring two-phase render.
 
-## What Needs to Be Built
+## Goals
 
-### 1. `google-oauth-link` edge function (new)
-Generates the Google OAuth authorization URL to send back to the client.
+- Replace `recal-calendar` with a clean `google-calendar` edge function
+- Merge `calendar.ts` + `calendar.web.ts` into a single file (both platforms use the edge function)
+- Cache Google events per-week in AsyncStorage so they show instantly on load; refresh in background and diff-update
+- Let users choose which Google Calendars to display — selector in Settings + quick toggle on the calendar screen
+- Read Google events onto the grid; export Prepd meal slots to Google Calendar; no editing non-Prepd events
 
-- Reads `GOOGLE_CLIENT_ID` env var
-- Builds the OAuth URL with scopes: `https://www.googleapis.com/auth/calendar`
-- Signs a state param (reuse `_shared/oauth-state.ts` pattern from the callback function)
-- Returns `{ url }` to the caller
-- The mobile callback URL is already handled by `google-oauth-mobile-callback`
+---
 
-### 2. `google-calendar` edge function (new)
-Single function with an `action` dispatch pattern (same as the old recal-calendar). Reads the user's token from `calendar_tokens`, auto-refreshes if expired, then calls Google Calendar API.
+## Phase 1 — New `google-calendar` Edge Function
 
-**Token helper (internal):**
-- Read `calendar_tokens` row for `auth.uid()`
-- If `expires_at < now + 60s` and `refresh_token` exists, POST to `https://oauth2.googleapis.com/token` with `grant_type=refresh_token`
-- Update `calendar_tokens` with new `access_token` + `expires_at`
-- Return the valid access token (or throw if no token / refresh fails)
+Delete `supabase/functions/recal-calendar/` entirely and write a fresh `supabase/functions/google-calendar/index.ts`.
 
-**Actions:**
+- [x] Delete `supabase/functions/recal-calendar/index.ts`
+- [x] Create `supabase/functions/google-calendar/index.ts`
+  - [x] Token helper: read `calendar_tokens` row via admin client; if `expires_at < now + 60s` POST to `https://oauth2.googleapis.com/token` with `grant_type=refresh_token`; update row with new token + expiry; return valid access token (throw if missing or refresh fails)
+  - [x] `isConnected` action — query `calendar_tokens` for the user; return `{ connected: boolean }`
+  - [x] `listCalendars` action — `GET /calendar/v3/users/me/calendarList`; return `{ id, title, color }[]` (map `backgroundColor` from Google response to `color`)
+  - [x] `getEvents` action — accepts `{ calendarIds: string[], start: string, end: string }`; if `calendarIds` is empty use `['primary']`; fetch each calendar in parallel; merge + return flat `CalendarEvent[]`
+  - [x] `createEvent` action — accepts `{ calendarId, title, start, end, slotId }`; `POST /calendar/v3/calendars/{calendarId}/events`; include `extendedProperties.private.prepd_slot_id` so Prepd events are identifiable; return `{ id }`
+  - [x] `deleteEvent` action — `DELETE /calendar/v3/calendars/{calendarId}/events/{eventId}`
+  - [x] `revokeConnection` action — `POST https://oauth2.googleapis.com/revoke?token={access_token}`; delete `calendar_tokens` row
+  - [x] CORS headers on all responses; 401 for missing auth; 400 for unknown action
 
-| Action | Google API call | Returns |
-|--------|----------------|---------|
-| `isConnected` | Validates token exists and is refreshable | `{ connected: boolean }` |
-| `listCalendars` | `GET /calendar/v3/users/me/calendarList` | `CalendarInfo[]` |
-| `getEvents` | `GET /calendar/v3/calendars/{id}/events` for each selected calendar ID | `CalendarEvent[]` merged + sorted |
-| `createEvent` | `POST /calendar/v3/calendars/{id}/events` | `{ id: string }` |
-| `deleteEvent` | `DELETE /calendar/v3/calendars/{id}/events/{eventId}` | void |
-| `revokeConnection` | `POST https://oauth2.googleapis.com/revoke`, delete `calendar_tokens` row | void |
+---
 
-For `getEvents`: body should include `{ calendarIds: string[], start: string, end: string }`. If `calendarIds` is empty, use primary calendar.
+## Phase 2 — Merge Calendar Service + Caching Layer
 
-### 3. `calendar.ts` + `calendar.web.ts` updates
+Delete `calendar.web.ts` and rewrite `calendar.ts` as the single implementation for both platforms.
 
-**`getAvailableCalendars()`**
-- Call `google-calendar` with `action: 'listCalendars'`
-- Return `CalendarInfo[]` (id + title + color from Google)
+- [x] Delete `mealPlan/src/services/calendar.web.ts`
+- [x] Add `color?: string` to `CalendarInfo` in `calendar.types.ts`
+- [x] Rewrite `mealPlan/src/services/calendar.ts`
+  - [x] `callFunction(name, body)` helper — calls `supabase.functions.invoke`, throws on error with message from response body
+  - [x] `isConnected()` — synchronous in-memory flag; set by `restoreSession` / `connect` / `disconnect`
+  - [x] `restoreSession()` — reads AsyncStorage flag (fast path); on web checks API if not stored (handles post-OAuth redirect)
+  - [x] `connect()` — calls `google-oauth-link` to get auth URL; redirects (web) or opens browser (native via `expo-web-browser`)
+  - [x] `disconnect()` — calls `google-calendar` `revokeConnection`; clears all AsyncStorage cache keys
+  - [x] `getAvailableCalendars()` — calls `google-calendar` `listCalendars`; returns `CalendarInfo[]`
+  - [x] `getSelectedCalendarIds()` — reads `@prepd/calendar_selected_ids` from AsyncStorage; returns `string[]` (empty = show all)
+  - [x] `setSelectedCalendarIds(ids)` — writes `@prepd/calendar_selected_ids` to AsyncStorage
+  - [x] `getCalendarExportEnabled()` — reads from AsyncStorage
+  - [x] `setCalendarExportEnabled(enabled)` — writes to AsyncStorage
+  - [x] `getCachedEvents(weekStart)` — reads `prepd_gcal_{weekStart}` from AsyncStorage; deserializes Dates; returns `CachedEventData | null`
+  - [x] `setCachedEvents(weekStart, events)` — writes `{ events, fetchedAt: Date.now() }` to AsyncStorage
+  - [x] `getEvents(start, end)` — calls `google-calendar` `getEvents` with selected calendar IDs; maps response to `CalendarEvent[]` with proper Date objects
+  - [x] `createMealEvent(input)` — calls `google-calendar` `createEvent`; returns event ID or null
+  - [x] `deleteMealEvent(eventId, calendarId?)` — calls `google-calendar` `deleteEvent`
 
-**`getSelectedCalendarIds()`**
-- Read from AsyncStorage / localStorage (key already defined: `@prepd/calendar_selected_ids`)
-- Return `[]` if nothing stored (user gets all calendars)
+---
 
-**`setSelectedCalendarIds(ids)`**
-- Save to AsyncStorage / localStorage
+## Phase 3 — Update `use-calendar.ts` (Two-Phase Loading)
 
-**`getEvents(start, end)`**
-- Read selected IDs from storage
-- Pass them to `google-calendar` `getEvents` action
+- [x] On mount:
+  - [x] `restoreSession()` fast-paths from AsyncStorage; on success sets connected and fires `loadCalendarMeta()` without awaiting
+- [x] Background refresh:
+  - [x] `loadEvents` derives `weekStart` from `start`, reads cache → sets events immediately, then fires background `getEvents`
+  - [x] Sequence counter (`refreshSeqRef`) discards stale responses when week changes mid-fetch
+  - [x] On success: updates events state + writes new cache (fire and forget)
+  - [x] On error: sets `loadError`; keeps cached events visible
+- [x] On week change: served from cache immediately via `loadEvents`; background refresh follows
+- [x] Expose `googleEventsRefreshing: boolean`
+- [x] Removed `loading` state — `calendar.tsx` updated to use `googleEventsRefreshing` throughout
+- [x] `deleteMealEvent` updated to accept optional `calendarId`
 
-**`connect()`**
-- Call `google-oauth-link` to get auth URL (replaces the non-existent call)
+---
 
-Both `calendar.ts` and `calendar.web.ts` need the same implementation — consider whether to merge them into one file since both now use the same edge-function-based approach (neither uses `expo-calendar`).
+## Phase 4 — Calendar Picker UI
 
-### 4. `CalendarInfo` type update
+### 4a — Settings screen
 
-Add `color?: string` to `CalendarInfo` in `calendar.types.ts` so the picker can render each calendar with its Google color.
+- [x] Update `src/app/(tabs)/profile/index.tsx`
+  - [x] Renamed section to "Google Calendar"
+  - [x] When connected: export toggle + inline `CalendarPickerList` + Disconnect button
+  - [x] When not connected: Connect button + error text
+- [x] Create `src/components/calendar/calendar-picker-list.tsx`
+  - [x] Receives `calendars`, `selectedIds`, `onToggle`, `loading` as props
+  - [x] Renders each calendar with color dot, name, checkbox
+  - [x] Empty `selectedIds` treated as "all selected" — toggling off stores all other IDs
+  - [x] Shows spinner while `loading` is true
 
-### 5. Calendar picker UI (already exists, just needs real data)
+### 4b — Calendar screen quick toggle
 
-The picker component and the `availableCalendars.length > 1` guards in `calendar-connect.tsx` and `calendar.tsx` already exist. Once `listCalendars` returns real data, the picker becomes functional with no UI changes needed.
+- [x] Connected badge `connectedTitleRow` is always a `Pressable` that opens `CalendarPickerModal`
+  - [x] Shows `connectedCalendarTitle` ("All calendars" / "N calendars" / calendar name)
+  - [x] Shows `▾` chevron when not refreshing
+  - [x] Removed `availableCalendars.length > 1` guard — picker always accessible when connected
+
+---
+
+## Phase 5 — Wiring & Cleanup
+
+- [x] Update `src/app/(tabs)/calendar.tsx`
+  - [x] `loading` state removed; `googleEventsRefreshing` wired to connected badge (done Phase 3)
+  - [x] `createMealEvent` / `deleteMealEvent` calls verified — use new `google-calendar` function via the merged service
+- [x] `EventDetailModal` updated — shows "Prepd meal" badge for `isPrepd` events; modal is read-only for all Google events (no edit actions)
+- [x] Deploy `google-calendar` edge function — deployed to project `uyvsvsmspdlhbhavevuc`
+- [x] Delete `recal-calendar` from Supabase — confirmed deleted
+- [ ] Verify the OAuth connect + callback flow end-to-end (web redirect → `auth/calendar-callback` → `restoreSession`)
+- [ ] Smoke test: connect calendar, select 2 calendars, navigate weeks, verify cache hit on revisit, verify export creates an event in Google Calendar
+
+---
 
 ## Key Constraints
 
-- Use `adminClient` (service role) inside the edge function to read/write `calendar_tokens` — RLS would block the user-scoped client from reading its own token server-side
-- Google Calendar API base URL: `https://www.googleapis.com/calendar/v3`
-- Token refresh endpoint: `https://oauth2.googleapis.com/token`
-- Revoke endpoint: `https://oauth2.googleapis.com/revoke?token={access_token}`
-- Required scope for read + write: `https://www.googleapis.com/auth/calendar`
-- Read-only scope if we want lighter permissions: `https://www.googleapis.com/auth/calendar.readonly` (but createEvent needs write)
-
-## Implementation Order
-
-1. `google-oauth-link` (unblocks the connect flow)
-2. Token helper + `isConnected` action in `google-calendar` (unblocks `restoreSession`)
-3. `listCalendars` + update `getAvailableCalendars()` (unblocks calendar picker)
-4. `getEvents` + update `getEvents()` (unblocks in-app calendar display)
-5. `createEvent` + `deleteEvent` + `revokeConnection` (completes full feature)
-6. Merge `calendar.ts` and `calendar.web.ts` if appropriate
+- Use `adminClient` (service role) inside the edge function to read/write `calendar_tokens` — user-scoped client is blocked by RLS
+- Google Calendar API base: `https://www.googleapis.com/calendar/v3`
+- Token refresh: `https://oauth2.googleapis.com/token`
+- Revoke: `https://oauth2.googleapis.com/revoke?token={token}`
+- Required OAuth scope: `https://www.googleapis.com/auth/calendar` (read + write)
+- Cache keys: `prepd_gcal_{weekStart}` (events), `@prepd/calendar_selected_ids` (selected IDs), `@prepd/calendar_export_enabled` (export toggle), `@prepd/calendar_connected` (connection flag), `@prepd/prepd_calendar_id` (Prepd export calendar ID)
+- `extendedProperties.private.prepd_slot_id` on created events — used to identify Prepd-owned events for read-only enforcement

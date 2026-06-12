@@ -1,17 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from './supabase';
 import env from '@/constants/env';
-import type { CalendarEvent, CalendarInfo, MealEventInput } from './calendar.types';
+import type { CalendarEvent, CalendarInfo, CachedEventData, MealEventInput } from './calendar.types';
 
-export type { CalendarEvent, CalendarInfo, MealEventInput };
+export type { CalendarEvent, CalendarInfo, CachedEventData, MealEventInput };
 
 const CONNECTED_KEY = '@prepd/calendar_connected';
 const EXPORT_ENABLED_KEY = '@prepd/calendar_export_enabled';
-const PREPD_CALENDAR_ID_KEY = '@prepd/prepd_calendar_id';
+const SELECTED_CALENDARS_KEY = '@prepd/calendar_selected_ids';
+const PREPD_CALENDAR_KEY = '@prepd/prepd_calendar_id';
+const EVENTS_CACHE_PREFIX = 'prepd_gcal_';
 
-// Synchronous cache populated by restoreSession() / connect() / disconnect()
 let _connected = false;
+
+// --- Internal helpers ---
 
 async function callFunction(name: string, body: object) {
   const { data, error } = await supabase.functions.invoke(name, { body });
@@ -22,15 +26,22 @@ async function callFunction(name: string, body: object) {
   return data;
 }
 
-export async function getAvailableCalendars(): Promise<CalendarInfo[]> {
-  return [];
+// --- Prepd export calendar ---
+
+async function getPrepCalendarId(): Promise<string> {
+  try {
+    const cached = await AsyncStorage.getItem(PREPD_CALENDAR_KEY);
+    if (cached) return cached;
+    const result = await callFunction('google-calendar', { action: 'ensurePrepCalendar' });
+    const id: string = result?.calendarId ?? 'primary';
+    if (id !== 'primary') await AsyncStorage.setItem(PREPD_CALENDAR_KEY, id);
+    return id;
+  } catch {
+    return 'primary';
+  }
 }
 
-export async function getSelectedCalendarIds(): Promise<string[]> {
-  return [];
-}
-
-export async function setSelectedCalendarIds(_ids: string[]): Promise<void> {}
+// --- Connection ---
 
 export function isConnected(): boolean {
   return _connected;
@@ -39,17 +50,34 @@ export function isConnected(): boolean {
 export async function restoreSession(): Promise<boolean> {
   try {
     const stored = await AsyncStorage.getItem(CONNECTED_KEY);
-    if (stored !== 'true') return false;
 
-    const result = await callFunction('recal-calendar', { action: 'isConnected' });
-    if (result?.connected) {
+    if (stored === 'true') {
+      // Verify there's an active session — stale flag from a previous sign-out
+      // would otherwise mark a new (or no) session as connected.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        await AsyncStorage.removeItem(CONNECTED_KEY);
+        return false;
+      }
       _connected = true;
       return true;
     }
 
-    // Token gone server-side — clear local flag
-    await AsyncStorage.removeItem(CONNECTED_KEY);
-    _connected = false;
+    // Web: after the first OAuth connection CONNECTED_KEY isn't cached yet — check the
+    // API. Guard with a session check so we don't cold-start the edge function on
+    // every page load for users who have never connected.
+    if (Platform.OS === 'web') {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const result = await callFunction('google-calendar', { action: 'isConnected' });
+        if (result?.connected) {
+          await AsyncStorage.setItem(CONNECTED_KEY, 'true');
+          _connected = true;
+          return true;
+        }
+      }
+    }
+
     return false;
   } catch {
     return false;
@@ -60,10 +88,18 @@ const MOBILE_CALLBACK_URL = `${env.SUPABASE_URL}/functions/v1/google-oauth-mobil
 
 export async function connect(): Promise<{ granted: boolean }> {
   try {
+    if (Platform.OS === 'web') {
+      const origin = (globalThis as any).window?.location?.origin ?? '';
+      const redirectUrl = `${origin}/auth/calendar-callback`;
+      const { url } = await callFunction('google-oauth-link', { redirectUrl });
+      if (!url) return { granted: false };
+      (globalThis as any).window.location.href = url;
+      return { granted: false }; // unreachable — page redirects
+    }
+
     const { url } = await callFunction('google-oauth-link', { redirectUrl: MOBILE_CALLBACK_URL });
     if (!url) return { granted: false };
 
-    // Edge Function handles the code exchange and redirects to prepd:// with ?success=true
     const result = await WebBrowser.openAuthSessionAsync(url, 'prepd://auth/calendar-callback');
     if (result.type !== 'success' || !result.url) return { granted: false };
 
@@ -78,6 +114,55 @@ export async function connect(): Promise<{ granted: boolean }> {
     return { granted: false };
   }
 }
+
+export async function disconnect(): Promise<void> {
+  _connected = false;
+
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    const keysToRemove = [
+      CONNECTED_KEY,
+      SELECTED_CALENDARS_KEY,
+      PREPD_CALENDAR_KEY,
+      ...allKeys.filter((k) => k.startsWith(EVENTS_CACHE_PREFIX)),
+    ];
+    await Promise.all(keysToRemove.map((k) => AsyncStorage.removeItem(k)));
+  } catch {}
+
+  try {
+    await callFunction('google-calendar', { action: 'revokeConnection' });
+  } catch {
+    // Best effort — local state already cleared
+  }
+}
+
+// --- Calendar selection ---
+
+export async function getAvailableCalendars(): Promise<CalendarInfo[]> {
+  try {
+    const result = await callFunction('google-calendar', { action: 'listCalendars' });
+    return Array.isArray(result) ? result : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getSelectedCalendarIds(): Promise<string[]> {
+  try {
+    const stored = await AsyncStorage.getItem(SELECTED_CALENDARS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function setSelectedCalendarIds(ids: string[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(SELECTED_CALENDARS_KEY, JSON.stringify(ids));
+  } catch {}
+}
+
+// --- Export toggle ---
 
 export async function getCalendarExportEnabled(): Promise<boolean> {
   try {
@@ -94,17 +179,51 @@ export async function setCalendarExportEnabled(enabled: boolean): Promise<void> 
   } catch {}
 }
 
+// --- Event caching ---
+
+export async function getCachedEvents(weekStart: string): Promise<CachedEventData | null> {
+  try {
+    const raw = await AsyncStorage.getItem(`${EVENTS_CACHE_PREFIX}${weekStart}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      events: parsed.events.map((e: any) => ({
+        ...e,
+        startDate: new Date(e.startDate),
+        endDate: new Date(e.endDate),
+      })),
+      fetchedAt: parsed.fetchedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function setCachedEvents(weekStart: string, events: CalendarEvent[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      `${EVENTS_CACHE_PREFIX}${weekStart}`,
+      JSON.stringify({ events, fetchedAt: Date.now() }),
+    );
+  } catch {}
+}
+
+// --- Fetching events ---
+
 export async function getEvents(start: Date, end: Date): Promise<CalendarEvent[]> {
   if (!_connected) return [];
 
+  const selectedIds = await getSelectedCalendarIds();
+
   try {
-    const raw = await callFunction('recal-calendar', {
+    const raw = await callFunction('google-calendar', {
       action: 'getEvents',
+      calendarIds: selectedIds,
       start: start.toISOString(),
       end: end.toISOString(),
     });
-    const events: any[] = Array.isArray(raw) ? raw : [];
-    return events.map((e) => ({
+    const items: any[] = Array.isArray(raw) ? raw : [];
+    return items.map((e) => ({
       ...e,
       startDate: new Date(e.startDate),
       endDate: new Date(e.endDate),
@@ -114,20 +233,7 @@ export async function getEvents(start: Date, end: Date): Promise<CalendarEvent[]
   }
 }
 
-async function getOrCreatePrepdCalendar(): Promise<string | null> {
-  try {
-    const cached = await AsyncStorage.getItem(PREPD_CALENDAR_ID_KEY);
-    if (cached) return cached;
-
-    const result = await callFunction('recal-calendar', { action: 'getOrCreatePrepdCalendar' });
-    const id: string | null = result?.calendarId ?? null;
-    if (id) await AsyncStorage.setItem(PREPD_CALENDAR_ID_KEY, id);
-    return id;
-  } catch (e) {
-    console.error('[calendar] getOrCreatePrepdCalendar failed:', e);
-    return null;
-  }
-}
+// --- Meal event export ---
 
 export async function createMealEvent(input: MealEventInput): Promise<string | null> {
   const exportEnabled = await getCalendarExportEnabled();
@@ -146,14 +252,14 @@ export async function createMealEvent(input: MealEventInput): Promise<string | n
   endDate.setMinutes(endDate.getMinutes() + 30);
 
   try {
-    const calendarId = await getOrCreatePrepdCalendar();
-    const result = await callFunction('recal-calendar', {
+    const calendarId = await getPrepCalendarId();
+    const result = await callFunction('google-calendar', {
       action: 'createEvent',
+      calendarId,
       title: `Prepd: ${input.title}`,
       start: startDate.toISOString(),
       end: endDate.toISOString(),
       slotId: input.slotId,
-      ...(calendarId ? { calendarId } : {}),
     });
     return result?.id ?? null;
   } catch (e) {
@@ -162,34 +268,17 @@ export async function createMealEvent(input: MealEventInput): Promise<string | n
   }
 }
 
-export async function deleteMealEvent(eventId: string): Promise<void> {
+export async function deleteMealEvent(eventId: string, calendarId?: string): Promise<void> {
   if (!_connected) return;
 
   try {
-    const calendarId = await AsyncStorage.getItem(PREPD_CALENDAR_ID_KEY);
-    await callFunction('recal-calendar', {
+    const targetCalendarId = calendarId ?? await getPrepCalendarId();
+    await callFunction('google-calendar', {
       action: 'deleteEvent',
       eventId,
-      ...(calendarId ? { calendarId } : {}),
+      calendarId: targetCalendarId,
     });
   } catch {
     // Best effort
-  }
-}
-
-export async function disconnect(): Promise<void> {
-  try {
-    await Promise.all([
-      AsyncStorage.removeItem(CONNECTED_KEY),
-      AsyncStorage.removeItem(PREPD_CALENDAR_ID_KEY),
-    ]);
-  } catch {}
-
-  _connected = false;
-
-  try {
-    await callFunction('recal-calendar', { action: 'revokeConnection' });
-  } catch {
-    // Best effort — local state is already cleared
   }
 }

@@ -13,6 +13,7 @@ import { useThemeToggle } from '@/hooks/use-theme-toggle';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useUserRole } from '@/hooks/use-user-role';
 import { useCalendar } from '@/hooks/use-calendar';
+import { CalendarPickerList } from '@/components/calendar/calendar-picker-list';
 import { signOut } from '@/services/supabase';
 import { updateDietaryPreferences, updateMacroGoals, updateNotificationSettings } from '@/services/user-service';
 
@@ -22,7 +23,10 @@ export default function ProfileScreen() {
   const { themeMode, setTheme } = useThemeToggle();
   const { profile, loading, reload } = useUserProfile();
   const { role } = useUserRole();
-  const { connected, connectError, calendarExportEnabled, setExportEnabled, connect, disconnect } = useCalendar();
+  const {
+    connected, connectError, availableCalendars, selectedCalendarIds,
+    calendarExportEnabled, setExportEnabled, connect, disconnect, selectCalendars,
+  } = useCalendar();
   const [displayName, setDisplayName] = useState('');
   const [macros, setMacros] = useState<MacroDefinition[]>(DefaultMacros);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -176,18 +180,34 @@ export default function ProfileScreen() {
             </View>
           ))}
 
-          {/* Calendar */}
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Calendar</Text>
-          <View style={[styles.toggleRow, { borderBottomColor: theme.border }]}>
-            <Text style={[styles.toggleLabel, { color: theme.text }]}>Export meals to calendar</Text>
-            <Switch
-              value={calendarExportEnabled}
-              onValueChange={setExportEnabled}
-              trackColor={{ true: Colors.accent }}
-            />
-          </View>
+          {/* Google Calendar */}
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Google Calendar</Text>
           {connected ? (
-            <Button label="Disconnect Google Calendar" onPress={disconnect} variant="secondary" />
+            <>
+              <View style={[styles.toggleRow, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.toggleLabel, { color: theme.text }]}>Export meals to calendar</Text>
+                <Switch
+                  value={calendarExportEnabled}
+                  onValueChange={setExportEnabled}
+                  trackColor={{ true: Colors.accent }}
+                />
+              </View>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Calendars to display</Text>
+              <CalendarPickerList
+                calendars={availableCalendars}
+                selectedIds={selectedCalendarIds}
+                loading={availableCalendars.length === 0}
+                onToggle={(id) => {
+                  const allIds = availableCalendars.map((c) => c.id);
+                  const effective = selectedCalendarIds.length === 0 ? allIds : selectedCalendarIds;
+                  const next = effective.includes(id)
+                    ? effective.filter((x) => x !== id)
+                    : [...effective, id];
+                  selectCalendars(next.length === allIds.length ? [] : next);
+                }}
+              />
+              <Button label="Disconnect Google Calendar" onPress={disconnect} variant="secondary" />
+            </>
           ) : (
             <>
               <Button label="Connect Google Calendar" onPress={connect} />

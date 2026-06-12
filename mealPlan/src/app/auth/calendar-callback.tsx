@@ -21,6 +21,11 @@ export default function CalendarCallback() {
       }
 
       try {
+        // Session is restored asynchronously from localStorage after a redirect —
+        // await getSession() so the JWT is in memory before invoking the function.
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) throw new Error('No session');
+
         const redirectUrl = `${window.location.origin}/auth/calendar-callback`;
         const { data, error } = await supabase.functions.invoke('google-oauth-verify', {
           body: { code, state, redirectUrl },
@@ -28,8 +33,7 @@ export default function CalendarCallback() {
 
         if (error) throw error;
 
-        if (data.success) {
-          try { localStorage.setItem('prepd_calendar_connected', 'true'); } catch {}
+        if (data?.success) {
           setStatus('success');
           setTimeout(() => router.replace('/calendar'), 1500);
         } else {
