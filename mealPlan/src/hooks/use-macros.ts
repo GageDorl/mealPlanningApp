@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/services/supabase';
 import { getDailyProgress, type DailyMacroProgress } from '@/services/macro-service';
+import { deleteSlot } from '@/services/meal-plan-service';
+import { useSessionReload } from '@/hooks/use-session-reload';
 
 function dateToString(date: Date): string {
   const y = date.getFullYear();
@@ -50,8 +52,12 @@ export function useMacros(initialDate?: Date) {
     setSelectedDate((d) => {
       const next = new Date(d);
       next.setDate(next.getDate() + 1);
-      return next;
+      return dateToString(next) > dateToString(new Date()) ? d : next;
     });
+  }, []);
+
+  const goToDate = useCallback((date: Date) => {
+    setSelectedDate(dateToString(date) > dateToString(new Date()) ? new Date() : date);
   }, []);
 
   const goToToday = useCallback(() => {
@@ -59,6 +65,12 @@ export function useMacros(initialDate?: Date) {
   }, []);
 
   const refresh = useCallback(() => loadProgress(selectedDate), [selectedDate, loadProgress]);
+  useSessionReload(refresh);
+
+  const deleteMealSlot = useCallback(async (slotId: string) => {
+    await deleteSlot(slotId);
+    await loadProgress(selectedDate);
+  }, [selectedDate, loadProgress]);
 
   return {
     selectedDate,
@@ -68,6 +80,8 @@ export function useMacros(initialDate?: Date) {
     goToPrevDay,
     goToNextDay,
     goToToday,
+    goToDate,
     refresh,
+    deleteMealSlot,
   };
 }

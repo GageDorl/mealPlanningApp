@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { RefreshControl, ScrollView, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
 
@@ -9,13 +10,15 @@ import { useTopRecipes } from '@/hooks/use-top-recipes';
 import { useMacros } from '@/hooks/use-macros';
 import { useGrocery } from '@/hooks/use-grocery';
 import { useCalendar } from '@/hooks/use-calendar';
+import { useRefresh } from '@/contexts/refresh-context';
+import { useSetPageRefresh } from '@/hooks/use-page-refresh';
 
 import { CalendarPreviewCard } from '@/components/dashboard/calendar-preview-card';
 import { GroceryPreviewCard } from '@/components/dashboard/grocery-preview-card';
 import { RecipePreviewCard } from '@/components/dashboard/recipe-preview-card';
 import { MacrosPreviewCard } from '@/components/dashboard/macros-preview-card';
 import { NudgeBanner } from '@/components/dashboard/nudge-banner';
-import { FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Colors, FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
 
 const TODAY_DATE = new Date();
 
@@ -25,9 +28,19 @@ export default function HomeScreen() {
 
   const { profile, loading: profileLoading } = useUserProfile();
   const { recipes: topRecipes } = useTopRecipes();
-  const { dailyProgress } = useMacros(TODAY_DATE);
-  const { state: grocery } = useGrocery();
+  const { dailyProgress, refresh: refreshMacros } = useMacros(TODAY_DATE);
+  const { state: grocery, refresh: refreshGrocery } = useGrocery();
   const { connected: calendarConnected } = useCalendar();
+
+  const { isRefreshing, triggerRefresh } = useRefresh();
+
+  // Initial load + navigation-focus reload
+  useFocusEffect(useCallback(() => { refreshMacros(); refreshGrocery(); }, [refreshMacros, refreshGrocery]));
+
+  // Register combined refresh for pull-to-refresh
+  useSetPageRefresh(useCallback(async () => {
+    await Promise.all([refreshMacros(), refreshGrocery()]);
+  }, [refreshMacros, refreshGrocery]));
 
   useEffect(() => {
     if (!profileLoading && !profile) {
@@ -37,20 +50,24 @@ export default function HomeScreen() {
 
   const handleNudgePress = useCallback(() => {
     if (!calendarConnected) {
-      router.push('/calendar-connect' as any);
-    } else if (profile && profile.macroGoals.length === 0) {
-      router.push('/macro-goals' as any);
+      router.push('/profile');
+    } else if (!profile || profile.macroGoals.length === 0) {
+      router.push('/macros');
     } else {
       router.push('/profile');
     }
   }, [calendarConnected, profile, router]);
 
-  if (!profile) {
+  if (profileLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <LoadingModal visible={profileLoading} message="Loading…" />
+        <LoadingModal visible message="Loading…" />
       </View>
     );
+  }
+
+  if (!profile) {
+    return null;
   }
 
   const greeting = getGreeting();
@@ -61,6 +78,14 @@ export default function HomeScreen() {
       style={[styles.root, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={triggerRefresh}
+          tintColor={Colors.accent}
+          colors={[Colors.accent]}
+        />
+      }
     >
       {/* Header */}
       <View style={styles.header}>

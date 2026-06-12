@@ -7,13 +7,13 @@
 [![Expo](https://img.shields.io/badge/Expo-SDK_56-000020?logo=expo&logoColor=white)](https://expo.dev)
 [![React Native](https://img.shields.io/badge/React_Native-0.85-61DAFB?logo=react&logoColor=white)](https://reactnative.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
-[![Platforms](https://img.shields.io/badge/Platforms-iOS%20%7C%20Android%20%7C%20Web-brightgreen)](#)
+[![Platforms](https://img.shields.io/badge/Platforms-Android%20%7C%20Web-brightgreen)](#)
 
 </div>
 
 ---
 
-Cross-platform meal planning app built with Expo (iOS / Android / Web), Supabase, and PowerSync for offline-first sync.
+Cross-platform meal planning app built with Expo (Android / Web), Supabase, and PowerSync for offline-first sync.
 
 ## Prerequisites
 
@@ -21,7 +21,7 @@ Cross-platform meal planning app built with Expo (iOS / Android / Web), Supabase
 - [Supabase CLI](https://supabase.com/docs/guides/cli) — `npm install -g supabase` (or use `npx supabase`)
 - A [Supabase](https://supabase.com/) account
 - A [PowerSync](https://www.powersync.com/) account (for offline sync)
-- (Optional) [Expo Go](https://expo.dev/go) on your phone for quick device testing
+- (Optional) [Expo Go](https://expo.dev/go) on your Android device for quick testing
 
 ---
 
@@ -46,7 +46,8 @@ Get the `.env` file from your team lead and place it at `mealPlan/.env`. It cont
 | `EXPO_PUBLIC_POWERSYNC_URL` | PowerSync instance URL (offline sync) |
 | `EXPO_PUBLIC_SPOONACULAR_API_KEY` | Spoonacular recipe API (optional) |
 | `EXPO_PUBLIC_USDA_API_KEY` | USDA nutrition data API (optional) |
-| `RECAL_API_KEY` | Recal API key for Google Calendar integration — **Edge Function secret only**, not bundled into the app. Already set in the deployed Edge Functions — teammates don't need to run `supabase secrets set`. |
+
+FatSecret and Google Calendar API credentials are **Edge Function secrets only** — never bundled into the app. Already set in the deployed Edge Functions; teammates don't need to `supabase secrets set`.
 
 ### 3. Link Supabase and apply migrations
 
@@ -67,10 +68,52 @@ Run `db push` again whenever new migrations are added to `supabase/migrations/`.
 cd mealPlan
 
 npm run web        # Web browser — fastest for development
-npm run ios        # iOS simulator (requires macOS + Xcode)
 npm run android    # Android emulator (requires Android Studio)
 npx expo start     # Interactive — choose platform at runtime
 ```
+
+---
+
+## Features
+
+### Meal Planning
+- Weekly calendar view with drag-to-reschedule meal slots
+- Recipe browsing with per-serving macro scaling
+- Calendar export for planned meals (Android: native device calendar; Web: Google Calendar)
+
+### Macro Tracking
+- **Food Log** — log what you actually ate alongside planned meals
+  - Manual entry with full nutrition label fields (calories, protein, carbs, fat, saturated fat, sodium, fiber, sugar, and more)
+  - Meal labels (Breakfast / Lunch / Dinner / Snack), time-of-day picker
+  - Untimed entries appear in the calendar's all-day row
+- **FatSecret Search** — search millions of generic and branded foods
+  - Serving size picker populated from FatSecret's own serving options
+  - "Powered by FatSecret" attribution required on all FatSecret data
+- **Barcode Scanner** — scan a product barcode to auto-fill nutrition details
+- **Personal Food Library** — save frequently used foods for one-tap re-logging
+  - Inline edit (name, brand, serving size, core macros)
+  - Share individual foods to the community database
+- **Community Food Database** — shared foods contributed by all users
+  - FatSecret results are cached automatically on first search (trusted, auto-approved)
+  - Manual submissions enter a moderation queue
+  - Unified search order: Personal Library → Community → FatSecret, deduplicated by FatSecret ID
+  - Source badges on every search result (My Library / Community / FatSecret)
+- **Daily Macro Progress** — planned meals and logged food summed into a single daily total
+- **Flag food** — report inaccurate community entries with an optional reason
+
+### Moderation & Administration
+- **Pending Foods** *(moderator + admin)* — review manually submitted community foods; approve or reject with optional moderator notes
+- **Flagged Foods** *(moderator + admin)* — review flagged entries; see each flag (who flagged, reason, date); clear flags, re-pend for full re-review, or hard-remove
+- **User Roles** *(admin only)* — paginated user list with email search; tap any user to assign `user`, `moderator`, or `admin` role
+- Admin section is hidden entirely for standard users; role is fetched from the `profiles` table
+
+### Role System
+
+| Role | Access |
+|------|--------|
+| `user` | Log food, search, use personal library, flag community entries |
+| `moderator` | All user access + approve/reject submissions + manage flags |
+| `admin` | All moderator access + assign roles to any user |
 
 ---
 
@@ -78,23 +121,47 @@ npx expo start     # Interactive — choose platform at runtime
 
 ```
 mealPlanningApp/
-├── mealPlan/                    # Expo app
+├── mealPlan/                        # Expo app
 │   ├── src/
-│   │   ├── app/                 # File-based routes (Expo Router)
-│   │   ├── components/          # Shared UI components
-│   │   ├── hooks/               # Custom React hooks
-│   │   ├── services/            # Supabase queries and service layer
-│   │   ├── utils/               # Pure utilities (grocery aggregator, etc.)
-│   │   └── constants/           # Theme, env config
-│   ├── .env                     # Local env vars (gitignored)
-│   └── .env.example             # Template — copy this to .env
+│   │   ├── app/                     # File-based routes (Expo Router)
+│   │   │   ├── (auth)/              # Sign-in, sign-up
+│   │   │   ├── (onboarding)/        # Dietary prefs, macro goals, calendar connect
+│   │   │   └── (tabs)/              # Main tab screens
+│   │   │       ├── index.tsx        # Dashboard
+│   │   │       ├── calendar.tsx     # Weekly meal planner + food log
+│   │   │       ├── search.tsx       # Recipe / food search
+│   │   │       ├── macros/          # Daily macro tracking
+│   │   │       ├── grocery/         # Grocery list + pantry staples
+│   │   │       ├── recipes/         # Recipe detail, create, import, saved
+│   │   │       └── profile/
+│   │   │           ├── food-library.tsx        # Personal food library
+│   │   │           └── admin/                  # Moderation screens (mod + admin only)
+│   │   │               ├── pending-foods.tsx
+│   │   │               ├── flagged-foods.tsx
+│   │   │               └── user-roles.tsx
+│   │   ├── components/              # Shared UI components
+│   │   │   ├── calendar/            # Calendar grid, food log form, modals
+│   │   │   ├── food/                # Barcode scanner, FatSecret attribution
+│   │   │   ├── macros/              # Progress bars, rings, macro breakdown
+│   │   │   ├── dashboard/           # Dashboard preview cards
+│   │   │   └── ui/                  # Primitives: Button, Input, Screen, LoadingModal
+│   │   ├── hooks/                   # useUserProfile, useUserRole, useFoodLog, useMacros, …
+│   │   ├── services/                # Supabase queries, FatSecret, calendar, service layer
+│   │   ├── models/                  # PowerSync table schemas + TypeScript interfaces
+│   │   ├── utils/                   # Pure utilities
+│   │   └── constants/               # Theme, macros, dietary tags, env
+│   ├── .env                         # Local env vars (gitignored)
+│   └── .env.example                 # Template — copy this to .env
 ├── supabase/
-│   ├── functions/               # Edge Functions (Deno/TypeScript)
-│   │   ├── recal-oauth-link/    # Initiates Google Calendar OAuth via Recal
-│   │   ├── recal-oauth-verify/  # Handles OAuth callback, stores tokens
-│   │   └── recal-calendar/      # Calendar read/write + connection management
-│   └── migrations/              # SQL migrations — applied with `db push`
-└── specs/                       # Feature specs, data model, and task tracking
+│   ├── functions/                   # Edge Functions (Deno/TypeScript)
+│   │   ├── search-food/             # FatSecret proxy: text search, barcode lookup, food detail
+│   │   ├── submit-public-food/      # Cache / share a food to the community DB
+│   │   ├── flag-food/               # Flag a community food entry
+│   │   ├── moderate-food/           # Approve / reject / manage flags (mod + admin)
+│   │   ├── set-user-role/           # List users and assign roles (admin only)
+│   │   └── fetch-recipe-html/       # Fetch raw HTML for URL-based recipe import
+│   └── migrations/                  # SQL migrations — applied with `db push`
+└── specs/                           # Feature specs, data model, and task tracking
 ```
 
 ---
@@ -112,7 +179,7 @@ npx supabase db push --linked
 npx supabase db push --linked --dry-run
 
 # Run an ad-hoc query against the remote DB
-npx supabase db query --linked "SELECT * FROM pantry_staples LIMIT 5;"
+npx supabase db query --linked "SELECT * FROM public_foods LIMIT 5;"
 ```
 
 ## License

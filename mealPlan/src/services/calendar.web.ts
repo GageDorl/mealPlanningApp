@@ -14,9 +14,9 @@ const PREPD_CALENDAR_ID_KEY = 'prepd_calendar_id';
 export function getCalendarExportEnabled(): Promise<boolean> {
   try {
     const stored = localStorage.getItem(EXPORT_ENABLED_KEY);
-    return Promise.resolve(stored === null ? true : stored === 'true');
+    return Promise.resolve(stored === 'true');
   } catch {
-    return Promise.resolve(true);
+    return Promise.resolve(false);
   }
 }
 

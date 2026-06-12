@@ -22,7 +22,10 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "output": "static",
@@ -41,8 +44,22 @@
         }
       ],
       "@journeyapps/react-native-quick-sqlite",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Prepd to access the camera to scan barcodes."
+        }
+      ]
     ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/984ecfa9-a0b7-487a-a054-4b4c34c011b1",
+      "enabled": true,
+      "fallbackToCacheTimeout": 0
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
@@ -52,6 +69,7 @@
       "eas": {
         "projectId": "984ecfa9-a0b7-487a-a054-4b4c34c011b1"
       }
-    }
+    },
+    "owner": "gagedorl"
   }
 }

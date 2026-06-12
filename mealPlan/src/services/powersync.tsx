@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
 
 import env from '@/constants/env';
+import { foodLogItemTable, foodLogTable } from '@/models/food-log';
 import { groceryTable } from '@/models/grocery';
 import { ingredientTable } from '@/models/ingredient';
 import { mealPlanTable } from '@/models/meal-plan';
 import { mealSlotTable } from '@/models/meal-slot';
+import { personalFoodTable } from '@/models/personal-food';
 import { recipeTable } from '@/models/recipe';
 import { userTable } from '@/models/user';
 
@@ -17,6 +19,9 @@ const syncTables = [
   mealPlanTable,
   mealSlotTable,
   groceryTable,
+  foodLogTable,
+  foodLogItemTable,
+  personalFoodTable,
 ] as const;
 
 interface PowerSyncProviderProps {

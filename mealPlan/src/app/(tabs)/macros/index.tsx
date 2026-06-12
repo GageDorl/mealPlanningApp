@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { LoadingModal } from '@/components/ui/loading-modal';
@@ -8,6 +8,9 @@ import { useMacros } from '@/hooks/use-macros';
 import { ProgressRing } from '@/components/macros/progress-ring';
 import { MacroProgressBar } from '@/components/macros/macro-progress-bar';
 import { MealMacroBreakdown } from '@/components/macros/meal-macro-breakdown';
+import { WeekSummaryStrip } from '@/components/macros/week-summary-strip';
+import { MacroTrendChart } from '@/components/macros/macro-trend-chart';
+import { DatePickerModal } from '@/components/ui/date-picker-modal';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -27,7 +30,8 @@ function isToday(date: Date): boolean {
 
 export default function MacrosScreen() {
   const theme = useTheme();
-  const { selectedDate, dailyProgress, loading, error, goToPrevDay, goToNextDay, goToToday, refresh } = useMacros();
+  const { selectedDate, dailyProgress, loading, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -47,15 +51,23 @@ export default function MacrosScreen() {
           <Text style={[styles.navArrow, { color: Colors.accent }]}>‹</Text>
         </Pressable>
 
-        <Pressable onPress={goToToday} style={styles.dateCenter}>
-          <Text style={[styles.dateLabel, { color: theme.text }]}>{formatDate(selectedDate)}</Text>
-          {today && <Text style={[styles.todayBadge, { color: Colors.accent }]}>Today</Text>}
-        </Pressable>
+        <View style={styles.dateCenter}>
+          <Pressable onPress={() => setPickerVisible(true)}>
+            <Text style={[styles.dateLabel, { color: theme.text }]}>{formatDate(selectedDate)}</Text>
+          </Pressable>
+          {!today && (
+            <Pressable onPress={goToToday}>
+              <Text style={[styles.todayBadge, { color: Colors.accent }]}>Today</Text>
+            </Pressable>
+          )}
+        </View>
 
         <Pressable onPress={goToNextDay} style={styles.navButton}>
           <Text style={[styles.navArrow, { color: Colors.accent }]}>›</Text>
         </Pressable>
       </View>
+
+      <WeekSummaryStrip selectedDate={selectedDate} goToDate={goToDate} />
 
       <LoadingModal visible={loading} message="Loading macros…" />
       {!loading && error ? (
@@ -100,10 +112,23 @@ export default function MacrosScreen() {
           {/* Per-meal breakdown */}
           <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Meal Breakdown</Text>
-            <MealMacroBreakdown entries={dailyProgress?.meal_breakdown ?? []} />
+            <MealMacroBreakdown entries={dailyProgress?.meal_breakdown ?? []} onDeletePlannedMeal={deleteMealSlot} />
+          </View>
+
+          {/* Macro trend chart */}
+          <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Trends</Text>
+            <MacroTrendChart />
           </View>
         </ScrollView>
       )}
+
+      <DatePickerModal
+        visible={pickerVisible}
+        currentDate={selectedDate}
+        onSelect={goToDate}
+        onClose={() => setPickerVisible(false)}
+      />
     </View>
   );
 }

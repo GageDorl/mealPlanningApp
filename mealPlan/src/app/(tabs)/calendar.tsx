@@ -1,11 +1,14 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { LoadingModal } from '@/components/ui/loading-modal';
 import { View, Text, ScrollView, Pressable, Platform, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, type ViewStyle, type TextStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSessionContext } from '@/contexts/session-context';
 import { useMealPlan } from '@/hooks/use-meal-plan';
 import { useCalendar } from '@/hooks/use-calendar';
+import { useFoodLog } from '@/hooks/use-food-log';
 import {
   DayColumn,
   DayHeader,
@@ -22,6 +25,11 @@ import { AddMealSlotModal } from '@/components/calendar/add-meal-slot-modal';
 import { RecipePickerModal } from '@/components/calendar/recipe-picker-modal';
 import { CalendarPickerModal } from '@/components/calendar/calendar-picker-modal';
 import { EventDetailModal } from '@/components/calendar/event-detail-modal';
+import { MealSlotDetailModal } from '@/components/calendar/meal-slot-detail-modal';
+import { FoodLogDetailModal } from '@/components/calendar/food-log-detail-modal';
+import { saveToLibrary } from '@/services/personal-food-service';
+import { updateExternalEventId } from '@/services/meal-plan-service';
+import { deleteMealEvent } from '@/services/calendar';
 import { WeekPickerModal } from '@/components/calendar/week-picker-modal';
 import type { CalendarEvent } from '@/services/calendar.types';
 import type { Recipe } from '@/models/recipe';
@@ -57,6 +65,7 @@ function isSameDay(a: Date, b: string): boolean {
 
 export default function WeeklyPlannerScreen() {
   const theme = useTheme();
+  const { sessionReady } = useSessionContext();
   const { width: windowWidth } = useWindowDimensions();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekPickerVisible, setWeekPickerVisible] = useState(false);
@@ -72,7 +81,10 @@ export default function WeeklyPlannerScreen() {
   const currentWeekStart = getSunday(addDays(today, weekOffset * 7));
   const currentWeekEnd = addDays(currentWeekStart, 7);
 
-  const { weekPlan, loading, createSlot, assignRecipe, deleteSlot, refresh } = useMealPlan(currentWeekStart);
+  const { weekPlan, loading, createSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, deleteSlot, refresh } = useMealPlan(currentWeekStart);
+
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+  const { weekLogs, userId: currentUserId, createFoodLog, deleteFoodLog, deleteFoodLogItem, updateFoodLogItem, updateFoodLog, addItemsToFoodLog } = useFoodLog(currentWeekStart);
   const {
     connected, events, loading: calendarLoading, connectError, loadError,
     availableCalendars, selectedCalendarIds, connectedCalendarTitle,
@@ -101,6 +113,12 @@ export default function WeeklyPlannerScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
 
+  // Meal slot detail modal state
+  const [selectedSlot, setSelectedSlot] = useState<import('@/services/meal-plan-service').MealSlotWithRecipe | null>(null);
+
+  // Food log detail modal state
+  const [selectedLog, setSelectedLog] = useState<import('@/services/food-log-service').FoodLogWithItems | null>(null);
+
   // Narrow path: 2D pan state
   const panOffset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const panCurrentXY = useRef({ x: 0, y: 0 });
@@ -111,6 +129,8 @@ export default function WeeklyPlannerScreen() {
   const verticalScrollRef = useRef<ScrollView>(null);
 
   const hourHeightRef = useRef(hourHeight);
+  const viewportHeightRef = useRef(viewportHeight);
+  viewportHeightRef.current = viewportHeight;
   const pinchStartHeightRef = useRef(hourHeight);
   const pinchPreviewScaleRef = useRef(new Animated.Value(1));
   const pendingPinchHeightRef = useRef<number | null>(null);
@@ -128,6 +148,16 @@ export default function WeeklyPlannerScreen() {
         pinchPreviewScaleRef.current.setValue(1);
         pendingPinchHeightRef.current = null;
       }
+    }
+
+    // Re-clamp pan.y to the new grid height bounds. The addListener effect
+    // won't fire unless panOffset changes, so we force-clamp here after commit.
+    const newGridHeight = (END_HOUR - START_HOUR + 1) * hourHeight;
+    const newMaxY = Math.min(0, viewportHeightRef.current - newGridHeight);
+    const cy = Math.max(newMaxY, Math.min(0, panCurrentXY.current.y));
+    if (cy !== panCurrentXY.current.y) {
+      panCurrentXY.current = { x: panCurrentXY.current.x, y: cy };
+      panOffset.setValue({ x: panCurrentXY.current.x, y: cy });
     }
   }, [hourHeight]);
 
@@ -158,6 +188,16 @@ export default function WeeklyPlannerScreen() {
           Math.min(MAX_HOUR_HEIGHT, pinchStartHeightRef.current * e.scale)
         );
         pinchPreviewScaleRef.current.setValue(nextHeight / pinchStartHeightRef.current);
+        // Clamp pan.y during preview so the grid's visual bottom stays in the viewport.
+        // The preview transform pins the top edge and shrinks the bottom upward, so
+        // visual bottom = pan.y + hours * nextHeight. Clamp when this would go off-screen.
+        const visualGridHeight = (END_HOUR - START_HOUR + 1) * nextHeight;
+        const newMaxY = Math.min(0, viewportHeightRef.current - visualGridHeight);
+        const cy = Math.max(newMaxY, Math.min(0, panCurrentXY.current.y));
+        if (cy !== panCurrentXY.current.y) {
+          panCurrentXY.current = { x: panCurrentXY.current.x, y: cy };
+          panOffset.setValue({ x: panCurrentXY.current.x, y: cy });
+        }
       })
       .onEnd((e) => {
         const nextHeight = Math.max(
@@ -299,14 +339,28 @@ export default function WeeklyPlannerScreen() {
     setAddSlotVisible(true);
   }, []);
 
-  const handleCreateSlot = async (label: string, time?: string) => {
+  const pendingRecipeCallback = useRef<((recipe: Recipe) => void) | null>(null);
+
+  const handleCreateSlot = async (label: string, time?: string, recipe?: Recipe) => {
     const daySlots = weekPlan?.slots.filter((s) => s.date === addSlotDate) ?? [];
-    await createSlot({
+    const slotId = await createSlot({
       label,
       date: addSlotDate,
       time,
       displayOrder: daySlots.length,
     });
+    if (recipe && slotId) {
+      await addRecipeToSlot(slotId, recipe.id);
+      if (connected) {
+        const eventId = await createMealEvent({
+          title: recipe.title,
+          date: addSlotDate,
+          timeOfDay: time || null,
+          slotId,
+        });
+        if (eventId) await updateExternalEventId(slotId, eventId);
+      }
+    }
   };
 
   const handleAssignRecipe = useCallback((slotId: string) => {
@@ -314,33 +368,115 @@ export default function WeeklyPlannerScreen() {
     setPickerVisible(true);
   }, []);
 
+  const handlePickRecipe = useCallback((onPicked: (recipe: Recipe) => void) => {
+    pendingRecipeCallback.current = onPicked;
+    setPickerVisible(true);
+  }, []);
+
   const handleRecipeSelected = async (recipe: Recipe) => {
-    if (!activeSlotId) return;
-    await assignRecipe(activeSlotId, recipe.id);
+    if (pendingRecipeCallback.current) {
+      pendingRecipeCallback.current(recipe);
+      pendingRecipeCallback.current = null;
+      return;
+    }
+    const slotId = activeSlotId;
+    if (!slotId) return;
+    await addRecipeToSlot(slotId, recipe.id);
 
     // Calendar write-back (T071)
     if (connected) {
-      const slot = weekPlan?.slots.find((s) => s.id === activeSlotId);
+      const slot = weekPlan?.slots.find((s) => s.id === slotId);
       if (slot) {
-        await createMealEvent({
+        const eventId = await createMealEvent({
           title: recipe.title,
           date: slot.date,
           timeOfDay: slot.time_of_day || null,
-          slotId: activeSlotId,
+          slotId,
         });
+        if (eventId) await updateExternalEventId(slotId, eventId);
       }
     }
   };
 
   const handleDeleteSlot = useCallback(async (slotId: string) => {
+    const slot = weekPlan?.slots.find((s) => s.id === slotId);
+    if (connected && slot?.external_event_id) {
+      await deleteMealEvent(slot.external_event_id);
+    }
     await deleteSlot(slotId);
-  }, [deleteSlot]);
+  }, [deleteSlot, connected, weekPlan]);
+
+  const handleSlotPress = useCallback((slot: import('@/services/meal-plan-service').MealSlotWithRecipe) => {
+    if (slot.recipes.length > 0) setSelectedSlot(slot);
+    else handleAssignRecipe(slot.id);
+  }, [handleAssignRecipe]);
+
+  const handleAddRecipeToSlot = useCallback(() => {
+    if (!selectedSlot) return;
+    setActiveSlotId(selectedSlot.id);
+    setSelectedSlot(null);
+    setPickerVisible(true);
+  }, [selectedSlot]);
+
+  const handleRemoveRecipeFromSlot = useCallback(async (slotRecipeId: string) => {
+    await removeRecipeFromSlot(slotRecipeId);
+    setSelectedSlot((prev) =>
+      prev ? { ...prev, recipes: prev.recipes.filter((r) => r.id !== slotRecipeId) } : null
+    );
+  }, [removeRecipeFromSlot]);
+
+  const handleSaveRecipeServings = useCallback(async (slotRecipeId: string, servings: number | null) => {
+    await updateSlotRecipeServings(slotRecipeId, servings);
+  }, [updateSlotRecipeServings]);
+
+  const handleFoodLogPress = useCallback((log: import('@/services/food-log-service').FoodLogWithItems) => {
+    setSelectedLog(log);
+  }, []);
+
+  const handleDeleteFoodLogItem = useCallback(async (logId: string, itemId: string) => {
+    await deleteFoodLogItem(logId, itemId);
+    setSelectedLog((prev) => {
+      if (!prev || prev.id !== logId) return prev;
+      const remaining = prev.items.filter((i) => i.id !== itemId);
+      return remaining.length > 0 ? { ...prev, items: remaining } : null;
+    });
+  }, [deleteFoodLogItem]);
+
+  const handleUpdateFoodLogItem = useCallback(async (logId: string, itemId: string, patch: Parameters<typeof updateFoodLogItem>[2]) => {
+    await updateFoodLogItem(logId, itemId, patch);
+    setSelectedLog((prev) => {
+      if (!prev || prev.id !== logId) return prev;
+      return { ...prev, items: prev.items.map((i) => i.id === itemId ? { ...i, ...patch } : i) };
+    });
+  }, [updateFoodLogItem]);
+
+  const handleLogFood = useCallback(async (date: string, params: { label: string | null; timeOfDay: string | null; items: any[] }) => {
+    await createFoodLog(date, params.label, params.timeOfDay, params.items);
+  }, [createFoodLog]);
+
+  const handleDeleteFoodLog = useCallback(async (id: string) => {
+    await deleteFoodLog(id);
+  }, [deleteFoodLog]);
+
+  const handleUpdateFoodLogTime = useCallback(async (logId: string, newTime: string | null) => {
+    await updateFoodLog(logId, { time_of_day: newTime });
+    setSelectedLog((prev) => prev?.id === logId ? { ...prev, time_of_day: newTime } : prev);
+  }, [updateFoodLog]);
+
+  const handleAddItemsToLog = useCallback(async (logId: string, items: import('@/services/food-log-service').FoodLogItemInput[]) => {
+    const newItems = await addItemsToFoodLog(logId, items);
+    setSelectedLog((prev) => {
+      if (!prev || prev.id !== logId) return prev;
+      return { ...prev, items: [...prev.items, ...newItems] };
+    });
+  }, [addItemsToFoodLog]);
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const dayDate = addDays(currentWeekStart, i);
     const dayStr = dateToString(dayDate);
     const daySlots = weekPlan?.slots.filter((s) => s.date === dayStr) ?? [];
     const dayEvents = events.filter((e) => isSameDay(e.startDate, dayStr));
+    const dayLogs = weekLogs.filter((l) => l.date === dayStr);
     const isToday = dateToString(today) === dayStr;
     return {
       dayIndex: i,
@@ -350,10 +486,12 @@ export default function WeeklyPlannerScreen() {
       untimedSlots: daySlots.filter((s) => parseTimeToMinutes(s.time_of_day) == null),
       timedEvents: dayEvents.filter((e) => !e.isAllDay),
       allDayEvents: dayEvents.filter((e) => e.isAllDay),
+      timedFoodLogs: dayLogs.filter((l) => parseTimeToMinutes(l.time_of_day) != null),
+      untimedFoodLogs: dayLogs.filter((l) => parseTimeToMinutes(l.time_of_day) == null),
     };
   }) satisfies DayData[];
 
-  const hasTopItems = days.some((d) => d.allDayEvents.length > 0 || d.untimedSlots.length > 0);
+  const hasTopItems = days.some((d) => d.allDayEvents.length > 0 || d.untimedSlots.length > 0 || d.untimedFoodLogs.length > 0);
 
   const now = new Date();
   const isCurrentWeek = weekOffset === 0;
@@ -479,9 +617,12 @@ export default function WeeklyPlannerScreen() {
                       key={day.date}
                       events={day.allDayEvents}
                       untimedSlots={day.untimedSlots}
+                      untimedFoodLogs={day.untimedFoodLogs}
                       onEventPress={setSelectedEvent}
                       onAssignRecipe={handleAssignRecipe}
                       onDeleteSlot={handleDeleteSlot}
+                      onDeleteFoodLog={handleDeleteFoodLog}
+                      onFoodLogPress={handleFoodLogPress}
                     />
                   ))}
                 </View>
@@ -519,8 +660,12 @@ export default function WeeklyPlannerScreen() {
                       gridHeight={gridHeight}
                       onAddSlot={handleAddSlot}
                       onAssignRecipe={handleAssignRecipe}
+                      onSlotPress={handleSlotPress}
                       onDeleteSlot={handleDeleteSlot}
+                      onDeleteFoodLog={handleDeleteFoodLog}
                       onEventPress={setSelectedEvent}
+                      onFoodLogPress={handleFoodLogPress}
+                      onUpdateFoodLogTime={handleUpdateFoodLogTime}
                     />
                   </Animated.View>
                 </Animated.View>
@@ -543,9 +688,12 @@ export default function WeeklyPlannerScreen() {
                     key={day.date}
                     events={day.allDayEvents}
                     untimedSlots={day.untimedSlots}
+                    untimedFoodLogs={day.untimedFoodLogs}
                     onEventPress={setSelectedEvent}
                     onAssignRecipe={handleAssignRecipe}
                     onDeleteSlot={handleDeleteSlot}
+                    onDeleteFoodLog={handleDeleteFoodLog}
+                    onFoodLogPress={handleFoodLogPress}
                   />
                 ))}
               </View>
@@ -583,8 +731,12 @@ export default function WeeklyPlannerScreen() {
                     gridHeight={gridHeight}
                     onAddSlot={handleAddSlot}
                     onAssignRecipe={handleAssignRecipe}
+                    onSlotPress={handleSlotPress}
                     onDeleteSlot={handleDeleteSlot}
+                    onDeleteFoodLog={handleDeleteFoodLog}
                     onEventPress={setSelectedEvent}
+                    onFoodLogPress={handleFoodLogPress}
+                    onUpdateFoodLogTime={handleUpdateFoodLogTime}
                   />
                 </Animated.View>
               </ScrollView>
@@ -604,8 +756,11 @@ export default function WeeklyPlannerScreen() {
         visible={addSlotVisible}
         date={addSlotDate}
         initialTime={addSlotTime}
+        userId={currentUserId}
         onClose={() => setAddSlotVisible(false)}
         onAdd={handleCreateSlot}
+        onLogFood={handleLogFood}
+        onPickRecipe={handlePickRecipe}
       />
 
       <RecipePickerModal
@@ -624,6 +779,26 @@ export default function WeeklyPlannerScreen() {
         onDone={(ids) => { selectCalendars(ids); setCalPickerVisible(false); }}
       />
 
+      <MealSlotDetailModal
+        slot={selectedSlot}
+        onClose={() => setSelectedSlot(null)}
+        onAddRecipe={handleAddRecipeToSlot}
+        onRemoveRecipe={handleRemoveRecipeFromSlot}
+        onSaveRecipeServings={handleSaveRecipeServings}
+      />
+
+      <FoodLogDetailModal
+        log={selectedLog}
+        userId={currentUserId}
+        onClose={() => setSelectedLog(null)}
+        onDeleteLog={(logId) => { deleteFoodLog(logId); setSelectedLog(null); }}
+        onDeleteItem={handleDeleteFoodLogItem}
+        onUpdateItem={handleUpdateFoodLogItem}
+        onAddItems={handleAddItemsToLog}
+        onUpdateTime={handleUpdateFoodLogTime}
+        onSaveToLibrary={currentUserId ? async (item) => { await saveToLibrary(currentUserId, item); } : undefined}
+      />
+
       <EventDetailModal
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
@@ -636,7 +811,7 @@ export default function WeeklyPlannerScreen() {
         onClose={() => setWeekPickerVisible(false)}
       />
 
-      <LoadingModal visible={loading} message="Loading calendar…" />
+      <LoadingModal visible={loading && sessionReady} message="Loading calendar…" />
     </View>
   );
 }

@@ -9,7 +9,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 const isNative = Platform.OS !== 'web';
 const redirectTo = makeRedirectUri({
-  scheme: 'mealplan',
+  scheme: 'prepd',
   path: 'auth/callback',
 });
 

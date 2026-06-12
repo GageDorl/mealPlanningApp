@@ -23,12 +23,14 @@ interface MealSlotCardProps {
 
 export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, onDelete }: MealSlotCardProps) {
   const theme = useTheme();
-  const hasRecipe = !!slot.recipe;
+  const hasRecipes = slot.recipes.length > 0;
+  const primary = slot.recipes[0]?.recipe ?? null;
+  const extraCount = slot.recipes.length - 1;
 
   return (
     <Pressable
       style={[styles.block, compact && styles.blockCompact, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-      onPress={hasRecipe ? onPress : onAssignRecipe}
+      onPress={hasRecipes ? onPress : onAssignRecipe}
     >
       <View style={styles.cardHeader}>
         <Text style={[styles.label, { color: theme.textSecondary }]} numberOfLines={1}>
@@ -39,14 +41,19 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
         </Pressable>
       </View>
 
-      {hasRecipe ? (
+      {hasRecipes ? (
         <View>
-          <Text style={[styles.recipeName, { color: theme.text }]} numberOfLines={compact ? 1 : 2}>
-            {slot.recipe!.title}
-          </Text>
-          {!compact && slot.recipe!.calories_per_serving != null && (
+          <View style={styles.recipeRow}>
+            <Text style={[styles.recipeName, { color: theme.text, flex: 1 }]} numberOfLines={compact ? 1 : 2}>
+              {primary!.title}
+            </Text>
+            {extraCount > 0 && (
+              <Text style={[styles.extraBadge, { color: Colors.accent }]}>+{extraCount}</Text>
+            )}
+          </View>
+          {!compact && primary!.calories_per_serving != null && (
             <Text style={[styles.macroHint, { color: theme.textSecondary }]}>
-              {slot.recipe!.calories_per_serving} kcal
+              {primary!.calories_per_serving} kcal
             </Text>
           )}
         </View>
@@ -93,9 +100,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
   } as TextStyle,
+  recipeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 4,
+  } as ViewStyle,
   recipeName: {
     fontSize: FontSizes.sm,
     fontWeight: '500',
+  } as TextStyle,
+  extraBadge: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
   } as TextStyle,
   macroHint: {
     fontSize: FontSizes.xs,

@@ -4,8 +4,17 @@ import { Slot } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+if (__DEV__ && Platform.OS === 'web') {
+  const original = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    const msg = typeof args[0] === 'string' ? args[0] : '';
+    if (msg.includes('Unknown event handler property') || msg.includes('TouchableMixin')) return;
+    original(...args);
+  };
+}
 
 import { PowerSyncProvider } from '@/services/powersync';
 import { supabase } from '@/services/supabase';
@@ -14,6 +23,8 @@ import { store } from '@/store';
 import { setThemeMode } from '@/store/slices/preferences-slice';
 import type { RootState } from '@/store';
 import { LoadingProvider } from '@/contexts/loading-context';
+import { SessionProvider } from '@/contexts/session-context';
+import { RefreshProvider } from '@/contexts/refresh-context';
 
 function LayoutContent() {
   const colorScheme = useColorScheme();
@@ -68,7 +79,11 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <Provider store={store}>
           <PowerSyncProvider>
-            <LayoutContent />
+            <SessionProvider>
+              <RefreshProvider>
+                <LayoutContent />
+              </RefreshProvider>
+            </SessionProvider>
           </PowerSyncProvider>
         </Provider>
       </SafeAreaProvider>

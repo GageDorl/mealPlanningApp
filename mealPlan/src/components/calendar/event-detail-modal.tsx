@@ -32,11 +32,6 @@ export function EventDetailModal({ event, onClose }: EventDetailModalProps) {
 
   if (!event) return null;
 
-  const durationMs = event.endDate.getTime() - event.startDate.getTime();
-  const durationMin = Math.round(durationMs / 60000);
-  const startMinFromMidnight = event.startDate.getHours() * 60 + event.startDate.getMinutes();
-  const endMinFromMidnight = event.endDate.getHours() * 60 + event.endDate.getMinutes();
-
   return (
     <Modal visible={!!event} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
@@ -73,28 +68,6 @@ export function EventDetailModal({ event, onClose }: EventDetailModalProps) {
               </Text>
             </View>
 
-            {/* Debug section — helps diagnose rendering issues */}
-            <View style={[styles.debugBox, { backgroundColor: theme.backgroundElement }]}>
-              <Text style={[styles.debugTitle, { color: theme.textSecondary }]}>Debug info</Text>
-              <Text style={[styles.debugLine, { color: theme.textSecondary }]}>
-                startISO: {event.startDate.toISOString()}
-              </Text>
-              <Text style={[styles.debugLine, { color: theme.textSecondary }]}>
-                endISO: {event.endDate.toISOString()}
-              </Text>
-              <Text style={[styles.debugLine, { color: theme.textSecondary }]}>
-                durationMs: {durationMs} ({durationMin} min)
-              </Text>
-              <Text style={[styles.debugLine, { color: theme.textSecondary }]}>
-                startMin (local h*60+m): {startMinFromMidnight}
-              </Text>
-              <Text style={[styles.debugLine, { color: theme.textSecondary }]}>
-                endMin (local h*60+m): {endMinFromMidnight}
-              </Text>
-              <Text style={[styles.debugLine, { color: theme.textSecondary }]}>
-                calendarId: {event.calendarId}
-              </Text>
-            </View>
           </ScrollView>
 
           <Pressable style={[styles.closeButton, { backgroundColor: Colors.accent }]} onPress={onClose}>
@@ -163,23 +136,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     flex: 1,
     marginLeft: Spacing.md,
-  } as TextStyle,
-  debugBox: {
-    marginTop: Spacing.md,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    gap: 3,
-  } as ViewStyle,
-  debugTitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  } as TextStyle,
-  debugLine: {
-    fontSize: 10,
-    fontFamily: 'monospace',
   } as TextStyle,
   closeButton: {
     margin: Spacing.lg,

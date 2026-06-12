@@ -1,12 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { randomUUID } from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, Alert, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors, MaxContentWidth, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { RecipeDetailView, type RecipeDetailData } from '@/components/recipes/recipe-detail-view';
+import { ScheduleRecipeModal } from '@/components/calendar/schedule-recipe-modal';
 import { getRecipeDetail } from '@/services/spoonacular';
-import { deleteRecipe, getRecipeById, getRecipeIngredients, isRecipeSaved, saveRecipe } from '@/services/recipe-service';
+import { deleteRecipe, getRecipeById, getRecipeIngredients, getSavedRecipeIdByApiId, saveRecipe } from '@/services/recipe-service';
+import { getWeek } from '@/services/meal-plan-service';
 import { supabase } from '@/services/supabase';
 import type { Recipe } from '@/models/recipe';
 
@@ -93,8 +96,10 @@ export default function RecipeDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [scheduleVisible, setScheduleVisible] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -178,8 +183,9 @@ export default function RecipeDetailScreen() {
         setDetailData(spoonacularToDetailData(raw));
 
         if (userId) {
-          const saved = await isRecipeSaved(userId, String(spoonacularId));
-          setIsSaved(saved);
+          const localId = await getSavedRecipeIdByApiId(userId, String(spoonacularId));
+          setIsSaved(!!localId);
+          setSavedRecipeId(localId);
         }
       }
     } catch (e) {
@@ -200,7 +206,7 @@ export default function RecipeDetailScreen() {
 
     setSaving(true);
     try {
-      await saveRecipe(userId, {
+      const saved = await saveRecipe(userId, {
         title: spoonacularRaw.title,
         description: spoonacularRaw.description,
         image_url: spoonacularRaw.image,
@@ -229,11 +235,103 @@ export default function RecipeDetailScreen() {
           display_order: i,
         })),
       });
+      setSavedRecipeId(saved.id);
       setIsSaved(true);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save recipe');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSchedule(date: string, label: string, time: string) {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user.id;
+      if (!userId) {
+        Alert.alert('Sign in required', 'Please sign in to schedule recipes.');
+        return;
+      }
+
+      let recipeUuid: string;
+
+      if (isUUID(id)) {
+        recipeUuid = id;
+      } else {
+        // Spoonacular recipe — use existing local copy or auto-save
+        let localId = savedRecipeId;
+        if (!localId) {
+          if (!spoonacularRaw) return;
+          const saved = await saveRecipe(userId, {
+            title: spoonacularRaw.title,
+            description: spoonacularRaw.description,
+            image_url: spoonacularRaw.image,
+            prep_minutes: spoonacularRaw.prepMinutes,
+            cook_minutes: spoonacularRaw.cookMinutes,
+            servings: spoonacularRaw.servings,
+            difficulty: spoonacularRaw.difficulty ?? undefined,
+            cuisine_type: spoonacularRaw.cuisineType ?? undefined,
+            source_type: 'api',
+            source_url: spoonacularRaw.sourceUrl,
+            source_api_id: String(spoonacularRaw.id),
+            calories_per_serving: spoonacularRaw.nutrition.calories,
+            protein_per_serving: spoonacularRaw.nutrition.protein,
+            carbs_per_serving: spoonacularRaw.nutrition.carbs,
+            fat_per_serving: spoonacularRaw.nutrition.fat,
+            fiber_per_serving: spoonacularRaw.nutrition.fiber,
+            sugar_per_serving: spoonacularRaw.nutrition.sugar,
+            sodium_per_serving: spoonacularRaw.nutrition.sodium,
+            instructions: spoonacularRaw.instructions,
+            dietary_tags: spoonacularRaw.dietaryTags,
+            ingredients: spoonacularRaw.ingredients.map((ing, i) => ({
+              raw_text: ing.rawText,
+              name: ing.name,
+              quantity: ing.quantity,
+              unit: ing.unit,
+              display_order: i,
+            })),
+          });
+          setSavedRecipeId(saved.id);
+          setIsSaved(true);
+          localId = saved.id;
+        }
+        recipeUuid = localId;
+      }
+
+      const [y, m, dayNum] = date.split('-').map(Number);
+      const weekPlan = await getWeek(new Date(y, m - 1, dayNum));
+      const slotsForDate = weekPlan.slots.filter((s) => s.date === date);
+
+      // Use supabase directly so we can surface errors instead of silently swallowing them
+      const slotId = randomUUID();
+      const now = new Date().toISOString();
+      const { error: slotError } = await supabase.from('meal_slots').insert({
+        id: slotId,
+        meal_plan_id: weekPlan.mealPlan.id,
+        date,
+        time_of_day: time,
+        label,
+        display_order: slotsForDate.length,
+        created_at: now,
+        updated_at: now,
+      });
+      if (slotError) throw new Error(`Failed to create slot: ${slotError.message}`);
+
+      const { error: assignError } = await supabase.from('meal_slot_recipes').insert({
+        id: randomUUID(),
+        meal_slot_id: slotId,
+        recipe_id: recipeUuid,
+        servings_eaten: null,
+        display_order: 0,
+        created_at: now,
+        updated_at: now,
+      });
+      if (assignError) throw new Error(`Failed to assign recipe: ${assignError.message}`);
+
+      setScheduleVisible(false);
+      Alert.alert('Added to calendar', `${detailData?.title} scheduled as ${label}`);
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to schedule recipe');
     }
   }
 
@@ -266,6 +364,9 @@ export default function RecipeDetailScreen() {
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
           {detailData.title}
         </Text>
+        <Pressable style={styles.actionBtn} onPress={() => setScheduleVisible(true)}>
+          <Text style={[styles.actionBtnText, { color: Colors.accent }]}>Schedule</Text>
+        </Pressable>
         {isUUID(id) ? (
           <>
             <Pressable style={styles.actionBtn} onPress={handleEdit}>
@@ -301,6 +402,13 @@ export default function RecipeDetailScreen() {
       </View>
 
       <RecipeDetailView recipe={detailData} />
+
+      <ScheduleRecipeModal
+        visible={scheduleVisible}
+        recipeTitle={detailData.title}
+        onClose={() => setScheduleVisible(false)}
+        onSchedule={handleSchedule}
+      />
     </View>
   );
 }

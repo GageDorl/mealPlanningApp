@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/services/supabase';
+import { useSessionReload } from '@/hooks/use-session-reload';
 import {
   generateList,
   getList,
@@ -11,12 +12,10 @@ import {
 
 function getCurrentWeekStart(): Date {
   const today = new Date();
-  const day = today.getDay();
-  const diff = day === 0 ? 1 : 1 - day;
-  const monday = new Date(today);
-  monday.setDate(monday.getDate() + diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+  const d = new Date(today);
+  d.setDate(d.getDate() - d.getDay()); // back to Sunday, matching calendar week_start
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 const EMPTY_STATE: GroceryState = {
@@ -108,6 +107,8 @@ export function useGrocery() {
   const removeStaple = useCallback(async (stapleId: string) => {
     await removePantryStaple(stapleId);
   }, []);
+
+  useSessionReload(load);
 
   return {
     state,

@@ -6,6 +6,7 @@ export interface MealSlot {
   date: string; // 'YYYY-MM-DD'
   time_of_day?: string | null; // 'HH:MM'
   serving_override?: number | null;
+  servings_eaten?: number | null;
   external_event_id?: string | null;
   display_order: number;
   created_at: string;
@@ -22,6 +23,7 @@ export const mealSlotTable = {
     date: 'text',
     time_of_day: 'text',
     serving_override: 'integer',
+    servings_eaten: 'real',
     external_event_id: 'text',
     display_order: 'integer',
     created_at: 'text',

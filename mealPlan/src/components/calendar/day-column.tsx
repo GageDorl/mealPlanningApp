@@ -3,7 +3,9 @@ import { View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } fro
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { MealSlotCard } from './meal-slot-card';
+import { FoodLogCard } from './food-log-card';
 import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
+import type { FoodLogWithItems } from '@/services/food-log-service';
 import type { CalendarEvent } from '@/services/calendar.types';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -59,7 +61,7 @@ const HourGrid = memo(function HourGrid({ borderColor, textColor, hourHeight }: 
 });
 
 /** Pinned day header rendered above the scroll area. */
-export function DayHeader({ dayIndex, date, isToday, isNarrow }: { dayIndex: number; date: string; isToday: boolean; isNarrow?: boolean }) {
+export function DayHeader({ dayIndex, date, isToday }: { dayIndex: number; date: string; isToday: boolean; isNarrow?: boolean }) {
   const theme = useTheme();
   const dayNum = parseInt(date.split('-')[2], 10);
   return (
@@ -78,19 +80,25 @@ export function DayHeader({ dayIndex, date, isToday, isNarrow }: { dayIndex: num
   );
 }
 
-/** All-day events + untimed meal slots row above the scroll area. */
+/** All-day events + untimed meal slots + untimed food logs row above the scroll area. */
 export function AllDayCell({
   events,
   untimedSlots = [],
+  untimedFoodLogs = [],
   onEventPress,
   onAssignRecipe,
   onDeleteSlot,
+  onDeleteFoodLog,
+  onFoodLogPress,
 }: {
   events: CalendarEvent[];
   untimedSlots?: MealSlotWithRecipe[];
+  untimedFoodLogs?: FoodLogWithItems[];
   onEventPress?: (event: CalendarEvent) => void;
   onAssignRecipe?: (slotId: string) => void;
   onDeleteSlot?: (slotId: string) => void;
+  onDeleteFoodLog?: (id: string) => void;
+  onFoodLogPress?: (log: FoodLogWithItems) => void;
 }) {
   const theme = useTheme();
   return (
@@ -108,6 +116,15 @@ export function AllDayCell({
           onPress={() => {}}
           onAssignRecipe={() => onAssignRecipe?.(slot.id)}
           onDelete={() => onDeleteSlot?.(slot.id)}
+        />
+      ))}
+      {untimedFoodLogs.map((log) => (
+        <FoodLogCard
+          key={log.id}
+          log={log}
+          compact
+          onPress={() => onFoodLogPress?.(log)}
+          onDelete={() => onDeleteFoodLog?.(log.id)}
         />
       ))}
     </View>

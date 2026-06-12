@@ -11,6 +11,7 @@ import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/con
 import { useTheme } from '@/hooks/use-theme';
 import { useThemeToggle } from '@/hooks/use-theme-toggle';
 import { useUserProfile } from '@/hooks/use-user-profile';
+import { useUserRole } from '@/hooks/use-user-role';
 import { useCalendar } from '@/hooks/use-calendar';
 import { signOut } from '@/services/supabase';
 import { updateDietaryPreferences, updateMacroGoals, updateNotificationSettings } from '@/services/user-service';
@@ -20,7 +21,8 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const { themeMode, setTheme } = useThemeToggle();
   const { profile, loading, reload } = useUserProfile();
-  const { connected, calendarExportEnabled, setExportEnabled, disconnect } = useCalendar();
+  const { role } = useUserRole();
+  const { connected, connectError, calendarExportEnabled, setExportEnabled, connect, disconnect } = useCalendar();
   const [displayName, setDisplayName] = useState('');
   const [macros, setMacros] = useState<MacroDefinition[]>(DefaultMacros);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -187,7 +189,12 @@ export default function ProfileScreen() {
           {connected ? (
             <Button label="Disconnect Google Calendar" onPress={disconnect} variant="secondary" />
           ) : (
-            <Text style={[styles.fieldValue, { color: theme.textSecondary }]}>No calendar connected</Text>
+            <>
+              <Button label="Connect Google Calendar" onPress={connect} />
+              {connectError ? (
+                <Text style={[styles.fieldValue, { color: theme.error }]}>{connectError}</Text>
+              ) : null}
+            </>
           )}
 
           {/* Appearance */}
@@ -209,6 +216,38 @@ export default function ProfileScreen() {
               </Pressable>
             ))}
           </View>
+
+          {/* Food Library */}
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Food</Text>
+          <Button
+            label="My Food Library"
+            onPress={() => router.push('/(tabs)/profile/food-library')}
+            variant="secondary"
+          />
+
+          {/* Admin */}
+          {(role === 'moderator' || role === 'admin') ? (
+            <>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Admin</Text>
+              <Button
+                label="Pending Foods"
+                onPress={() => router.push('/(tabs)/profile/admin/pending-foods')}
+                variant="secondary"
+              />
+              <Button
+                label="Flagged Foods"
+                onPress={() => router.push('/(tabs)/profile/admin/flagged-foods')}
+                variant="secondary"
+              />
+              {role === 'admin' ? (
+                <Button
+                  label="User Roles"
+                  onPress={() => router.push('/(tabs)/profile/admin/user-roles')}
+                  variant="secondary"
+                />
+              ) : null}
+            </>
+          ) : null}
 
           {/* Actions */}
           <View style={styles.actions}>

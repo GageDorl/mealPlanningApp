@@ -5,8 +5,17 @@ import type { MealPlan } from '@/models/meal-plan';
 import type { MealSlot } from '@/models/meal-slot';
 import type { Recipe } from '@/models/recipe';
 
+export interface MealSlotRecipeEntry {
+  id: string;
+  meal_slot_id: string;
+  recipe_id: string;
+  servings_eaten: number | null;
+  display_order: number;
+  recipe: Recipe;
+}
+
 export interface MealSlotWithRecipe extends MealSlot {
-  recipe?: Recipe | null;
+  recipes: MealSlotRecipeEntry[];
 }
 
 export interface WeekPlan {
@@ -14,15 +23,9 @@ export interface WeekPlan {
   slots: MealSlotWithRecipe[];
 }
 
-function getMonday(date: Date): string {
+function getWeekStart(date: Date): string {
   const d = new Date(date);
-  const day = d.getDay(); // 0=Sun, 1=Mon, …, 6=Sat
-  // Sunday is the first day of the displayed week (Sun-Sat), so advance to the
-  // following Monday rather than falling back to the previous one.
-  const diff = day === 0 ? 1 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  // Use local date parts — toISOString() is UTC and shifts the date for
-  // users in positive-offset timezones.
+  d.setDate(d.getDate() - d.getDay()); // back to Sunday (matches calendar week_start)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -35,14 +38,20 @@ function nowIso(): string {
 }
 
 export async function getWeek(weekStart: Date): Promise<WeekPlan> {
-  const monday = getMonday(weekStart);
+  const monday = getWeekStart(weekStart);
 
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user.id ?? null;
 
-  let query = supabase.from('meal_plans').select('*').eq('week_start', monday);
+  let query = supabase
+    .from('meal_plans')
+    .select('*')
+    .eq('week_start', monday)
+    .order('created_at', { ascending: true })
+    .limit(1);
   if (userId) query = query.eq('user_id', userId);
-  const { data: existingPlan } = await query.maybeSingle();
+  const { data: planRows } = await query;
+  const existingPlan = (planRows as MealPlan[] | null)?.[0] ?? null;
 
   let mealPlan: MealPlan;
 
@@ -71,25 +80,36 @@ export async function getWeek(weekStart: Date): Promise<WeekPlan> {
 
   const slots = (slotsData as MealSlot[]) ?? [];
 
-  const recipeIds = slots
-    .map((s) => s.recipe_id)
-    .filter((id): id is string => !!id);
+  type SlotRecipeRow = MealSlotRecipeEntry & { recipes: Recipe };
+  let slotRecipeRows: SlotRecipeRow[] = [];
+  if (slots.length > 0) {
+    const slotIds = slots.map((s) => s.id);
+    const { data: srData } = await supabase
+      .from('meal_slot_recipes')
+      .select('*, recipes(*)')
+      .in('meal_slot_id', slotIds)
+      .order('display_order');
+    slotRecipeRows = (srData ?? []) as SlotRecipeRow[];
+  }
 
-  let recipesMap: Record<string, Recipe> = {};
-  if (recipeIds.length > 0) {
-    const { data: recipes } = await supabase
-      .from('recipes')
-      .select('*')
-      .in('id', recipeIds);
-
-    if (recipes) {
-      recipesMap = Object.fromEntries((recipes as Recipe[]).map((r) => [r.id, r]));
-    }
+  const recipesBySlot = new Map<string, MealSlotRecipeEntry[]>();
+  for (const row of slotRecipeRows) {
+    const entry: MealSlotRecipeEntry = {
+      id: row.id,
+      meal_slot_id: row.meal_slot_id,
+      recipe_id: row.recipe_id,
+      servings_eaten: row.servings_eaten,
+      display_order: row.display_order,
+      recipe: row.recipes,
+    };
+    const list = recipesBySlot.get(row.meal_slot_id) ?? [];
+    list.push(entry);
+    recipesBySlot.set(row.meal_slot_id, list);
   }
 
   const slotsWithRecipes: MealSlotWithRecipe[] = slots.map((slot) => ({
     ...slot,
-    recipe: slot.recipe_id ? recipesMap[slot.recipe_id] ?? null : null,
+    recipes: recipesBySlot.get(slot.id) ?? [],
   }));
 
   return { mealPlan, slots: slotsWithRecipes };
@@ -114,7 +134,8 @@ export async function createSlot(params: {
     updated_at: now,
   };
 
-  await supabase.from('meal_slots').insert(slot);
+  const { error } = await supabase.from('meal_slots').insert(slot);
+  if (error) throw error;
 
   return slot as MealSlot;
 }
@@ -138,20 +159,54 @@ async function tryScheduleReminder(slotId: string, recipeId: string): Promise<vo
   await scheduleMealReminder(slotId, recipe.title as string, date);
 }
 
-export async function assignRecipe(slotId: string, recipeId: string): Promise<void> {
-  await supabase
-    .from('meal_slots')
-    .update({ recipe_id: recipeId, updated_at: nowIso() })
-    .eq('id', slotId);
+export async function addRecipeToSlot(slotId: string, recipeId: string): Promise<void> {
+  const { data: existing } = await supabase
+    .from('meal_slot_recipes')
+    .select('display_order')
+    .eq('meal_slot_id', slotId)
+    .order('display_order', { ascending: false })
+    .limit(1);
+  const nextOrder = (existing as { display_order: number }[] | null)?.[0]?.display_order ?? -1;
+  const now = nowIso();
+  const { error } = await supabase.from('meal_slot_recipes').insert({
+    id: generateId(),
+    meal_slot_id: slotId,
+    recipe_id: recipeId,
+    servings_eaten: null,
+    display_order: nextOrder + 1,
+    created_at: now,
+    updated_at: now,
+  });
+  if (error) throw error;
   await tryScheduleReminder(slotId, recipeId).catch(() => {});
 }
 
-export async function removeRecipe(slotId: string): Promise<void> {
+export async function removeRecipeFromSlot(slotRecipeId: string): Promise<void> {
+  const { error } = await supabase.from('meal_slot_recipes').delete().eq('id', slotRecipeId);
+  if (error) throw error;
+}
+
+export async function updateSlotRecipeServings(slotRecipeId: string, servings: number | null): Promise<void> {
+  const { error } = await supabase
+    .from('meal_slot_recipes')
+    .update({ servings_eaten: servings, updated_at: nowIso() })
+    .eq('id', slotRecipeId);
+  if (error) throw error;
+}
+
+export async function updateServingsEaten(slotId: string, servingsEaten: number | null): Promise<void> {
+  const { error } = await supabase
+    .from('meal_slots')
+    .update({ servings_eaten: servingsEaten, updated_at: nowIso() })
+    .eq('id', slotId);
+  if (error) throw error;
+}
+
+export async function updateExternalEventId(slotId: string, eventId: string | null): Promise<void> {
   await supabase
     .from('meal_slots')
-    .update({ recipe_id: null, updated_at: nowIso() })
+    .update({ external_event_id: eventId, updated_at: nowIso() })
     .eq('id', slotId);
-  await cancelMealReminder(slotId).catch(() => {});
 }
 
 export async function deleteSlot(slotId: string): Promise<void> {
