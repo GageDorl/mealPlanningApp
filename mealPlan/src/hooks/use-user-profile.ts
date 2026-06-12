@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/services/supabase';
 import { getProfile, UserProfileData } from '@/services/user-service';
 import { withTimeout } from '@/utils/with-timeout';
+import { waitForNetwork } from '@/utils/wait-for-network';
+import { foregroundAtRef } from '@/contexts/session-context';
 
 export function useUserProfile() {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
@@ -20,21 +22,21 @@ export function useUserProfile() {
         return;
       }
 
-      const attempt = () => withTimeout(getProfile(userId), 10_000, 'getProfile');
-      let profileData: Awaited<ReturnType<typeof getProfile>>;
-      try {
-        profileData = await attempt();
-      } catch (firstErr) {
-        const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
-        if (msg.includes('[timeout]') || msg.includes('aborted') || msg.includes('AbortError')) {
-          console.log('[profile] timeout on first attempt, retrying in 2s...');
-          await new Promise((r) => setTimeout(r, 2000));
-          profileData = await attempt();
-        } else {
-          throw firstErr;
+      // If we just came from background, probe network before the HTTP fetch
+      const msSinceForeground = foregroundAtRef.current > 0
+        ? Date.now() - foregroundAtRef.current
+        : Infinity;
+      if (msSinceForeground < 30_000) {
+        console.log(`[profile] post-foreground (${msSinceForeground}ms ago) — probing network...`);
+        const ready = await waitForNetwork();
+        console.log('[profile] network probe result:', ready ? 'ok' : 'failed');
+        if (!ready) {
+          setProfile(null);
+          return;
         }
       }
 
+      const profileData = await withTimeout(getProfile(userId), 10_000, 'getProfile');
       console.log('[profile] getProfile done:', profileData ? 'found' : 'null');
       setProfile(profileData);
     } catch (e) {

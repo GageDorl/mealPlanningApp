@@ -3,6 +3,9 @@ import { AppState, Platform } from 'react-native';
 import { supabase } from '@/services/supabase';
 import { LoadingModal } from '@/components/ui/loading-modal';
 
+// Module-level ref — updated without causing re-renders; hooks read it in closures
+export const foregroundAtRef: { current: number } = { current: 0 };
+
 interface SessionContextValue {
   sessionReady: boolean;
 }
@@ -72,16 +75,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     if (Platform.OS !== 'web') {
       const sub = AppState.addEventListener('change', (state) => {
+        const ts = new Date().toISOString();
         if (state === 'active') {
+          console.log(`[session] AppState → active at ${ts}`);
+          foregroundAtRef.current = Date.now();
           doRefresh();
         } else {
+          console.log(`[session] AppState → ${state} at ${ts}`);
           supabase.auth.stopAutoRefresh();
         }
       });
       cleanup = () => sub.remove();
     } else if (typeof document !== 'undefined') {
       const onVisibility = () => {
-        if (!document.hidden) doRefresh();
+        if (!document.hidden) {
+          console.log(`[session] visibilitychange → visible at ${new Date().toISOString()}`);
+          foregroundAtRef.current = Date.now();
+          doRefresh();
+        }
       };
       document.addEventListener('visibilitychange', onVisibility);
       cleanup = () => document.removeEventListener('visibilitychange', onVisibility);
