@@ -199,6 +199,17 @@ Deno.serve(async (req) => {
       return json(results.flat())
     }
 
+    if (body.action === 'ensurePrepCalendar') {
+      const calList = await gcal(accessToken, '/users/me/calendarList')
+      const existing = (calList?.items ?? []).find((c: any) => c.summary === 'Prepd')
+      if (existing) return json({ calendarId: existing.id })
+      const created = await gcal(accessToken, '/calendars', {
+        method: 'POST',
+        body: JSON.stringify({ summary: 'Prepd' }),
+      })
+      return json({ calendarId: created.id })
+    }
+
     if (body.action === 'createEvent') {
       const { calendarId = 'primary', title, start, end, slotId } = body as {
         calendarId?: string

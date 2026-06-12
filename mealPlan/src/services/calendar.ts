@@ -10,6 +10,7 @@ export type { CalendarEvent, CalendarInfo, CachedEventData, MealEventInput };
 const CONNECTED_KEY = '@prepd/calendar_connected';
 const EXPORT_ENABLED_KEY = '@prepd/calendar_export_enabled';
 const SELECTED_CALENDARS_KEY = '@prepd/calendar_selected_ids';
+const PREPD_CALENDAR_KEY = '@prepd/prepd_calendar_id';
 const EVENTS_CACHE_PREFIX = 'prepd_gcal_';
 
 let _connected = false;
@@ -23,6 +24,21 @@ async function callFunction(name: string, body: object) {
     throw new Error(detail?.error ?? error.message);
   }
   return data;
+}
+
+// --- Prepd export calendar ---
+
+async function getPrepCalendarId(): Promise<string> {
+  try {
+    const cached = await AsyncStorage.getItem(PREPD_CALENDAR_KEY);
+    if (cached) return cached;
+    const result = await callFunction('google-calendar', { action: 'ensurePrepCalendar' });
+    const id: string = result?.calendarId ?? 'primary';
+    if (id !== 'primary') await AsyncStorage.setItem(PREPD_CALENDAR_KEY, id);
+    return id;
+  } catch {
+    return 'primary';
+  }
 }
 
 // --- Connection ---
@@ -100,6 +116,7 @@ export async function disconnect(): Promise<void> {
     const keysToRemove = [
       CONNECTED_KEY,
       SELECTED_CALENDARS_KEY,
+      PREPD_CALENDAR_KEY,
       ...allKeys.filter((k) => k.startsWith(EVENTS_CACHE_PREFIX)),
     ];
     await Promise.all(keysToRemove.map((k) => AsyncStorage.removeItem(k)));
@@ -228,8 +245,10 @@ export async function createMealEvent(input: MealEventInput): Promise<string | n
   endDate.setMinutes(endDate.getMinutes() + 30);
 
   try {
+    const calendarId = await getPrepCalendarId();
     const result = await callFunction('google-calendar', {
       action: 'createEvent',
+      calendarId,
       title: `Prepd: ${input.title}`,
       start: startDate.toISOString(),
       end: endDate.toISOString(),
@@ -246,10 +265,11 @@ export async function deleteMealEvent(eventId: string, calendarId?: string): Pro
   if (!_connected) return;
 
   try {
+    const targetCalendarId = calendarId ?? await getPrepCalendarId();
     await callFunction('google-calendar', {
       action: 'deleteEvent',
       eventId,
-      ...(calendarId ? { calendarId } : {}),
+      calendarId: targetCalendarId,
     });
   } catch {
     // Best effort
