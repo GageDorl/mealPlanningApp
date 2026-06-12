@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as mealPlanService from '@/services/meal-plan-service';
+import { withTimeout } from '@/utils/with-timeout';
+import { waitForNetwork } from '@/utils/wait-for-network';
+import { foregroundAtRef } from '@/contexts/session-context';
 import type { WeekPlan, MealSlotWithRecipe } from '@/services/meal-plan-service';
 import { useSessionReload } from '@/hooks/use-session-reload';
 
@@ -9,14 +12,41 @@ export function useMealPlan(weekStart: Date) {
   const [error, setError] = useState<string | null>(null);
 
   const loadWeek = useCallback(async () => {
+    const weekLabel = weekStart.toISOString().slice(0, 10);
+    console.log('[meal-plan] loadWeek started:', weekLabel);
     setLoading(true);
     setError(null);
+
+    // If we just came from background, wait until the network is actually reachable
+    // before starting any Supabase requests. Avoids the 15s hang + timeout cycle.
+    const msSinceForeground = foregroundAtRef.current > 0
+      ? Date.now() - foregroundAtRef.current
+      : Infinity;
+    if (msSinceForeground < 30_000) {
+      console.log(`[meal-plan] post-foreground (${msSinceForeground}ms ago) — probing network...`);
+      const ready = await waitForNetwork();
+      if (!ready) {
+        console.log('[meal-plan] network probe failed');
+        setError('Network unavailable — tap to retry');
+        setLoading(false);
+        return;
+      }
+      console.log('[meal-plan] network probe ok, proceeding');
+    }
+
+    const attempt = async () =>
+      withTimeout(mealPlanService.getWeek(weekStart), 10_000, 'getWeek');
+
     try {
-      const plan = await mealPlanService.getWeek(weekStart);
+      const plan = await attempt();
+      console.log('[meal-plan] getWeek done, slots:', plan?.slots?.length ?? 0);
       setWeekPlan(plan);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load meal plan');
+      const msg = e instanceof Error ? e.message : String(e);
+      console.log('[meal-plan] loadWeek error (final):', msg);
+      setError(msg.includes('[timeout]') ? 'Connection timed out — tap to retry' : msg);
     } finally {
+      console.log('[meal-plan] loadWeek done, loading → false');
       setLoading(false);
     }
   }, [weekStart.toISOString()]);

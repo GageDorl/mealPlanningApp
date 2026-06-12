@@ -1,5 +1,5 @@
 import { randomUUID } from 'expo-crypto';
-import { supabase } from './supabase';
+import { supabase, getCachedUserId } from './supabase';
 import { scheduleMealReminder, cancelMealReminder } from './notification-service';
 import type { MealPlan } from '@/models/meal-plan';
 import type { MealSlot } from '@/models/meal-slot';
@@ -38,10 +38,10 @@ function nowIso(): string {
 }
 
 export async function getWeek(weekStart: Date): Promise<WeekPlan> {
+  const t0 = Date.now();
   const monday = getWeekStart(weekStart);
-
-  const { data: sessionData } = await supabase.auth.getSession();
-  const userId = sessionData.session?.user.id ?? null;
+  const userId = getCachedUserId();
+  console.log(`[getWeek] start week=${monday} userId=${userId ? 'present' : 'absent'}`);
 
   let query = supabase
     .from('meal_plans')
@@ -50,7 +50,8 @@ export async function getWeek(weekStart: Date): Promise<WeekPlan> {
     .order('created_at', { ascending: true })
     .limit(1);
   if (userId) query = query.eq('user_id', userId);
-  const { data: planRows } = await query;
+  const { data: planRows, error: planErr } = await query;
+  console.log(`[getWeek] +${Date.now() - t0}ms meal_plans: ${planRows?.length ?? 0} rows${planErr ? ' err=' + planErr.message : ''}`);
   const existingPlan = (planRows as MealPlan[] | null)?.[0] ?? null;
 
   let mealPlan: MealPlan;
@@ -69,14 +70,16 @@ export async function getWeek(weekStart: Date): Promise<WeekPlan> {
 
     const { data } = await supabase.from('meal_plans').insert(newPlan).select().single();
     mealPlan = (data as MealPlan) ?? newPlan;
+    console.log(`[getWeek] +${Date.now() - t0}ms created new meal_plan`);
   }
 
-  const { data: slotsData } = await supabase
+  const { data: slotsData, error: slotsErr } = await supabase
     .from('meal_slots')
     .select('*')
     .eq('meal_plan_id', mealPlan.id)
     .order('date')
     .order('time_of_day');
+  console.log(`[getWeek] +${Date.now() - t0}ms meal_slots: ${(slotsData as MealSlot[] | null)?.length ?? 0} rows${slotsErr ? ' err=' + slotsErr.message : ''}`);
 
   const slots = (slotsData as MealSlot[]) ?? [];
 
@@ -84,11 +87,12 @@ export async function getWeek(weekStart: Date): Promise<WeekPlan> {
   let slotRecipeRows: SlotRecipeRow[] = [];
   if (slots.length > 0) {
     const slotIds = slots.map((s) => s.id);
-    const { data: srData } = await supabase
+    const { data: srData, error: srErr } = await supabase
       .from('meal_slot_recipes')
       .select('*, recipes(*)')
       .in('meal_slot_id', slotIds)
       .order('display_order');
+    console.log(`[getWeek] +${Date.now() - t0}ms meal_slot_recipes: ${(srData ?? []).length} rows${srErr ? ' err=' + srErr.message : ''}`);
     slotRecipeRows = (srData ?? []) as SlotRecipeRow[];
   }
 
@@ -112,6 +116,7 @@ export async function getWeek(weekStart: Date): Promise<WeekPlan> {
     recipes: recipesBySlot.get(slot.id) ?? [],
   }));
 
+  console.log(`[getWeek] +${Date.now() - t0}ms done`);
   return { mealPlan, slots: slotsWithRecipes };
 }
 

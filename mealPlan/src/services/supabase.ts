@@ -25,7 +25,29 @@ function readAuthParam(url: string, key: string) {
   return new URLSearchParams(hash).get(key);
 }
 
+// All Supabase data/auth requests get a hard AbortController timeout so a
+// suspended network connection (e.g. app returning from background) fails fast
+// instead of hanging indefinitely.
+const FETCH_TIMEOUT_MS = 15_000;
+
+function fetchWithTimeout(url: RequestInfo | URL, options?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  // Forward any upstream signal so caller aborts still propagate
+  const upstream = options?.signal;
+  const onUpstreamAbort = () => controller.abort(upstream?.reason);
+  upstream?.addEventListener('abort', onUpstreamAbort, { once: true });
+  if (upstream?.aborted) controller.abort(upstream.reason);
+
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => {
+    clearTimeout(timer);
+    upstream?.removeEventListener('abort', onUpstreamAbort);
+  });
+}
+
 export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+  global: { fetch: fetchWithTimeout },
   auth: {
     persistSession: true,
     ...(isNative
@@ -34,9 +56,28 @@ export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
           detectSessionInUrl: false,
           autoRefreshToken: true,
         }
-      : {}),
+      : {
+          // Chrome freezes JS timers (including AbortController timeouts) for
+          // background tabs. If an auto-refresh is in-flight when the tab goes to
+          // background, its fetch never gets aborted, so it holds the Supabase Web
+          // Lock (navigator.locks) indefinitely. Every subsequent getSession() call
+          // queues behind it and the app hangs on foreground return.
+          // Fix: bypass navigator.locks with a no-op; single-tab apps don't need
+          // cross-tab lock coordination.
+          lock: <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> => fn(),
+        }),
   },
 });
+
+// Cached user ID kept current via onAuthStateChange — avoids calling getSession()
+// (which acquires the auth lock) in the hot data-fetch path.
+let _cachedUserId: string | null = null;
+supabase.auth.onAuthStateChange((_event, session) => {
+  _cachedUserId = session?.user.id ?? null;
+});
+export function getCachedUserId(): string | null {
+  return _cachedUserId;
+}
 
 export interface AuthProfile {
   id: string;
