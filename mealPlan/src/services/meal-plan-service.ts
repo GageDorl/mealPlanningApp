@@ -1,5 +1,5 @@
 import { randomUUID } from 'expo-crypto';
-import { supabase } from './supabase';
+import { supabase, getCachedUserId } from './supabase';
 import { scheduleMealReminder, cancelMealReminder } from './notification-service';
 import type { MealPlan } from '@/models/meal-plan';
 import type { MealSlot } from '@/models/meal-slot';
@@ -40,11 +40,8 @@ function nowIso(): string {
 export async function getWeek(weekStart: Date): Promise<WeekPlan> {
   const t0 = Date.now();
   const monday = getWeekStart(weekStart);
-  console.log(`[getWeek] start week=${monday}`);
-
-  const { data: sessionData } = await supabase.auth.getSession();
-  const userId = sessionData.session?.user.id ?? null;
-  console.log(`[getWeek] +${Date.now() - t0}ms getSession ok userId=${userId ? 'present' : 'absent'}`);
+  const userId = getCachedUserId();
+  console.log(`[getWeek] start week=${monday} userId=${userId ? 'present' : 'absent'}`);
 
   let query = supabase
     .from('meal_plans')
