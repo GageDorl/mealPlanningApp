@@ -1,25 +1,28 @@
-import { ActivityIndicator, Modal, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { Colors, BorderRadius, Spacing, FontSizes } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface Props {
   visible: boolean;
   message?: string;
+  onDismiss?: () => void;
 }
 
-export function LoadingModal({ visible, message }: Props) {
+export function LoadingModal({ visible, message, onDismiss }: Props) {
   const theme = useTheme();
 
   return (
     <Modal transparent animationType="fade" visible={visible} statusBarTranslucent>
-      <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: theme.backgroundElement, shadowColor: theme.text }]}>
-          <ActivityIndicator size="large" color={Colors.accent} />
-          {message ? (
-            <Text style={[styles.message, { color: theme.text }]}>{message}</Text>
-          ) : null}
-        </View>
-      </View>
+      <Pressable style={styles.overlay} onPress={onDismiss}>
+        <Pressable onPress={(e) => e.stopPropagation()}>
+          <View style={[styles.card, { backgroundColor: theme.backgroundElement, shadowColor: theme.text }]}>
+            <ActivityIndicator size="large" color={Colors.accent} />
+            {message ? (
+              <Text style={[styles.message, { color: theme.text }]}>{message}</Text>
+            ) : null}
+          </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

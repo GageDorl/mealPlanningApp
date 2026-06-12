@@ -98,7 +98,6 @@ function groupItemsByCategory(items: GroceryItemRow[]): GroceryDisplayGroup[] {
 
 export async function generateList(userId: string, weekStart: Date): Promise<GroceryState> {
   const weekStartStr = getWeekStart(weekStart);
-  console.log(`[grocery] Generating list for user ${userId} and week starting ${weekStartStr}`);
   const { data: planRows } = await supabase
     .from('meal_plans')
     .select('id')
@@ -109,17 +108,13 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
   const planData = (planRows as { id: string }[] | null)?.[0] ?? null;
 
   if (!planData) {
-    console.log(`[grocery] No meal plan found for user ${userId} and week starting ${weekStartStr}`);
     return { list: null, items: [], displayGroups: [], checkedCount: 0, totalCount: 0 };
   }
-  console.log(`[grocery] Found meal plan ${planData.id} for user ${userId} and week starting ${weekStartStr}`);
   const { data: slotsData } = await supabase
     .from('meal_slots')
     .select('id')
     .eq('meal_plan_id', planData.id);
-  console.log(`[grocery] Found ${slotsData?.length ?? 0} meal slots for meal plan ${planData.id}`);
   const slotIds = ((slotsData ?? []) as Array<{ id: string }>).map((s) => s.id);
-console.log(`[grocery] Extracted slot IDs: ${slotIds.join(', ')}`);
   const recipeIds: string[] = [];
   if (slotIds.length > 0) {
     const { data: slotRecipesData } = await supabase

@@ -5,6 +5,7 @@ import { View, Text, ScrollView, Pressable, Platform, ActivityIndicator, useWind
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSessionContext } from '@/contexts/session-context';
 import { useMealPlan } from '@/hooks/use-meal-plan';
 import { useCalendar } from '@/hooks/use-calendar';
 import { useFoodLog } from '@/hooks/use-food-log';
@@ -27,6 +28,8 @@ import { EventDetailModal } from '@/components/calendar/event-detail-modal';
 import { MealSlotDetailModal } from '@/components/calendar/meal-slot-detail-modal';
 import { FoodLogDetailModal } from '@/components/calendar/food-log-detail-modal';
 import { saveToLibrary } from '@/services/personal-food-service';
+import { updateExternalEventId } from '@/services/meal-plan-service';
+import { deleteMealEvent } from '@/services/calendar';
 import { WeekPickerModal } from '@/components/calendar/week-picker-modal';
 import type { CalendarEvent } from '@/services/calendar.types';
 import type { Recipe } from '@/models/recipe';
@@ -62,6 +65,7 @@ function isSameDay(a: Date, b: string): boolean {
 
 export default function WeeklyPlannerScreen() {
   const theme = useTheme();
+  const { sessionReady } = useSessionContext();
   const { width: windowWidth } = useWindowDimensions();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekPickerVisible, setWeekPickerVisible] = useState(false);
@@ -348,12 +352,13 @@ export default function WeeklyPlannerScreen() {
     if (recipe && slotId) {
       await addRecipeToSlot(slotId, recipe.id);
       if (connected) {
-        await createMealEvent({
+        const eventId = await createMealEvent({
           title: recipe.title,
           date: addSlotDate,
           timeOfDay: time || null,
           slotId,
         });
+        if (eventId) await updateExternalEventId(slotId, eventId);
       }
     }
   };
@@ -382,19 +387,24 @@ export default function WeeklyPlannerScreen() {
     if (connected) {
       const slot = weekPlan?.slots.find((s) => s.id === slotId);
       if (slot) {
-        await createMealEvent({
+        const eventId = await createMealEvent({
           title: recipe.title,
           date: slot.date,
           timeOfDay: slot.time_of_day || null,
           slotId,
         });
+        if (eventId) await updateExternalEventId(slotId, eventId);
       }
     }
   };
 
   const handleDeleteSlot = useCallback(async (slotId: string) => {
+    const slot = weekPlan?.slots.find((s) => s.id === slotId);
+    if (connected && slot?.external_event_id) {
+      await deleteMealEvent(slot.external_event_id);
+    }
     await deleteSlot(slotId);
-  }, [deleteSlot]);
+  }, [deleteSlot, connected, weekPlan]);
 
   const handleSlotPress = useCallback((slot: import('@/services/meal-plan-service').MealSlotWithRecipe) => {
     if (slot.recipes.length > 0) setSelectedSlot(slot);
@@ -801,7 +811,7 @@ export default function WeeklyPlannerScreen() {
         onClose={() => setWeekPickerVisible(false)}
       />
 
-      <LoadingModal visible={loading} message="Loading calendar…" />
+      <LoadingModal visible={loading && sessionReady} message="Loading calendar…" />
     </View>
   );
 }

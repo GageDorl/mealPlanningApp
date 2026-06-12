@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as mealPlanService from '@/services/meal-plan-service';
 import type { WeekPlan, MealSlotWithRecipe } from '@/services/meal-plan-service';
+import { useSessionReload } from '@/hooks/use-session-reload';
 
 export function useMealPlan(weekStart: Date) {
   const [weekPlan, setWeekPlan] = useState<WeekPlan | null>(null);
@@ -80,6 +81,7 @@ export function useMealPlan(weekStart: Date) {
 
 
   const refresh = loadWeek;
+  useSessionReload(refresh);
 
   return {
     weekPlan,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   Animated,
   View,
@@ -67,6 +68,8 @@ export function MacroTrendChart() {
   const [range, setRange] = useState<Range>('7d');
   const [histData, setHistData] = useState<DailyMacroProgress[]>([]);
   const [loading, setLoading] = useState(false);
+  const [focusCount, setFocusCount] = useState(0);
+  useFocusEffect(useCallback(() => { setFocusCount((c) => c + 1); }, []));
   const [containerWidth, setContainerWidth] = useState(0);
   const [tooltip, setTooltip] = useState<{ value: number; date: string } | null>(null);
 
@@ -109,7 +112,7 @@ export function MacroTrendChart() {
       }
     })();
     return () => { cancelled = true; };
-  }, [range]);
+  }, [range, focusCount]);
 
   useEffect(() => { setTooltip(null); }, [selectedMacro, range]);
 

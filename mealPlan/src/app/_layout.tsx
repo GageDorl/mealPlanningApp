@@ -7,7 +7,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Platform, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-if (Platform.OS === 'web') {
+if (__DEV__ && Platform.OS === 'web') {
   const original = console.error.bind(console);
   console.error = (...args: unknown[]) => {
     const msg = typeof args[0] === 'string' ? args[0] : '';
@@ -23,6 +23,8 @@ import { store } from '@/store';
 import { setThemeMode } from '@/store/slices/preferences-slice';
 import type { RootState } from '@/store';
 import { LoadingProvider } from '@/contexts/loading-context';
+import { SessionProvider } from '@/contexts/session-context';
+import { RefreshProvider } from '@/contexts/refresh-context';
 
 function LayoutContent() {
   const colorScheme = useColorScheme();
@@ -77,7 +79,11 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <Provider store={store}>
           <PowerSyncProvider>
-            <LayoutContent />
+            <SessionProvider>
+              <RefreshProvider>
+                <LayoutContent />
+              </RefreshProvider>
+            </SessionProvider>
           </PowerSyncProvider>
         </Provider>
       </SafeAreaProvider>

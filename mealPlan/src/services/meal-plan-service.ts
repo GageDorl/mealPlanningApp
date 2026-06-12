@@ -182,20 +182,30 @@ export async function addRecipeToSlot(slotId: string, recipeId: string): Promise
 }
 
 export async function removeRecipeFromSlot(slotRecipeId: string): Promise<void> {
-  await supabase.from('meal_slot_recipes').delete().eq('id', slotRecipeId);
+  const { error } = await supabase.from('meal_slot_recipes').delete().eq('id', slotRecipeId);
+  if (error) throw error;
 }
 
 export async function updateSlotRecipeServings(slotRecipeId: string, servings: number | null): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from('meal_slot_recipes')
     .update({ servings_eaten: servings, updated_at: nowIso() })
     .eq('id', slotRecipeId);
+  if (error) throw error;
 }
 
 export async function updateServingsEaten(slotId: string, servingsEaten: number | null): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from('meal_slots')
     .update({ servings_eaten: servingsEaten, updated_at: nowIso() })
+    .eq('id', slotId);
+  if (error) throw error;
+}
+
+export async function updateExternalEventId(slotId: string, eventId: string | null): Promise<void> {
+  await supabase
+    .from('meal_slots')
+    .update({ external_event_id: eventId, updated_at: nowIso() })
     .eq('id', slotId);
 }
 

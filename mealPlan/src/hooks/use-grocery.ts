@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/services/supabase';
+import { useSessionReload } from '@/hooks/use-session-reload';
 import {
   generateList,
   getList,
@@ -106,6 +107,8 @@ export function useGrocery() {
   const removeStaple = useCallback(async (stapleId: string) => {
     await removePantryStaple(stapleId);
   }, []);
+
+  useSessionReload(load);
 
   return {
     state,

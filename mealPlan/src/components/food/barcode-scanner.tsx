@@ -31,7 +31,7 @@ export function BarcodeScanner({ onFoodFound, onNotFound, onDismiss }: BarcodeSc
       const normalizedBarcode = data.padStart(13, '0');
       const details = await lookupBarcode(normalizedBarcode);
       if (details) {
-        onFoodFound(details, data);
+        onFoodFound(details, normalizedBarcode);
       } else {
         setNotFound(true);
         scannedRef.current = false;

@@ -189,7 +189,7 @@ export async function getHistoricalProgress(
 ): Promise<DailyMacroProgress[]> {
   const [{ data: goalsData }, { data: plansData }, { data: foodLogsRaw }] = await Promise.all([
     supabase.from('macro_goals').select('*').eq('user_id', userId).eq('is_active', true).order('display_order'),
-    supabase.from('meal_plans').select('id').eq('user_id', userId),
+    supabase.from('meal_plans').select('id, week_start').eq('user_id', userId).order('created_at', { ascending: true }),
     supabase
       .from('food_logs')
       .select('id, date, label, time_of_day, food_log_items(*)')
@@ -199,7 +199,17 @@ export async function getHistoricalProgress(
   ]);
 
   const goals = (goalsData ?? []) as MacroGoalRow[];
-  const planIds = (plansData ?? []).map((p: { id: string }) => p.id);
+
+  // Deduplicate: keep only the first-created plan per week to match getDailyProgress's .limit(1) behaviour.
+  // If duplicate meal_plan rows exist for the same week, getHistoricalProgress would otherwise double-count their slots.
+  const seenWeeks = new Set<string>();
+  const planIds = ((plansData ?? []) as { id: string; week_start: string }[])
+    .filter((p) => {
+      if (seenWeeks.has(p.week_start)) return false;
+      seenWeeks.add(p.week_start);
+      return true;
+    })
+    .map((p) => p.id);
 
   type HistSlotRow = { id: string; date: string; label: string | null; time_of_day: string | null };
   type HistSlotRecipeRow = {

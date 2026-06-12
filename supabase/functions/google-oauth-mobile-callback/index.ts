@@ -1,7 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { verifyState } from '../_shared/oauth-state.ts'
 
-const FUNCTION_URL = 'https://uyvsvsmspdlhbhavevuc.supabase.co/functions/v1/google-oauth-mobile-callback'
 const APP_SCHEME = 'prepd://auth/calendar-callback'
 
 Deno.serve(async (req) => {
@@ -15,8 +14,15 @@ Deno.serve(async (req) => {
     return Response.redirect(`${APP_SCHEME}?error=${encodeURIComponent(msg)}`)
   }
 
-  const clientId = Deno.env.get('GOOGLE_CLIENT_ID')!
-  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')!
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
+
+  if (!clientId || !clientSecret) {
+    return Response.redirect(`${APP_SCHEME}?error=server_configuration_error`)
+  }
+
+  // Derive callback URL from request so it stays correct across environments
+  const callbackUrl = `${url.origin}${url.pathname}`
 
   try {
     const payload = await verifyState(state, clientSecret)
@@ -31,7 +37,7 @@ Deno.serve(async (req) => {
         code,
         client_id: clientId,
         client_secret: clientSecret,
-        redirect_uri: FUNCTION_URL,
+        redirect_uri: callbackUrl,
         grant_type: 'authorization_code',
       }),
     })

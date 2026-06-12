@@ -182,8 +182,9 @@ Deno.serve(async (req: Request) => {
 
     const fetchWithTimeout = (url: string) => {
       const controller = new AbortController();
-      setTimeout(() => controller.abort(), 10000);
-      return fetch(url, { headers: fetchHeaders, signal: controller.signal });
+      const timer = setTimeout(() => controller.abort(), 10000);
+      return fetch(url, { headers: fetchHeaders, signal: controller.signal })
+        .finally(() => clearTimeout(timer));
     };
 
     // food_id path: return full food details via food.get.v4

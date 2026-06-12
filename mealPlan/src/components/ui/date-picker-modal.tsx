@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -35,6 +35,13 @@ export function DatePickerModal({ visible, currentDate, onSelect, onClose, allow
 
   const [viewYear, setViewYear] = useState(() => currentDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(() => currentDate.getMonth());
+
+  useEffect(() => {
+    if (visible) {
+      setViewYear(currentDate.getFullYear());
+      setViewMonth(currentDate.getMonth());
+    }
+  }, [visible, currentDate]);
 
   const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
 
