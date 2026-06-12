@@ -5,18 +5,17 @@ import { getHistoricalProgress, type DailyMacroProgress } from '@/services/macro
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-const DAY_ABBREVS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const DAY_ABBREVS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 interface Props {
   selectedDate: Date;
   goToDate: (date: Date) => void;
 }
 
-function getMondayOf(date: Date): Date {
+// Sunday-based to match macro_service.getWeekStart and meal_plans.week_start
+function getSundayOf(date: Date): Date {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() - d.getDay());
   d.setHours(12, 0, 0, 0);
   return d;
 }
@@ -48,7 +47,7 @@ export function WeekSummaryStrip({ selectedDate, goToDate }: Props) {
   const theme = useTheme();
   const [weekData, setWeekData] = useState<DailyMacroProgress[]>([]);
 
-  const weekStart = getMondayOf(selectedDate);
+  const weekStart = getSundayOf(selectedDate);
   const weekStartKey = dateKey(weekStart);
 
   useEffect(() => {

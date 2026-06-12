@@ -63,10 +63,20 @@ Deno.serve(async (req: Request) => {
 
   const isFatSecret = body.source === 'fatsecret';
 
-  const adminClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
+  if (isFatSecret && !body.fatsecret_id) {
+    return new Response('fatsecret_id is required when source is fatsecret', { status: 400, headers: corsHeaders });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return new Response(JSON.stringify({ error: 'server_configuration_error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
   // Nutrition fields shared between public_foods and personal_foods
   const baseNutrition = {

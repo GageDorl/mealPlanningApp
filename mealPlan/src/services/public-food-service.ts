@@ -58,11 +58,13 @@ export async function sharePublicFood(payload: PublicFoodPayload): Promise<void>
 // Search approved community foods by name/brand (case-insensitive, max 30 results).
 export async function searchPublicFoods(query: string): Promise<PublicFood[]> {
   if (!query.trim()) return [];
+  // Strip PostgREST filter delimiters that would break the .or() syntax
+  const safeQuery = query.trim().replace(/[(),]/g, '');
   const { data, error } = await supabase
     .from('public_foods')
     .select('id, food_name, brand_name, serving_size_amount, serving_size_unit, calories, protein, carbs, fat, fatsecret_id, barcode, approved, trusted, flagged, submitted_by, created_at')
     .eq('approved', true)
-    .or(`food_name.ilike.%${query}%,brand_name.ilike.%${query}%`)
+    .or(`food_name.ilike.%${safeQuery}%,brand_name.ilike.%${safeQuery}%`)
     .limit(30);
   if (error) throw error;
   return (data ?? []) as PublicFood[];

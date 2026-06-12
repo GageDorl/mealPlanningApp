@@ -16,8 +16,10 @@ Deno.serve(async (req) => {
 
   const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
   const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-  if (!clientId || !clientSecret) {
+  if (!clientId || !clientSecret || !supabaseUrl || !supabaseServiceKey) {
     return Response.redirect(`${APP_SCHEME}?error=server_configuration_error`)
   }
 
@@ -49,10 +51,7 @@ Deno.serve(async (req) => {
 
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
 
-    const adminSupabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
+    const adminSupabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const upsertData: Record<string, unknown> = {
       user_id: payload.userId,
