@@ -40,13 +40,18 @@ export async function restoreSession(): Promise<boolean> {
       return true;
     }
 
-    // Web: after OAuth redirect the CONNECTED_KEY isn't stored yet — check the API
+    // Web: after the first OAuth connection CONNECTED_KEY isn't cached yet — check the
+    // API. Guard with a session check so we don't cold-start the edge function on
+    // every page load for users who have never connected.
     if (Platform.OS === 'web') {
-      const result = await callFunction('google-calendar', { action: 'isConnected' });
-      if (result?.connected) {
-        await AsyncStorage.setItem(CONNECTED_KEY, 'true');
-        _connected = true;
-        return true;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const result = await callFunction('google-calendar', { action: 'isConnected' });
+        if (result?.connected) {
+          await AsyncStorage.setItem(CONNECTED_KEY, 'true');
+          _connected = true;
+          return true;
+        }
       }
     }
 

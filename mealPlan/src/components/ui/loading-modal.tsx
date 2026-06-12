@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { Colors, BorderRadius, Spacing, FontSizes } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -10,10 +11,16 @@ interface Props {
 
 export function LoadingModal({ visible, message, onDismiss }: Props) {
   const theme = useTheme();
+  const [userDismissed, setUserDismissed] = useState(false);
+
+  // Reset local dismissed state whenever the modal is re-shown
+  useEffect(() => { if (visible) setUserDismissed(false); }, [visible]);
+
+  const handleDismiss = onDismiss ?? (() => setUserDismissed(true));
 
   return (
-    <Modal transparent animationType="fade" visible={visible} statusBarTranslucent>
-      <Pressable style={styles.overlay} onPress={onDismiss}>
+    <Modal transparent animationType="fade" visible={visible && !userDismissed} statusBarTranslucent>
+      <Pressable style={styles.overlay} onPress={handleDismiss}>
         <Pressable onPress={(e) => e.stopPropagation()}>
           <View style={[styles.card, { backgroundColor: theme.backgroundElement, shadowColor: theme.text }]}>
             <ActivityIndicator size="large" color={Colors.accent} />

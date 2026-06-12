@@ -8,18 +8,22 @@ export function useUserProfile() {
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
-    const sessionResult = await supabase.auth.getSession();
-    const userId = sessionResult.data.session?.user.id;
+    try {
+      const sessionResult = await supabase.auth.getSession();
+      const userId = sessionResult.data.session?.user.id;
 
-    if (!userId) {
+      if (!userId) {
+        setProfile(null);
+        return;
+      }
+
+      const profileData = await getProfile(userId);
+      setProfile(profileData);
+    } catch {
       setProfile(null);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const profileData = await getProfile(userId);
-    setProfile(profileData);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
