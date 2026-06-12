@@ -18,16 +18,17 @@ export async function waitForNetwork(): Promise<boolean> {
 
   while (Date.now() < deadline) {
     attempt++;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
       const res = await fetch(probeUrl, { method: 'HEAD', signal: controller.signal });
-      clearTimeout(timer);
       console.log(`[network-probe] attempt ${attempt}: reachable (HTTP ${res.status})`);
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(`[network-probe] attempt ${attempt}: unreachable (${msg})`);
+    } finally {
+      clearTimeout(timer);
     }
 
     const remainingMs = deadline - Date.now();

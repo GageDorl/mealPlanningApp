@@ -33,9 +33,17 @@ const FETCH_TIMEOUT_MS = 15_000;
 function fetchWithTimeout(url: RequestInfo | URL, options?: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
-    clearTimeout(timer),
-  );
+
+  // Forward any upstream signal so caller aborts still propagate
+  const upstream = options?.signal;
+  const onUpstreamAbort = () => controller.abort(upstream?.reason);
+  upstream?.addEventListener('abort', onUpstreamAbort, { once: true });
+  if (upstream?.aborted) controller.abort(upstream.reason);
+
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => {
+    clearTimeout(timer);
+    upstream?.removeEventListener('abort', onUpstreamAbort);
+  });
 }
 
 export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {

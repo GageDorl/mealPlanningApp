@@ -4,11 +4,12 @@
  * always resolve instead of hanging indefinitely.
  */
 export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
       () => reject(new Error(`[timeout] ${label} did not resolve within ${ms}ms`)),
       ms,
-    ),
-  );
-  return Promise.race([promise, timeout]);
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }

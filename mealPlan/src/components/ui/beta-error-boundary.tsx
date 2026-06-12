@@ -33,7 +33,7 @@ export class BetaErrorBoundary extends Component<Props, State> {
           <Text style={styles.badge}>BETA — UNHANDLED ERROR</Text>
           <Text style={styles.name}>{error.name}</Text>
           <Text style={styles.message}>{error.message}</Text>
-          {error.stack ? (
+          {__DEV__ && error.stack ? (
             <ScrollView style={styles.stackScroll}>
               <Text style={styles.stack}>{error.stack}</Text>
             </ScrollView>
