@@ -16,33 +16,49 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   // Immediately unblocks the app; the background refresh may still be in flight
   const handleDismiss = useCallback(() => {
+    console.log('[session] user dismissed overlay — refresh may still be in flight');
     setOverlayVisible(false);
     setSessionReady(true);
   }, []);
 
   const doRefresh = useCallback(async () => {
-    if (refreshing.current) return;
+    if (refreshing.current) {
+      console.log('[session] refresh already in progress, skipping');
+      return;
+    }
     refreshing.current = true;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const nowSecs = Date.now() / 1000;
-      // Only refresh an *existing* expiring session — don't block the UI when
-      // there's no session yet (e.g. during the OAuth sign-in callback).
+      const nowSecs = Math.floor(Date.now() / 1000);
+      const expiresAt = session?.expires_at;
       const needsRefresh =
         !!session?.access_token &&
-        (session.expires_at === undefined || session.expires_at < nowSecs + 30);
+        (expiresAt === undefined || expiresAt < nowSecs + 30);
+
+      console.log(
+        `[session] foreground check | hasSession: ${!!session?.access_token}` +
+        ` | expiresAt: ${expiresAt ?? 'none'} | now: ${nowSecs}` +
+        ` | secsUntilExpiry: ${expiresAt ? expiresAt - nowSecs : 'n/a'}` +
+        ` | needsRefresh: ${needsRefresh}`,
+      );
 
       if (!needsRefresh) return;
 
       setSessionReady(false);
       setOverlayVisible(true);
 
-      // 8-second timeout so a hanging network call can't block the app forever
-      await Promise.race([
-        supabase.auth.refreshSession(),
-        new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+      const t0 = Date.now();
+      console.log('[session] starting token refresh...');
+
+      const outcome = await Promise.race([
+        supabase.auth.refreshSession()
+          .then(({ error }) => (error ? `error: ${error.message}` : 'ok'))
+          .catch((e: unknown) => `threw: ${e instanceof Error ? e.message : String(e)}`),
+        new Promise<string>((resolve) => setTimeout(() => resolve('timeout'), 8000)),
       ]);
+
+      console.log(`[session] refresh outcome: ${outcome} (${Date.now() - t0}ms)`);
     } finally {
       refreshing.current = false;
       setSessionReady(true);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as mealPlanService from '@/services/meal-plan-service';
+import { withTimeout } from '@/utils/with-timeout';
 import type { WeekPlan, MealSlotWithRecipe } from '@/services/meal-plan-service';
 import { useSessionReload } from '@/hooks/use-session-reload';
 
@@ -9,14 +10,37 @@ export function useMealPlan(weekStart: Date) {
   const [error, setError] = useState<string | null>(null);
 
   const loadWeek = useCallback(async () => {
+    const weekLabel = weekStart.toISOString().slice(0, 10);
+    console.log('[meal-plan] loadWeek started:', weekLabel);
     setLoading(true);
     setError(null);
+
+    const attempt = async () =>
+      withTimeout(mealPlanService.getWeek(weekStart), 10_000, 'getWeek');
+
     try {
-      const plan = await mealPlanService.getWeek(weekStart);
+      let plan: WeekPlan;
+      try {
+        plan = await attempt();
+      } catch (firstErr) {
+        const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
+        if (msg.includes('[timeout]') || msg.includes('aborted') || msg.includes('AbortError')) {
+          // Network likely re-establishing after background — wait then retry once
+          console.log('[meal-plan] timeout on first attempt, retrying in 2s...');
+          await new Promise((r) => setTimeout(r, 2000));
+          plan = await attempt();
+        } else {
+          throw firstErr;
+        }
+      }
+      console.log('[meal-plan] getWeek done, slots:', plan?.slots?.length ?? 0);
       setWeekPlan(plan);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load meal plan');
+      const msg = e instanceof Error ? e.message : String(e);
+      console.log('[meal-plan] loadWeek error (final):', msg);
+      setError(msg.includes('[timeout]') ? 'Connection timed out — pull to refresh' : msg);
     } finally {
+      console.log('[meal-plan] loadWeek done, loading → false');
       setLoading(false);
     }
   }, [weekStart.toISOString()]);

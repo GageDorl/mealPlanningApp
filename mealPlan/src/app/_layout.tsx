@@ -25,6 +25,7 @@ import type { RootState } from '@/store';
 import { LoadingProvider } from '@/contexts/loading-context';
 import { SessionProvider } from '@/contexts/session-context';
 import { RefreshProvider } from '@/contexts/refresh-context';
+import { BetaErrorBoundary } from '@/components/ui/beta-error-boundary';
 
 function LayoutContent() {
   const colorScheme = useColorScheme();
@@ -74,20 +75,39 @@ function LayoutContent() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    // Catch unhandled promise rejections so they're always visible in beta
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handler = (e: PromiseRejectionEvent) => {
+        console.error('[unhandled rejection]', e.reason);
+      };
+      window.addEventListener('unhandledrejection', handler);
+      return () => window.removeEventListener('unhandledrejection', handler);
+    } else {
+      const prev = ErrorUtils.getGlobalHandler();
+      ErrorUtils.setGlobalHandler((error, isFatal) => {
+        console.error(`[global error] isFatal=${isFatal}`, error);
+        prev?.(error, isFatal);
+      });
+    }
+  }, []);
+
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
-        <Provider store={store}>
-          <PowerSyncProvider>
-            <SessionProvider>
-              <RefreshProvider>
-                <LayoutContent />
-              </RefreshProvider>
-            </SessionProvider>
-          </PowerSyncProvider>
-        </Provider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <BetaErrorBoundary>
+      <GestureHandlerRootView style={styles.root}>
+        <SafeAreaProvider>
+          <Provider store={store}>
+            <PowerSyncProvider>
+              <SessionProvider>
+                <RefreshProvider>
+                  <LayoutContent />
+                </RefreshProvider>
+              </SessionProvider>
+            </PowerSyncProvider>
+          </Provider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </BetaErrorBoundary>
   );
 }
 

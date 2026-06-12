@@ -83,7 +83,16 @@ export default function WeeklyPlannerScreen() {
 
   const { weekPlan, loading, createSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, deleteSlot, refresh } = useMealPlan(currentWeekStart);
 
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+  // Only refresh if data is more than 2 minutes old — prevents hammering the
+  // network on every tab switch, modal dismiss, or app-foreground event.
+  const lastRefreshAt = useRef(0);
+  useFocusEffect(useCallback(() => {
+    const now = Date.now();
+    if (now - lastRefreshAt.current > 2 * 60 * 1000) {
+      lastRefreshAt.current = now;
+      refresh();
+    }
+  }, [refresh]));
   const { weekLogs, userId: currentUserId, createFoodLog, deleteFoodLog, deleteFoodLogItem, updateFoodLogItem, updateFoodLog, addItemsToFoodLog } = useFoodLog(currentWeekStart);
   const {
     connected, events, googleEventsRefreshing, connectError, loadError,

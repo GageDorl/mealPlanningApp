@@ -25,7 +25,21 @@ function readAuthParam(url: string, key: string) {
   return new URLSearchParams(hash).get(key);
 }
 
+// All Supabase data/auth requests get a hard AbortController timeout so a
+// suspended network connection (e.g. app returning from background) fails fast
+// instead of hanging indefinitely.
+const FETCH_TIMEOUT_MS = 15_000;
+
+function fetchWithTimeout(url: RequestInfo | URL, options?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer),
+  );
+}
+
 export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+  global: { fetch: fetchWithTimeout },
   auth: {
     persistSession: true,
     ...(isNative
