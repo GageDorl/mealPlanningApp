@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
       const calendars = (res?.items ?? []).map((c: any) => ({
         id: c.id,
         title: c.summary ?? c.id,
-        color: c.backgroundColor ?? null,
+        color: c.backgroundColor ?? undefined,
       }))
       return json(calendars)
     }
@@ -165,9 +165,17 @@ Deno.serve(async (req) => {
         start: string
         end: string
       }
-      const ids = Array.isArray(calendarIds) && calendarIds.length > 0
-        ? calendarIds
-        : ['primary']
+      if (!start || !end) return json({ error: 'start and end are required' }, 400)
+
+      let ids: string[]
+      if (Array.isArray(calendarIds) && calendarIds.length > 0) {
+        ids = calendarIds
+      } else {
+        // Empty selection means "all calendars" — match client-side UX semantics
+        const calList = await gcal(accessToken, '/users/me/calendarList')
+        ids = (calList?.items ?? []).map((c: any) => c.id as string)
+        if (ids.length === 0) ids = ['primary']
+      }
 
       const fetchCalendar = async (id: string) => {
         const params = new URLSearchParams({
@@ -243,7 +251,7 @@ Deno.serve(async (req) => {
       }
       await gcal(
         accessToken,
-        `/calendars/${encodeURIComponent(calendarId as string)}/events/${eventId}`,
+        `/calendars/${encodeURIComponent(calendarId as string)}/events/${encodeURIComponent(eventId as string)}`,
         { method: 'DELETE' },
       )
       return json({ success: true })

@@ -4,9 +4,12 @@ import * as calendarService from '@/services/calendar';
 
 function toWeekStart(date: Date): string {
   const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - ((day + 6) % 7)); // rewind to Monday
-  return d.toISOString().slice(0, 10);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // rewind to Monday
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function useCalendar() {

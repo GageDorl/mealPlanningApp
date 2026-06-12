@@ -115,5 +115,5 @@ Delete `calendar.web.ts` and rewrite `calendar.ts` as the single implementation 
 - Token refresh: `https://oauth2.googleapis.com/token`
 - Revoke: `https://oauth2.googleapis.com/revoke?token={token}`
 - Required OAuth scope: `https://www.googleapis.com/auth/calendar` (read + write)
-- Cache keys: `prepd_gcal_{weekStart}` (events), `prepd_gcal_selected` (selected IDs), `prepd_gcal_export_enabled`
+- Cache keys: `prepd_gcal_{weekStart}` (events), `@prepd/calendar_selected_ids` (selected IDs), `@prepd/calendar_export_enabled` (export toggle), `@prepd/calendar_connected` (connection flag), `@prepd/prepd_calendar_id` (Prepd export calendar ID)
 - `extendedProperties.private.prepd_slot_id` on created events — used to identify Prepd-owned events for read-only enforcement

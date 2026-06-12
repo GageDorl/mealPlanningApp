@@ -22,29 +22,35 @@ export default function AuthCallbackScreen() {
           // Instead, wait for the SIGNED_IN event that fires once the auto-
           // exchange completes (or resolve immediately if it already has).
           await new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(
-              () => reject(new Error('Sign-in timed out. Please try again.')),
+            let settled = false;
+            let timeoutId: ReturnType<typeof setTimeout>;
+            let sub: { unsubscribe: () => void } | null = null;
+
+            const finish = (fn: () => void) => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timeoutId);
+              sub?.unsubscribe();
+              fn();
+            };
+
+            timeoutId = setTimeout(
+              () => finish(() => reject(new Error('Sign-in timed out. Please try again.'))),
               20000,
             );
 
-            // Check if session is already established (exchange may have finished
-            // before this effect ran).
+            // Resolve immediately if session is already established (exchange may
+            // have completed before this effect ran).
             supabase.auth.getSession().then(({ data }) => {
-              if (data.session) {
-                clearTimeout(timeout);
-                resolve();
-              }
+              if (data.session) finish(resolve);
             });
 
             const { data: { subscription } } = supabase.auth.onAuthStateChange(
               (_event, session) => {
-                if (session) {
-                  clearTimeout(timeout);
-                  subscription.unsubscribe();
-                  resolve();
-                }
+                if (session) finish(resolve);
               },
             );
+            sub = subscription;
           });
         } else {
           await createSessionFromUrl(window.location.href);

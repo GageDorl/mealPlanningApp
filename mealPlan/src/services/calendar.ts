@@ -52,6 +52,13 @@ export async function restoreSession(): Promise<boolean> {
     const stored = await AsyncStorage.getItem(CONNECTED_KEY);
 
     if (stored === 'true') {
+      // Verify there's an active session — stale flag from a previous sign-out
+      // would otherwise mark a new (or no) session as connected.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        await AsyncStorage.removeItem(CONNECTED_KEY);
+        return false;
+      }
       _connected = true;
       return true;
     }
