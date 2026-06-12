@@ -2,8 +2,10 @@ import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { LoadingModal } from '@/components/ui/loading-modal';
-import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { layout } from '@/styles/layout';
+import { typography } from '@/styles/typography';
 import { useMacros } from '@/hooks/use-macros';
 import { ProgressRing } from '@/components/macros/progress-ring';
 import { MacroProgressBar } from '@/components/macros/macro-progress-bar';
@@ -44,16 +46,16 @@ export default function MacrosScreen() {
   const today = isToday(selectedDate);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[layout.screenContainer, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[layout.rowSpaceBetween, { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md }]}>
         <Pressable onPress={goToPrevDay} style={styles.navButton}>
           <Text style={[styles.navArrow, { color: Colors.accent }]}>‹</Text>
         </Pressable>
 
         <View style={styles.dateCenter}>
           <Pressable onPress={() => setPickerVisible(true)}>
-            <Text style={[styles.dateLabel, { color: theme.text }]}>{formatDate(selectedDate)}</Text>
+            <Text style={[typography.headingLg, { color: theme.text }]}>{formatDate(selectedDate)}</Text>
           </Pressable>
           {!today && (
             <Pressable onPress={goToToday}>
@@ -71,11 +73,11 @@ export default function MacrosScreen() {
 
       <LoadingModal visible={loading} message="Loading macros…" />
       {!loading && error ? (
-        <View style={styles.center}>
+        <View style={layout.centered}>
           <Text style={[styles.statusText, { color: Colors.light.error }]}>{error}</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={layout.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Calories ring */}
           {caloriesMacro && (
             <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
@@ -134,19 +136,6 @@ export default function MacrosScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    marginHorizontal: 'auto',
-  } as ViewStyle,
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  } as ViewStyle,
   navButton: {
     padding: Spacing.sm,
   } as ViewStyle,
@@ -157,19 +146,11 @@ const styles = StyleSheet.create({
   dateCenter: {
     alignItems: 'center',
   } as ViewStyle,
-  dateLabel: {
-    fontSize: FontSizes.lg,
-    fontWeight: '700',
-  } as TextStyle,
   todayBadge: {
     fontSize: FontSizes.xs,
     fontWeight: '600',
     marginTop: 2,
   } as TextStyle,
-  scrollContent: {
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  } as ViewStyle,
   card: {
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
@@ -184,11 +165,6 @@ const styles = StyleSheet.create({
   barsContainer: {
     width: '100%',
     gap: Spacing.md,
-  } as ViewStyle,
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   } as ViewStyle,
   statusText: {
     fontSize: FontSizes.md,

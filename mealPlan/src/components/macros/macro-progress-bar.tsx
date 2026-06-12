@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { surfaces } from '@/styles/surfaces';
 
 interface MacroProgressBarProps {
   label: string;
@@ -25,7 +26,7 @@ export function MacroProgressBar({ label, current, goal, unit, color = Colors.ac
         </Text>
       </View>
       <View style={[styles.track, { backgroundColor: theme.backgroundSelected }]}>
-        <View style={[styles.fill, { width: `${progress}%`, backgroundColor: barColor }]} />
+        <View style={[surfaces.progressFill, { width: `${progress}%`, backgroundColor: barColor }]} />
       </View>
     </View>
   );
@@ -53,9 +54,5 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: BorderRadius.full,
     overflow: 'hidden',
-  } as ViewStyle,
-  fill: {
-    height: '100%',
-    borderRadius: BorderRadius.full,
   } as ViewStyle,
 });

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { surfaces } from '@/styles/surfaces';
 import type { UserProfileData } from '@/services/user-service';
 
 interface NudgeBannerProps {
@@ -48,7 +49,7 @@ export function NudgeBanner({ profile, calendarConnected, onPress }: NudgeBanner
   return (
     <View style={[styles.banner, { backgroundColor: theme.backgroundElement, borderColor: Colors.accent }]}>
       <View style={styles.content}>
-        <View style={[styles.dot, { backgroundColor: Colors.accent }]} />
+        <View style={[surfaces.dot, { flexShrink: 0, backgroundColor: Colors.accent }]} />
         <Text style={[styles.message, { color: theme.text }]} numberOfLines={2}>
           {nudge.message}
         </Text>
@@ -81,12 +82,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-  } as ViewStyle,
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    flexShrink: 0,
   } as ViewStyle,
   message: {
     fontSize: FontSizes.sm,

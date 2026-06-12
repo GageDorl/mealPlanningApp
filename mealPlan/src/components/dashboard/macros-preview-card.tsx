@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Pressable, View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
-import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, FontSizes, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { layout } from '@/styles/layout';
+import { surfaces } from '@/styles/surfaces';
+import { typography } from '@/styles/typography';
 import { ProgressRing } from '@/components/macros/progress-ring';
 import { MacroProgressBar } from '@/components/macros/macro-progress-bar';
 import type { DailyMacroProgress } from '@/services/macro-service';
@@ -31,9 +34,9 @@ export function MacrosPreviewCard({ dailyProgress, onPress }: MacrosPreviewCardP
   const handleExpandToggle = () => setExpanded((prev) => !prev);
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-      <Pressable style={styles.header} onPress={onPress}>
-        <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Macros</Text>
+    <View style={[surfaces.card, styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      <Pressable style={layout.rowSpaceBetween} onPress={onPress}>
+        <Text style={[typography.label, { color: theme.textSecondary }]}>Macros</Text>
         <Pressable onPress={handleExpandToggle} hitSlop={12}>
           <Text style={[styles.chevron, { color: theme.textSecondary }]}>
             {expanded ? '▲' : '▼'}
@@ -93,22 +96,8 @@ export function MacrosPreviewCard({ dailyProgress, onPress }: MacrosPreviewCardP
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: BorderRadius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: Spacing.md,
     gap: Spacing.sm,
   } as ViewStyle,
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  } as ViewStyle,
-  cardTitle: {
-    fontSize: FontSizes.xs,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  } as TextStyle,
   chevron: {
     fontSize: 10,
     fontWeight: '600',

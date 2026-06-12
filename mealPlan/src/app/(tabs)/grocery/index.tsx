@@ -1,8 +1,11 @@
 
 import { View, Text, ScrollView, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { layout } from '@/styles/layout';
+import { surfaces } from '@/styles/surfaces';
+import { typography } from '@/styles/typography';
 import { useGrocery } from '@/hooks/use-grocery';
 import { GroceryCategoryGroup } from '@/components/grocery/grocery-category-group';
 import { Button } from '@/components/ui/button';
@@ -17,25 +20,25 @@ export default function GroceryScreen() {
   const progressPercent = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[layout.screenContainer, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Text style={[styles.title, { color: theme.text }]}>Grocery List</Text>
+      <View style={[layout.rowSpaceBetween, { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }]}>
+        <Text style={[typography.headingXl, { color: theme.text }]}>Grocery List</Text>
         <Pressable onPress={() => router.push('/grocery/pantry-staples')} style={styles.staplesButton}>
           <Text style={[styles.staplesLabel, { color: Colors.accent }]}>Pantry</Text>
         </Pressable>
       </View>
 
       {loading ? (
-        <View style={styles.center}>
+        <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.md }]}>
           <Text style={[styles.statusText, { color: theme.textSecondary }]}>Loading…</Text>
         </View>
       ) : error ? (
-        <View style={styles.center}>
+        <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.md }]}>
           <Text style={[styles.statusText, { color: Colors.light.error }]}>{error}</Text>
         </View>
       ) : !list ? (
-        <View style={styles.center}>
+        <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.md }]}>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No grocery list yet</Text>
           <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
             Generate a list from your week's meal plan
@@ -51,7 +54,7 @@ export default function GroceryScreen() {
         <>
           {/* Progress bar */}
           <View style={[styles.progressCard, { backgroundColor: theme.backgroundElement }]}>
-            <View style={styles.progressHeader}>
+            <View style={layout.rowSpaceBetween}>
               <Text style={[styles.progressLabel, { color: theme.text }]}>
                 {checkedCount} of {totalCount} items
               </Text>
@@ -59,14 +62,14 @@ export default function GroceryScreen() {
             </View>
             <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
               <View
-                style={[styles.progressFill, { width: `${progressPercent}%` as `${number}%`, backgroundColor: Colors.accent }]}
+                style={[surfaces.progressFill, { width: `${progressPercent}%` as `${number}%`, backgroundColor: Colors.accent }]}
               />
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={layout.scrollContent} showsVerticalScrollIndicator={false}>
             {displayGroups.length === 0 ? (
-              <View style={styles.center}>
+              <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.md }]}>
                 <Text style={[styles.statusText, { color: theme.textSecondary }]}>
                   No items — all may be pantry staples.
                 </Text>
@@ -98,24 +101,6 @@ export default function GroceryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    marginHorizontal: 'auto',
-  } as ViewStyle,
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  } as ViewStyle,
-  title: {
-    fontSize: FontSizes.xl,
-    fontWeight: '700',
-  } as TextStyle,
   staplesButton: {
     padding: Spacing.sm,
   } as ViewStyle,
@@ -130,11 +115,6 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     gap: Spacing.sm,
   } as ViewStyle,
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  } as ViewStyle,
   progressLabel: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
@@ -147,21 +127,6 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: BorderRadius.full,
     overflow: 'hidden',
-  } as ViewStyle,
-  progressFill: {
-    height: '100%',
-    borderRadius: BorderRadius.full,
-  } as ViewStyle,
-  scrollContent: {
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  } as ViewStyle,
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
-    gap: Spacing.md,
   } as ViewStyle,
   emptyTitle: {
     fontSize: FontSizes.lg,

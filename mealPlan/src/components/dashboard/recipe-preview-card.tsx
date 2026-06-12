@@ -1,6 +1,9 @@
 import { Pressable, View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { layout } from '@/styles/layout';
+import { surfaces } from '@/styles/surfaces';
+import { typography } from '@/styles/typography';
 import type { Recipe } from '@/models/recipe';
 
 interface RecipePreviewCardProps {
@@ -17,9 +20,9 @@ export function RecipePreviewCard({ recipes, onRecipePress, onViewAll }: RecipeP
   const overflow = recipes.length - MAX_VISIBLE;
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-      <View style={styles.titleRow}>
-        <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Most Used</Text>
+    <View style={[surfaces.card, styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      <View style={layout.rowSpaceBetween}>
+        <Text style={[typography.label, { color: theme.textSecondary }]}>Most Used</Text>
       </View>
 
       {recipes.length === 0 ? (
@@ -39,7 +42,7 @@ export function RecipePreviewCard({ recipes, onRecipePress, onViewAll }: RecipeP
               style={[styles.recipeRow, { borderBottomColor: theme.border }]}
               onPress={() => onRecipePress(recipe.id)}
             >
-              <View style={[styles.recipeDot, { backgroundColor: Colors.accent }]} />
+              <View style={[surfaces.dot, { flexShrink: 0, backgroundColor: Colors.accent }]} />
               <Text style={[styles.recipeTitle, { color: theme.text }]} numberOfLines={1}>
                 {recipe.title}
               </Text>
@@ -67,23 +70,9 @@ export function RecipePreviewCard({ recipes, onRecipePress, onViewAll }: RecipeP
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: BorderRadius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: Spacing.md,
     gap: Spacing.sm,
     flex: 1,
   } as ViewStyle,
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  } as ViewStyle,
-  cardTitle: {
-    fontSize: FontSizes.xs,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  } as TextStyle,
   emptyState: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
@@ -114,12 +103,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
-  } as ViewStyle,
-  recipeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    flexShrink: 0,
   } as ViewStyle,
   recipeTitle: {
     flex: 1,

@@ -11,8 +11,10 @@ import {
   type TextStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, Spacing, FontSizes, BorderRadius, MaxContentWidth } from '@/constants/theme';
+import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { layout } from '@/styles/layout';
+import { typography } from '@/styles/typography';
 import { RecipeCard } from '@/components/recipes/recipe-card';
 import { searchRecipes, type SpoonacularSearchResult } from '@/services/spoonacular';
 
@@ -103,10 +105,10 @@ export default function RecipeSearchScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[layout.screenContainer, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Text style={[styles.title, { color: theme.text }]}>Find Recipes</Text>
+        <Text style={[typography.headingXl, { color: theme.text }]}>Find Recipes</Text>
         <Pressable onPress={() => router.push('/recipes/saved')} style={styles.savedLink}>
           <Text style={[styles.savedLinkText, { color: Colors.accent }]}>My Recipes</Text>
         </Pressable>
@@ -176,7 +178,7 @@ export default function RecipeSearchScreen() {
 
       {/* Results */}
       {error ? (
-        <View style={styles.center}>
+        <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.sm }]}>
           <Text style={[styles.statusText, { color: theme.textSecondary }]}>
             {error.includes('offline') || error.includes('network') || error.includes('fetch')
               ? 'You appear to be offline. Showing cached results if available.'
@@ -184,21 +186,21 @@ export default function RecipeSearchScreen() {
           </Text>
         </View>
       ) : !searched && !loading ? (
-        <View style={styles.center}>
+        <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.sm }]}>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>Search for recipes</Text>
           <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
             Try "chicken stir-fry" or "pasta"
           </Text>
         </View>
       ) : searched && results.length === 0 && !loading ? (
-        <View style={styles.center}>
+        <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.sm }]}>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No results found</Text>
           <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
             Try different keywords or filters
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={layout.scrollContent} showsVerticalScrollIndicator={false}>
           {results.map((recipe) => (
             <RecipeCard
               key={recipe.id}
@@ -245,12 +247,6 @@ function Chip({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    maxWidth: MaxContentWidth,
-    width: '100%',
-    marginHorizontal: 'auto',
-  } as ViewStyle,
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -260,10 +256,6 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
   } as ViewStyle,
-  title: {
-    fontSize: FontSizes.xl,
-    fontWeight: '700',
-  } as TextStyle,
   savedLink: {
     padding: Spacing.sm,
   } as ViewStyle,
@@ -313,17 +305,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textTransform: 'capitalize',
   } as TextStyle,
-  grid: {
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  } as ViewStyle,
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
-    gap: Spacing.sm,
-  } as ViewStyle,
   emptyTitle: {
     fontSize: FontSizes.lg,
     fontWeight: '700',

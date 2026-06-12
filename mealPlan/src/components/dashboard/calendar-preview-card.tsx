@@ -1,6 +1,8 @@
 import { Pressable, View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { surfaces } from '@/styles/surfaces';
+import { typography } from '@/styles/typography';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -24,15 +26,15 @@ export function CalendarPreviewCard({ onPress }: CalendarPreviewCardProps) {
 
   return (
     <Pressable
-      style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+      style={[surfaces.card, styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
       onPress={onPress}
     >
-      <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Calendar</Text>
+      <Text style={[typography.label, { color: theme.textSecondary }]}>Calendar</Text>
 
       <View style={styles.dateBlock}>
         <Text style={[styles.dayLabel, { color: Colors.accent }]}>{dayLabel}</Text>
         <Text style={[styles.dayNum, { color: theme.text }]}>{dayNum}</Text>
-        <Text style={[styles.monthYear, { color: theme.textSecondary }]}>
+        <Text style={[typography.caption, { color: theme.textSecondary }]}>
           {monthLabel} {today.getFullYear()}
         </Text>
       </View>
@@ -50,18 +52,9 @@ export function CalendarPreviewCard({ onPress }: CalendarPreviewCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: BorderRadius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: Spacing.md,
     gap: Spacing.sm,
     overflow: 'hidden',
   } as ViewStyle,
-  cardTitle: {
-    fontSize: FontSizes.xs,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  } as TextStyle,
   dateBlock: {
     alignItems: 'flex-start',
     gap: 2,
@@ -74,9 +67,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.hero,
     fontWeight: '700',
     lineHeight: 38,
-  } as TextStyle,
-  monthYear: {
-    fontSize: FontSizes.xs,
   } as TextStyle,
   upcomingRow: {
     flexDirection: 'row',

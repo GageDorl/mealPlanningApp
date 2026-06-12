@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { Colors, BorderRadius, Spacing, FontSizes } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { surfaces } from '@/styles/surfaces';
 
 interface Props {
   visible: boolean;
@@ -20,7 +21,7 @@ export function LoadingModal({ visible, message, onDismiss }: Props) {
 
   return (
     <Modal transparent animationType="fade" visible={visible && !userDismissed} statusBarTranslucent>
-      <Pressable style={styles.overlay} onPress={handleDismiss}>
+      <Pressable style={surfaces.modalOverlay} onPress={handleDismiss}>
         <Pressable onPress={(e) => e.stopPropagation()}>
           <View style={[styles.card, { backgroundColor: theme.backgroundElement, shadowColor: theme.text }]}>
             <ActivityIndicator size="large" color={Colors.accent} />
@@ -35,12 +36,6 @@ export function LoadingModal({ visible, message, onDismiss }: Props) {
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  } as ViewStyle,
   card: {
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.xxl,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { surfaces } from '@/styles/surfaces';
 
 const DAY_HEADERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_NAMES = [
@@ -83,7 +84,7 @@ export function DatePickerModal({ visible, currentDate, onSelect, onClose, allow
 
   return (
     <Modal transparent animationType="fade" visible={visible} statusBarTranslucent onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={surfaces.sheetOverlay} onPress={onClose}>
         <Pressable style={[styles.sheet, { backgroundColor: theme.backgroundElement }]} onPress={() => {}}>
           {/* Header */}
           <View style={styles.sheetHeader}>
@@ -160,11 +161,6 @@ export function DatePickerModal({ visible, currentDate, onSelect, onClose, allow
 const CELL_SIZE = 40;
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  } as ViewStyle,
   sheet: {
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
