@@ -5,6 +5,7 @@ export interface CalendarEvent {
   endDate: Date;
   calendarId: string;
   isAllDay: boolean;
+  isPrepd?: boolean;
 }
 
 export interface MealEventInput {
@@ -17,5 +18,10 @@ export interface MealEventInput {
 export interface CalendarInfo {
   id: string;
   title: string;
-  source: string;
+  color?: string;
+}
+
+export interface CachedEventData {
+  events: CalendarEvent[];
+  fetchedAt: number;
 }

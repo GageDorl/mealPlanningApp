@@ -48,12 +48,10 @@ export function CalendarPickerModal({ visible, calendars, selectedIds, onDone }:
                   <View style={[styles.checkbox, { borderColor: selected ? Colors.accent : theme.border, backgroundColor: selected ? Colors.accent : 'transparent' }]}>
                     {selected && <Text style={styles.checkmark}>✓</Text>}
                   </View>
-                  <View style={styles.rowText}>
-                    <Text style={[styles.calTitle, { color: theme.text }]}>{cal.title}</Text>
-                    {cal.source ? (
-                      <Text style={[styles.calSource, { color: theme.textSecondary }]}>{cal.source}</Text>
-                    ) : null}
-                  </View>
+                  {cal.color ? (
+                    <View style={[styles.colorDot, { backgroundColor: cal.color }]} />
+                  ) : null}
+                  <Text style={[styles.calTitle, { color: theme.text, flex: 1 }]}>{cal.title}</Text>
                 </Pressable>
               );
             })}
@@ -126,16 +124,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 16,
   } as TextStyle,
-  rowText: {
-    flex: 1,
+  colorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   } as ViewStyle,
   calTitle: {
     fontSize: FontSizes.md,
     fontWeight: '500',
-  } as TextStyle,
-  calSource: {
-    fontSize: FontSizes.sm,
-    marginTop: 2,
   } as TextStyle,
   doneButton: {
     marginTop: Spacing.lg,

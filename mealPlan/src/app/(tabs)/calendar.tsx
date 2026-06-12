@@ -86,7 +86,7 @@ export default function WeeklyPlannerScreen() {
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
   const { weekLogs, userId: currentUserId, createFoodLog, deleteFoodLog, deleteFoodLogItem, updateFoodLogItem, updateFoodLog, addItemsToFoodLog } = useFoodLog(currentWeekStart);
   const {
-    connected, events, loading: calendarLoading, connectError, loadError,
+    connected, events, googleEventsRefreshing, connectError, loadError,
     availableCalendars, selectedCalendarIds, connectedCalendarTitle,
     connect, selectCalendars, loadEvents, createMealEvent,
   } = useCalendar();
@@ -556,19 +556,19 @@ export default function WeeklyPlannerScreen() {
       <View style={styles.connectRow}>
         {connected ? (
           <View style={styles.connectedBadge}>
-            {calendarLoading ? (
+            {googleEventsRefreshing ? (
               <ActivityIndicator size="small" color={theme.textSecondary} />
             ) : (
               <View style={[styles.connectedDot, { backgroundColor: theme.success }]} />
             )}
-            <Text style={[styles.connectedText, { color: theme.textSecondary }]}>
-              {calendarLoading ? 'Loading events…' : `${connectedCalendarTitle} connected`}
-            </Text>
-            {!calendarLoading && availableCalendars.length > 1 && (
-              <Pressable onPress={() => setCalPickerVisible(true)}>
-                <Text style={[styles.changeCalendarText, { color: Colors.accent }]}>Change</Text>
-              </Pressable>
-            )}
+            <Pressable style={styles.connectedTitleRow} onPress={() => setCalPickerVisible(true)}>
+              <Text style={[styles.connectedText, { color: theme.textSecondary }]}>
+                {googleEventsRefreshing ? 'Refreshing…' : connectedCalendarTitle}
+              </Text>
+              {!googleEventsRefreshing && (
+                <Text style={[styles.changeCalendarText, { color: Colors.accent }]}>▾</Text>
+              )}
+            </Pressable>
           </View>
         ) : (
           <>
@@ -886,6 +886,11 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 4,
   } as ViewStyle,
+  connectedTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  } as ViewStyle,
   connectedText: {
     fontSize: FontSizes.xs,
     fontWeight: '600',
@@ -893,7 +898,6 @@ const styles = StyleSheet.create({
   changeCalendarText: {
     fontSize: FontSizes.xs,
     fontWeight: '600',
-    marginLeft: Spacing.xs,
   } as TextStyle,
   scrollArea: {
     flex: 1,
