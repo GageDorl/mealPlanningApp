@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState, type AppStateStatus, Animated, PanResponder, TouchableOpacity, View, Text, ScrollView, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PowerSyncContext } from '@powersync/react-native';
 import { db } from './powersync-database';
 import { SupabasePowerSyncConnector } from './powersync-connector';
 import { supabase } from './supabase';
 import { cleanupExpiredCache } from './local-cache-service';
+
+// Increment whenever AppSchema tables or columns change.
+// On first launch after a bump, the local DB is wiped and re-synced automatically.
+const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION_KEY = 'powersync:schema_version';
 
 export function PowerSyncProvider({ children }: { children: ReactNode }) {
   const [logs, setLogs] = useState<string[]>([]);
@@ -25,8 +31,18 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
 
     cleanupExpiredCache().catch(() => {});
 
-    log('mount: checking session...');
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    log('mount: checking schema version...');
+    (async () => {
+      const stored = await AsyncStorage.getItem(SCHEMA_VERSION_KEY);
+      if (stored !== String(SCHEMA_VERSION)) {
+        log(`schema: version mismatch (stored=${stored ?? 'none'} current=${SCHEMA_VERSION}), clearing local db...`);
+        await db.disconnectAndClear();
+        await AsyncStorage.setItem(SCHEMA_VERSION_KEY, String(SCHEMA_VERSION));
+        log('schema: local db cleared');
+      }
+
+      log('mount: checking session...');
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         log('mount: session found, connecting...');
         db.connect(connector);
@@ -34,7 +50,7 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
       } else {
         log('mount: no session');
       }
-    });
+    })();
 
     const statusUnsub = db.registerListener({
       statusChanged: (status) => {
@@ -91,7 +107,7 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
   return (
     <PowerSyncContext.Provider value={db}>
       {children}
-      {visible ? (
+      {/* {visible ? (
         <Animated.View style={[styles.banner, { transform: pan.getTranslateTransform() }]} {...panResponder.panHandlers}>
           <View style={styles.header}>
             <Text style={styles.headerText}>Debug Log</Text>
@@ -135,7 +151,7 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
         <TouchableOpacity style={styles.pill} onPress={() => setVisible(true)}>
           <Text style={styles.pillText}>LOG</Text>
         </TouchableOpacity>
-      )}
+      )} */}
     </PowerSyncContext.Provider>
   );
 }
