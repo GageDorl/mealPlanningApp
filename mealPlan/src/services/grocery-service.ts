@@ -3,6 +3,11 @@ import { supabase } from './supabase';
 import { aggregateIngredients, type RawIngredientInput, type AggregatedItem } from '@/utils/grocery-aggregator';
 import { generateGroceryListWithAI } from '@/services/claude-ingredients';
 
+interface PsDb {
+  execute(sql: string, params?: unknown[]): Promise<unknown>;
+  getAll<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
+}
+
 export interface GroceryItemRow {
   id: string;
   grocery_list_id: string;
@@ -66,7 +71,7 @@ function getWeekStart(date: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function groupItemsByCategory(items: GroceryItemRow[]): GroceryDisplayGroup[] {
+export function groupItemsByCategory(items: GroceryItemRow[]): GroceryDisplayGroup[] {
   const categoryMap = new Map<string, GroceryItemRow[]>();
   for (const item of items) {
     const cat = item.category ?? 'other';
@@ -96,7 +101,7 @@ function groupItemsByCategory(items: GroceryItemRow[]): GroceryDisplayGroup[] {
   return groups;
 }
 
-export async function generateList(userId: string, weekStart: Date): Promise<GroceryState> {
+export async function generateList(db: PsDb, userId: string, weekStart: Date): Promise<GroceryState> {
   const weekStartStr = getWeekStart(weekStart);
   const { data: planRows } = await supabase
     .from('meal_plans')
@@ -182,8 +187,6 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
     (s) => ({ name: s.ingredient_name, quantity: s.quantity, unit: s.unit })
   );
 
-  // Claude consolidates duplicates across units, applies pantry, and categorizes in one call.
-  // Falls back to legacy exact-match aggregator if the edge function fails.
   const aiItems = await generateGroceryListWithAI(
     rawInputs.map((r) => ({ name: r.name, quantity: r.quantity, unit: r.unit })),
     pantryItems
@@ -212,52 +215,36 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
   let listId: string;
   if (existingList) {
     listId = existingList.id;
-    await supabase.from('grocery_items').delete().eq('grocery_list_id', listId);
-    await supabase
-      .from('grocery_lists')
-      .update({ generated_at: now, updated_at: now })
-      .eq('id', listId);
+    await db.execute('DELETE FROM grocery_items WHERE grocery_list_id = ?', [listId]);
+    await db.execute('UPDATE grocery_lists SET generated_at = ?, updated_at = ? WHERE id = ?', [now, now, listId]);
   } else {
-    const { data: newList, error: insertError } = await supabase
-      .from('grocery_lists')
-      .insert({
-        id: randomUUID(),
-        user_id: userId,
-        meal_plan_id: planData.id,
-        generated_at: now,
-        created_at: now,
-        updated_at: now,
-      })
-      .select('id')
-      .single();
-    if (insertError || !newList) throw new Error(insertError?.message ?? 'Failed to create grocery list');
-    listId = newList.id;
-  }
-
-  if (finalAggregated.length > 0) {
-    await supabase.from('grocery_items').insert(
-      finalAggregated.map((item) => ({
-        id: randomUUID(),
-        grocery_list_id: listId,
-        ingredient_id: item.ingredient_id,
-        name: item.name,
-        quantity: item.quantity,
-        unit: item.unit,
-        category: item.category,
-        deficit_note: item.deficitNote ?? null,
-        is_checked: false,
-        created_at: now,
-        updated_at: now,
-      }))
+    listId = randomUUID();
+    await db.execute(
+      'INSERT INTO grocery_lists (id, user_id, meal_plan_id, generated_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [listId, userId, planData.id, now, now, now],
     );
   }
 
-  const { data: freshItems } = await supabase
-    .from('grocery_items')
-    .select('*')
-    .eq('grocery_list_id', listId);
+  const insertedItems: GroceryItemRow[] = [];
+  for (const item of finalAggregated) {
+    const itemId = randomUUID();
+    await db.execute(
+      'INSERT INTO grocery_items (id, grocery_list_id, ingredient_id, name, quantity, unit, category, deficit_note, is_checked, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [itemId, listId, item.ingredient_id, item.name, item.quantity, item.unit, item.category, item.deficitNote ?? null, 0, now, now],
+    );
+    insertedItems.push({
+      id: itemId,
+      grocery_list_id: listId,
+      ingredient_id: item.ingredient_id,
+      name: item.name,
+      quantity: item.quantity,
+      unit: item.unit,
+      category: item.category,
+      is_checked: false,
+      deficit_note: item.deficitNote ?? null,
+    });
+  }
 
-  const items = (freshItems ?? []) as GroceryItemRow[];
   const list: GroceryListRow = {
     id: listId,
     user_id: userId,
@@ -267,10 +254,10 @@ export async function generateList(userId: string, weekStart: Date): Promise<Gro
 
   return {
     list,
-    items,
-    displayGroups: groupItemsByCategory(items),
+    items: insertedItems,
+    displayGroups: groupItemsByCategory(insertedItems),
     checkedCount: 0,
-    totalCount: items.length,
+    totalCount: insertedItems.length,
   };
 }
 
@@ -318,54 +305,52 @@ export async function getList(userId: string, weekStart: Date): Promise<GroceryS
   };
 }
 
-export async function toggleItemChecked(itemId: string, checked: boolean): Promise<void> {
-  await supabase
-    .from('grocery_items')
-    .update({ is_checked: checked, updated_at: new Date().toISOString() })
-    .eq('id', itemId);
+export async function toggleItemChecked(db: PsDb, itemId: string, checked: boolean): Promise<void> {
+  await db.execute(
+    'UPDATE grocery_items SET is_checked = ?, updated_at = ? WHERE id = ?',
+    [checked ? 1 : 0, new Date().toISOString(), itemId],
+  );
 }
 
 export async function addPantryStaple(
+  db: PsDb,
   userId: string,
   ingredientName: string,
   quantity: number | null = null,
   unit: string | null = null
 ): Promise<PantryStapleRow> {
-  const { data } = await supabase
-    .from('pantry_staples')
-    .insert({
-      id: randomUUID(),
-      user_id: userId,
-      ingredient_name: ingredientName.toLowerCase().trim(),
-      quantity,
-      unit: unit ? unit.toLowerCase().trim() : null,
-      created_at: new Date().toISOString(),
-    })
-    .select('*')
-    .single();
-  return data as PantryStapleRow;
+  const id = randomUUID();
+  const created_at = new Date().toISOString();
+  const normalizedName = ingredientName.toLowerCase().trim();
+  const normalizedUnit = unit ? unit.toLowerCase().trim() : null;
+
+  await db.execute(
+    'INSERT INTO pantry_staples (id, user_id, ingredient_name, quantity, unit, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    [id, userId, normalizedName, quantity, normalizedUnit, created_at],
+  );
+
+  return { id, user_id: userId, ingredient_name: normalizedName, quantity, unit: normalizedUnit };
 }
 
 export async function updatePantryStaple(
+  db: PsDb,
   stapleId: string,
   quantity: number | null,
   unit: string | null
 ): Promise<void> {
-  await supabase
-    .from('pantry_staples')
-    .update({ quantity, unit: unit ? unit.toLowerCase().trim() : null })
-    .eq('id', stapleId);
+  await db.execute(
+    'UPDATE pantry_staples SET quantity = ?, unit = ? WHERE id = ?',
+    [quantity, unit ? unit.toLowerCase().trim() : null, stapleId],
+  );
 }
 
-export async function removePantryStaple(stapleId: string): Promise<void> {
-  await supabase.from('pantry_staples').delete().eq('id', stapleId);
+export async function removePantryStaple(db: PsDb, stapleId: string): Promise<void> {
+  await db.execute('DELETE FROM pantry_staples WHERE id = ?', [stapleId]);
 }
 
-export async function getPantryStaples(userId: string): Promise<PantryStapleRow[]> {
-  const { data } = await supabase
-    .from('pantry_staples')
-    .select('*')
-    .eq('user_id', userId)
-    .order('ingredient_name');
-  return (data ?? []) as PantryStapleRow[];
+export async function getPantryStaples(db: PsDb, userId: string): Promise<PantryStapleRow[]> {
+  return db.getAll<PantryStapleRow>(
+    'SELECT * FROM pantry_staples WHERE user_id = ? ORDER BY ingredient_name',
+    [userId],
+  );
 }

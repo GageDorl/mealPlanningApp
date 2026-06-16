@@ -6,14 +6,3 @@ export interface MealPlan {
   updated_at: string;
 }
 
-export const mealPlanTable = {
-  name: 'meal_plans',
-  columns: {
-    id: 'text',
-    user_id: 'text',
-    week_start: 'text',
-    created_at: 'text',
-    updated_at: 'text',
-  },
-  primaryKey: 'id',
-} as const;

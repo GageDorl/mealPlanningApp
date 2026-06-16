@@ -24,7 +24,7 @@ export function GroceryPreviewCard({ totalCount, checkedCount, onPress }: Grocer
 
       {totalCount === 0 ? (
         <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-          No list generated yet
+          Tap to generate your grocery list
         </Text>
       ) : (
         <>

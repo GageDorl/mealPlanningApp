@@ -2,16 +2,9 @@ import { Pressable, View, Text, StyleSheet, Alert, Platform, type ViewStyle, typ
 import { Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { FoodLogWithItems } from '@/services/food-log-service';
+import { ICON_COMPONENTS } from '@/components/ui/icon-picker';
 
-function formatTime12(time24: string): string {
-  const [hStr, mStr] = time24.split(':');
-  let h = parseInt(hStr, 10) || 0;
-  const m = mStr ?? '00';
-  const suffix = h >= 12 ? 'PM' : 'AM';
-  if (h === 0) h = 12;
-  else if (h > 12) h -= 12;
-  return m === '00' ? `${h} ${suffix}` : `${h}:${m} ${suffix}`;
-}
+const ACCENT = '#50C878';
 
 function totalCalories(log: FoodLogWithItems): number | null {
   const cals = log.items.reduce((sum, item) => {
@@ -32,50 +25,67 @@ export function FoodLogCard({ log, compact = false, onPress, onDelete }: FoodLog
   const theme = useTheme();
   const cals = totalCalories(log);
   const itemCount = log.items.length;
-  const summary = itemCount === 1
-    ? log.items[0].food_name
-    : `${itemCount} items`;
+  const summary = log.label
+    ? log.label
+    : itemCount === 1
+      ? log.items[0].food_name
+      : `${itemCount} items`;
+  const IconComp = log.icon ? ICON_COMPONENTS[log.icon] : null;
+
+  const handleDelete = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete this food log?')) onDelete();
+    } else {
+      Alert.alert('Delete food log?', 'This will remove the entry from your calendar.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onDelete },
+      ]);
+    }
+  };
+
+  if (compact) {
+    return (
+      <Pressable
+        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
+        onPress={onPress}
+      >
+        <View style={styles.compactRow}>
+          {IconComp && <IconComp size={12} color={ACCENT} />}
+          <Text style={[styles.compactName, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
+            {summary}
+          </Text>
+          {cals != null && (
+            <Text style={[styles.compactCals, { color: theme.textSecondary }]}>{cals} kcal</Text>
+          )}
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
-      style={[styles.block, compact && styles.blockCompact, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+      style={[styles.block, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
       onPress={onPress}
     >
-      <View style={styles.cardHeader}>
-        {log.label ? (
-          <Text style={[styles.label, { color: theme.textSecondary }]} numberOfLines={1}>
-            {log.label}
-          </Text>
-        ) : null}
-        <Pressable
-          hitSlop={8}
-          style={styles.deleteButton}
-          onPress={() => {
-            if (Platform.OS === 'web') {
-              if (window.confirm('Delete this food log?')) onDelete();
-            } else {
-              Alert.alert('Delete food log?', 'This will remove the entry from your calendar.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: onDelete },
-              ]);
-            }
-          }}
-        >
+      <View style={styles.headerRow}>
+        {IconComp && <IconComp size={14} color={ACCENT} />}
+        <Text style={[styles.label, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
+          {log.label ?? (itemCount === 1 ? log.items[0].food_name : `${itemCount} items`)}
+        </Text>
+        <Pressable hitSlop={8} style={styles.deleteButton} onPress={handleDelete}>
           <Text style={[styles.deleteIcon, { color: theme.textSecondary }]}>×</Text>
         </Pressable>
       </View>
 
-      <Text style={[styles.summary, { color: theme.text }]} numberOfLines={compact ? 1 : 2}>
-        {summary}
-      </Text>
-
-      {!compact && cals != null && (
-        <Text style={[styles.macroHint, { color: theme.textSecondary }]}>{cals} kcal</Text>
+      {log.label && (
+        <Text style={[styles.summary, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
+          {itemCount === 1 ? log.items[0].food_name : `${itemCount} items`}
+        </Text>
       )}
 
-      {!compact && log.time_of_day ? (
-        <Text style={[styles.time, { color: theme.textSecondary }]}>{formatTime12(log.time_of_day)}</Text>
-      ) : null}
+      {cals != null && (
+        <Text style={[styles.calHint, { color: theme.textSecondary }]}>{cals} kcal</Text>
+      )}
     </Pressable>
   );
 }
@@ -83,41 +93,56 @@ export function FoodLogCard({ log, compact = false, onPress, onDelete }: FoodLog
 const styles = StyleSheet.create({
   block: {
     borderLeftWidth: 3,
-    borderLeftColor: '#50C878',
     borderRadius: BorderRadius.sm,
     padding: Spacing.xs,
     flex: 1,
+    minHeight: 36,
   } as ViewStyle,
   blockCompact: {
     justifyContent: 'center',
+    paddingVertical: 3,
   } as ViewStyle,
-  cardHeader: {
+  compactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  } as ViewStyle,
+  compactName: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    flex: 1,
+  } as TextStyle,
+  compactCals: {
+    fontSize: FontSizes.xs,
+    flexShrink: 0,
+  } as TextStyle,
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 2,
+    gap: 4,
   } as ViewStyle,
   deleteButton: {
+    flexShrink: 0,
     marginLeft: 2,
   } as ViewStyle,
   deleteIcon: {
     fontSize: 14,
     lineHeight: 14,
-    fontWeight: '400',
   } as TextStyle,
   label: {
     fontSize: FontSizes.xs,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontWeight: '700',
     flex: 1,
   } as TextStyle,
   summary: {
     fontSize: FontSizes.sm,
-    fontWeight: '500',
+    fontWeight: '600',
+    lineHeight: 16,
   } as TextStyle,
-  macroHint: {
-    fontSize: FontSizes.xs,
-  } as TextStyle,
-  time: {
+  calHint: {
     fontSize: FontSizes.xs,
     marginTop: 2,
   } as TextStyle,

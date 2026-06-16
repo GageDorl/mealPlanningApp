@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View, type ViewStyle, type TextStyle, Pressable } from 'react-native';
-import { LoadingModal } from '@/components/ui/loading-modal';
+import { useCallback, useEffect, useState } from 'react';
+import { ScrollView, RefreshControl, StyleSheet, Switch, Text, View, type ViewStyle, type TextStyle, Pressable } from 'react-native';
+import { triggerSync } from '@/utils/trigger-sync';
 import { useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/button';
@@ -14,10 +14,12 @@ import { useUserProfile } from '@/hooks/use-user-profile';
 import { useUserRole } from '@/hooks/use-user-role';
 import { useCalendar } from '@/hooks/use-calendar';
 import { CalendarPickerList } from '@/components/calendar/calendar-picker-list';
+import { usePowerSync } from '@powersync/react-native';
 import { signOut } from '@/services/supabase';
-import { updateDietaryPreferences, updateMacroGoals, updateNotificationSettings } from '@/services/user-service';
+import { updateDietaryPreferences, updateDisplayName, updateMacroGoals, updateNotificationSettings } from '@/services/user-service';
 
 export default function ProfileScreen() {
+  const db = usePowerSync();
   const router = useRouter();
   const theme = useTheme();
   const { themeMode, setTheme } = useThemeToggle();
@@ -27,8 +29,15 @@ export default function ProfileScreen() {
     connected, connectError, availableCalendars, selectedCalendarIds,
     calendarExportEnabled, setExportEnabled, connect, disconnect, selectCalendars,
   } = useCalendar();
+  const [refreshing, setRefreshing] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [macros, setMacros] = useState<MacroDefinition[]>(DefaultMacros);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await triggerSync();
+    setRefreshing(false);
+  }, []);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [notifications, setNotifications] = useState({
     mealReminders: false,
@@ -70,7 +79,9 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     if (!profile) return;
+    await updateDisplayName(db, profile.user.id, displayName);
     await updateMacroGoals(
+      db,
       profile.user.id,
       macros.map((macro, index) => ({
         macro_name: macro.key,
@@ -80,8 +91,8 @@ export default function ProfileScreen() {
         is_active: true,
       }))
     );
-    await updateDietaryPreferences(profile.user.id, selectedTags);
-    await updateNotificationSettings(profile.user.id, {
+    await updateDietaryPreferences(db, profile.user.id, selectedTags);
+    await updateNotificationSettings(db, profile.user.id, {
       notification_meal_reminders: notifications.mealReminders,
       notification_planning_nudges: notifications.planningNudges,
       notification_macro_checkins: notifications.macroCheckIns,
@@ -94,14 +105,6 @@ export default function ProfileScreen() {
     router.replace('/sign-in');
   };
 
-  if (loading) {
-    return (
-      <View style={[styles.center, { backgroundColor: theme.background }]}>
-        <LoadingModal visible message="Loading profile…" />
-      </View>
-    );
-  }
-
   if (!profile) {
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
@@ -112,7 +115,11 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} colors={[Colors.accent]} />}
+      >
         <View style={[styles.card, { maxWidth: MaxContentWidth }]}>
 
           <Text style={[styles.pageTitle, { color: theme.text }]}>Profile</Text>

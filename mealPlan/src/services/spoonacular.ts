@@ -1,9 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import env from '@/constants/env';
+import { getCached, getCachedIfFresh, setCached } from './local-cache-service';
 
 const BASE_URL = 'https://api.spoonacular.com';
-const SEARCH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const DETAIL_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface SpoonacularSearchResult {
   id: number;
@@ -65,37 +63,8 @@ export interface SpoonacularRecipeDetail {
   sourceUrl: string;
 }
 
-interface CacheEntry<T> {
-  data: T;
-  cachedAt: number;
-}
-
 function makeCacheKey(prefix: string, params: object): string {
   return `spoonacular:${prefix}:${JSON.stringify(params)}`;
-}
-
-async function getFromCache<T>(key: string, ttlMs: number): Promise<T | null> {
-  try {
-    const raw = await AsyncStorage.getItem(key);
-    if (!raw) return null;
-    const entry: CacheEntry<T> = JSON.parse(raw);
-    if (Date.now() - entry.cachedAt > ttlMs) {
-      await AsyncStorage.removeItem(key);
-      return null;
-    }
-    return entry.data;
-  } catch {
-    return null;
-  }
-}
-
-async function setCache<T>(key: string, data: T): Promise<void> {
-  try {
-    const entry: CacheEntry<T> = { data, cachedAt: Date.now() };
-    await AsyncStorage.setItem(key, JSON.stringify(entry));
-  } catch {
-    // ignore cache write errors
-  }
 }
 
 function getNutrientAmount(nutrients: Array<{ name: string; amount: number }>, name: string): number {
@@ -113,7 +82,7 @@ export async function searchRecipes(
   params: SpoonacularSearchParams
 ): Promise<SpoonacularSearchResponse> {
   const cacheKey = makeCacheKey('search', params);
-  const cached = await getFromCache<SpoonacularSearchResponse>(cacheKey, SEARCH_TTL_MS);
+  const cached = await getCachedIfFresh<SpoonacularSearchResponse>('cached_recipes', cacheKey);
   if (cached) return { ...cached, cached: true };
 
   const url = new URL(`${BASE_URL}/recipes/complexSearch`);
@@ -127,8 +96,15 @@ export async function searchRecipes(
   if (params.diet?.length) url.searchParams.set('diet', params.diet.join(','));
   if (params.maxReadyTime) url.searchParams.set('maxReadyTime', String(params.maxReadyTime));
 
-  const response = await fetch(url.toString());
-  if (!response.ok) throw new Error(`Spoonacular search failed: ${response.status}`);
+  let response: Response;
+  try {
+    response = await fetch(url.toString());
+    if (!response.ok) throw new Error(`Spoonacular search failed: ${response.status}`);
+  } catch {
+    const stale = await getCached<SpoonacularSearchResponse>('cached_recipes', cacheKey);
+    if (stale) return { ...stale, cached: true };
+    throw new Error('Spoonacular search failed and no cached results available');
+  }
 
   const raw = await response.json();
   const result: SpoonacularSearchResponse = {
@@ -152,21 +128,28 @@ export async function searchRecipes(
     }),
   };
 
-  await setCache(cacheKey, result);
+  await setCached('cached_recipes', cacheKey, result);
   return result;
 }
 
 export async function getRecipeDetail(spoonacularId: number): Promise<SpoonacularRecipeDetail> {
   const cacheKey = makeCacheKey('detail', { id: spoonacularId });
-  const cached = await getFromCache<SpoonacularRecipeDetail>(cacheKey, DETAIL_TTL_MS);
+  const cached = await getCachedIfFresh<SpoonacularRecipeDetail>('cached_recipes', cacheKey);
   if (cached) return cached;
 
   const url = new URL(`${BASE_URL}/recipes/${spoonacularId}/information`);
   url.searchParams.set('apiKey', env.SPOONACULAR_API_KEY);
   url.searchParams.set('includeNutrition', 'true');
 
-  const response = await fetch(url.toString());
-  if (!response.ok) throw new Error(`Spoonacular detail failed: ${response.status}`);
+  let response: Response;
+  try {
+    response = await fetch(url.toString());
+    if (!response.ok) throw new Error(`Spoonacular detail failed: ${response.status}`);
+  } catch {
+    const stale = await getCached<SpoonacularRecipeDetail>('cached_recipes', cacheKey);
+    if (stale) return stale;
+    throw new Error('Spoonacular detail failed and no cached result available');
+  }
 
   const raw = await response.json();
   const nutrients: Array<{ name: string; amount: number }> = raw.nutrition?.nutrients ?? [];
@@ -221,6 +204,6 @@ export async function getRecipeDetail(spoonacularId: number): Promise<Spoonacula
     sourceUrl: raw.sourceUrl ?? raw.spoonacularSourceUrl ?? '',
   };
 
-  await setCache(cacheKey, detail);
+  await setCached('cached_recipes', cacheKey, detail);
   return detail;
 }

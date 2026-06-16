@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
+import { usePowerSync } from '@powersync/react-native';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,10 +13,13 @@ import { useTheme } from '@/hooks/use-theme';
 import { FontSizes, Spacing } from '@/constants/theme';
 
 export default function MacroGoalsScreen() {
+  const db = usePowerSync();
   const router = useRouter();
   const theme = useTheme();
   const { profile, loading } = useUserProfile();
   const [goals, setGoals] = useState<MacroDefinition[]>(DefaultMacros);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile?.macroGoals && profile.macroGoals.length > 0) {
@@ -31,15 +35,26 @@ export default function MacroGoalsScreen() {
   }, [profile]);
 
   const handleSave = async () => {
-    if (!profile) return;
-    await updateMacroGoals(profile.user.id, goals.map((goal, index) => ({
-      macro_name: goal.key,
-      daily_target: goal.defaultGoal,
-      unit: goal.unit,
-      display_order: index,
-      is_active: true,
-    })));
-    router.push('/dietary-preferences');
+    if (!profile) {
+      setSaveError('Profile not loaded — please sign out and sign in again.');
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await updateMacroGoals(db, profile.user.id, goals.map((goal, index) => ({
+        macro_name: goal.key,
+        daily_target: goal.defaultGoal,
+        unit: goal.unit,
+        display_order: index,
+        is_active: true,
+      })));
+      router.push('/dietary-preferences');
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save goals. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateGoal = (index: number, value: string) => {
@@ -62,7 +77,8 @@ export default function MacroGoalsScreen() {
           />
         </View>
       ))}
-      <Button label="Save and continue" onPress={handleSave} />
+      {saveError ? <Text style={[styles.labelText, { color: theme.error }]}>{saveError}</Text> : null}
+      <Button label={saving ? 'Saving…' : 'Save and continue'} onPress={handleSave} disabled={loading || saving} />
     </OnboardingScreen>
   );
 }

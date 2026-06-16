@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { usePowerSync } from '@powersync/react-native';
 import {
   ActivityIndicator,
   Pressable,
@@ -59,6 +60,7 @@ const PAGE_SIZE = 10;
 
 export function IngredientInput({ value, onChange, onRemove, index }: IngredientInputProps) {
   const theme = useTheme();
+  const db = usePowerSync();
   const [suggestions, setSuggestions] = useState<FoodSearchResult[]>([]);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -107,7 +109,7 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
     debounceRef.current = setTimeout(async () => {
       setLoadingSuggestions(true);
       try {
-        const result = await lookupIngredient(text, 1);
+        const result = await lookupIngredient(text, 1, db);
         setSuggestions(result.results);
         setHasMore(result.hasMore);
       } catch {
@@ -124,7 +126,7 @@ export function IngredientInput({ value, onChange, onRemove, index }: Ingredient
     const nextPage = currentPage + 1;
     setLoadingMore(true);
     try {
-      const result = await lookupIngredient(query, nextPage);
+      const result = await lookupIngredient(query, nextPage, db);
       setSuggestions((prev) => {
         const existingIds = new Set(prev.map((s) => s.id));
         return [...prev, ...result.results.filter((r) => !existingIds.has(r.id))];

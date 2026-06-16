@@ -1,4 +1,34 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
+
+const SEARCH_TTL_MS = 60 * 60 * 1000;
+const BARCODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+interface CacheEntry<T> { data: T; cachedAt: number }
+
+async function getFromCache<T>(key: string, ttlMs: number): Promise<T | null> {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (!raw) return null;
+    const entry: CacheEntry<T> = JSON.parse(raw);
+    if (Date.now() - entry.cachedAt > ttlMs) return null;
+    return entry.data;
+  } catch { return null; }
+}
+
+async function getStaleFromCache<T>(key: string): Promise<T | null> {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (!raw) return null;
+    return (JSON.parse(raw) as CacheEntry<T>).data;
+  } catch { return null; }
+}
+
+async function setCache<T>(key: string, data: T): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify({ data, cachedAt: Date.now() }));
+  } catch {}
+}
 
 export interface PublicFood {
   id: string;
@@ -56,18 +86,49 @@ export async function sharePublicFood(payload: PublicFoodPayload): Promise<void>
 }
 
 // Search approved community foods by name/brand (case-insensitive, max 30 results).
+// Falls back to stale cache silently when offline.
 export async function searchPublicFoods(query: string): Promise<PublicFood[]> {
   if (!query.trim()) return [];
-  // Strip PostgREST filter delimiters that would break the .or() syntax
-  const safeQuery = query.trim().replace(/[(),]/g, '');
-  const { data, error } = await supabase
-    .from('public_foods')
-    .select('id, food_name, brand_name, serving_size_amount, serving_size_unit, calories, protein, carbs, fat, fatsecret_id, barcode, approved, trusted, flagged, submitted_by, created_at')
-    .eq('approved', true)
-    .or(`food_name.ilike.%${safeQuery}%,brand_name.ilike.%${safeQuery}%`)
-    .limit(30);
-  if (error) throw error;
-  return (data ?? []) as PublicFood[];
+  const key = `public_foods:search:${query.toLowerCase().trim()}`;
+  const fresh = await getFromCache<PublicFood[]>(key, SEARCH_TTL_MS);
+  if (fresh) return fresh;
+
+  try {
+    const safeQuery = query.trim().replace(/[(),]/g, '');
+    const { data, error } = await supabase
+      .from('public_foods')
+      .select('id, food_name, brand_name, serving_size_amount, serving_size_unit, calories, protein, carbs, fat, fatsecret_id, barcode, approved, trusted, flagged, submitted_by, created_at')
+      .eq('approved', true)
+      .or(`food_name.ilike.%${safeQuery}%,brand_name.ilike.%${safeQuery}%`)
+      .limit(30);
+    if (error) throw error;
+    const results = (data ?? []) as PublicFood[];
+    await setCache(key, results);
+    return results;
+  } catch {
+    return (await getStaleFromCache<PublicFood[]>(key)) ?? [];
+  }
+}
+
+// Barcode lookup against the approved community food DB. Falls back to stale cache when offline.
+export async function lookupPublicFoodByBarcode(barcode: string): Promise<PublicFood | null> {
+  const key = `public_foods:barcode:${barcode}`;
+  const fresh = await getFromCache<PublicFood>(key, BARCODE_TTL_MS);
+  if (fresh) return fresh;
+
+  try {
+    const { data, error } = await supabase
+      .from('public_foods')
+      .select('id, food_name, brand_name, serving_size_amount, serving_size_unit, calories, protein, carbs, fat, fatsecret_id, barcode, approved, trusted, flagged, submitted_by, created_at')
+      .eq('barcode', barcode)
+      .eq('approved', true)
+      .single();
+    if (error || !data) return null;
+    await setCache(key, data as PublicFood);
+    return data as PublicFood;
+  } catch {
+    return getStaleFromCache<PublicFood>(key);
+  }
 }
 
 // Returns all public_foods rows submitted by the current user (approved or pending).

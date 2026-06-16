@@ -1,6 +1,8 @@
 
-import { View, Text, ScrollView, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
+import { triggerSync } from '@/utils/trigger-sync';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { layout } from '@/styles/layout';
@@ -9,12 +11,18 @@ import { typography } from '@/styles/typography';
 import { useGrocery } from '@/hooks/use-grocery';
 import { GroceryCategoryGroup } from '@/components/grocery/grocery-category-group';
 import { Button } from '@/components/ui/button';
-import { LoadingModal } from '@/components/ui/loading-modal';
 
 export default function GroceryScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { state, loading, generating, error, generate, toggleItem } = useGrocery();
+  const { state, generating, error, generate, toggleItem } = useGrocery();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await triggerSync();
+    setRefreshing(false);
+  }, []);
 
   const { list, displayGroups, checkedCount, totalCount } = state;
   const progressPercent = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
@@ -29,11 +37,14 @@ export default function GroceryScreen() {
         </Pressable>
       </View>
 
-      {loading ? (
-        <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.md }]}>
-          <Text style={[styles.statusText, { color: theme.textSecondary }]}>Loading…</Text>
-        </View>
-      ) : error ? (
+      {/* Info tooltip */}
+      <View style={[styles.infoBanner, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        <Text style={[styles.infoBannerText, { color: theme.textSecondary }]}>
+          Update your pantry with items you already have, then tap Generate to pull ingredients from your planned recipes.
+        </Text>
+      </View>
+
+      {error ? (
         <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.md }]}>
           <Text style={[styles.statusText, { color: Colors.light.error }]}>{error}</Text>
         </View>
@@ -67,7 +78,11 @@ export default function GroceryScreen() {
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={layout.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={layout.scrollContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} colors={[Colors.accent]} />}
+          >
             {displayGroups.length === 0 ? (
               <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.md }]}>
                 <Text style={[styles.statusText, { color: theme.textSecondary }]}>
@@ -95,7 +110,6 @@ export default function GroceryScreen() {
           </ScrollView>
         </>
       )}
-      <LoadingModal visible={generating} message="Generating your grocery list…" />
     </View>
   );
 }
@@ -147,5 +161,16 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: FontSizes.md,
     textAlign: 'center',
+  } as TextStyle,
+  infoBanner: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: Spacing.md,
+  } as ViewStyle,
+  infoBannerText: {
+    fontSize: FontSizes.xs,
+    lineHeight: 18,
   } as TextStyle,
 });

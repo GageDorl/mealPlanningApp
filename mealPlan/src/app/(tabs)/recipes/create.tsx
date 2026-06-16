@@ -26,6 +26,7 @@ import {
 } from '@/components/recipes/ingredient-input';
 import { updateRecipe } from '@/services/recipe-service';
 import type { RecipeFormData } from '@/services/recipe-service';
+import { usePowerSync } from '@powersync/react-native';
 import { lookupIngredient } from '@/services/fatsecret';
 import { calculateForQuantity } from '@/utils/macro-calculator';
 
@@ -63,6 +64,7 @@ function sumMacros(ingredients: Array<IngredientInputValue & { id: string }>) {
 export default function CreateRecipeScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const db = usePowerSync();
   const { save } = useRecipes();
   const { showLoading, hideLoading } = useLoading();
 
@@ -207,7 +209,7 @@ export default function CreateRecipeScreen() {
       toLookup.forEach((ing, idx) => {
         setTimeout(async () => {
           try {
-            const result = await lookupIngredient(ing.name);
+            const result = await lookupIngredient(ing.name, 1, db);
             if (result.results.length === 0) return;
             const best = result.results[0];
             setIngredients((prev) =>
@@ -334,7 +336,7 @@ export default function CreateRecipeScreen() {
       const formData = buildFormData();
       if (editRecipeId) {
         const savedId = editRecipeId;
-        await updateRecipe(savedId, formData);
+        await updateRecipe(db, savedId, formData);
         await AsyncStorage.removeItem(DRAFT_KEY);
         resetForm();
         router.replace(`/recipes/${savedId}` as any);

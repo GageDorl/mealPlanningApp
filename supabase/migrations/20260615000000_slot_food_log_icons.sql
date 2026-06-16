@@ -1,0 +1,2 @@
+ALTER TABLE meal_slots ADD COLUMN icon TEXT;
+ALTER TABLE food_logs ADD COLUMN icon TEXT;

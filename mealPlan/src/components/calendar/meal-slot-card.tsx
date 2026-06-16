@@ -1,17 +1,10 @@
 import { Pressable, View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
+import { Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
+import { ICON_COMPONENTS } from '@/components/ui/icon-picker';
 
-function formatTime12(time24: string): string {
-  const [hStr, mStr] = time24.split(':');
-  let h = parseInt(hStr, 10) || 0;
-  const m = mStr ?? '00';
-  const suffix = h >= 12 ? 'PM' : 'AM';
-  if (h === 0) h = 12;
-  else if (h > 12) h -= 12;
-  return m === '00' ? `${h} ${suffix}` : `${h}:${m} ${suffix}`;
-}
+const ACCENT = '#4A90D9';
 
 interface MealSlotCardProps {
   slot: MealSlotWithRecipe;
@@ -26,14 +19,37 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
   const hasRecipes = slot.recipes.length > 0;
   const primary = slot.recipes[0]?.recipe ?? null;
   const extraCount = slot.recipes.length - 1;
+  const IconComp = slot.icon ? ICON_COMPONENTS[slot.icon] : null;
+
+  if (compact) {
+    return (
+      <Pressable
+        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
+        onPress={hasRecipes ? onPress : onAssignRecipe}
+      >
+        <View style={styles.compactRow}>
+          {IconComp && <IconComp size={12} color={ACCENT} />}
+          <Text style={[styles.compactLabel, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
+            {slot.label}
+          </Text>
+          {hasRecipes && (
+            <Text style={[styles.compactName, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
+              {primary!.title}
+            </Text>
+          )}
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
-      style={[styles.block, compact && styles.blockCompact, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+      style={[styles.block, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
       onPress={hasRecipes ? onPress : onAssignRecipe}
     >
-      <View style={styles.cardHeader}>
-        <Text style={[styles.label, { color: theme.textSecondary }]} numberOfLines={1}>
+      <View style={styles.headerRow}>
+        {IconComp && <IconComp size={14} color={ACCENT} />}
+        <Text style={[styles.label, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
           {slot.label}
         </Text>
         <Pressable onPress={onDelete} hitSlop={8} style={styles.deleteButton}>
@@ -42,63 +58,78 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
       </View>
 
       {hasRecipes ? (
-        <View>
+        <>
           <View style={styles.recipeRow}>
-            <Text style={[styles.recipeName, { color: theme.text, flex: 1 }]} numberOfLines={compact ? 1 : 2}>
+            <Text style={[styles.recipeName, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
               {primary!.title}
             </Text>
             {extraCount > 0 && (
-              <Text style={[styles.extraBadge, { color: Colors.accent }]}>+{extraCount}</Text>
+              <Text style={[styles.extraBadge, { color: ACCENT }]}>+{extraCount}</Text>
             )}
           </View>
-          {!compact && primary!.calories_per_serving != null && (
-            <Text style={[styles.macroHint, { color: theme.textSecondary }]}>
-              {primary!.calories_per_serving} kcal
+          {primary!.calories_per_serving != null && (
+            <Text style={[styles.calHint, { color: theme.textSecondary }]}>
+              {Math.round(primary!.calories_per_serving)} kcal
             </Text>
           )}
-        </View>
+        </>
       ) : (
         <Pressable onPress={onAssignRecipe}>
-          <Text style={[styles.emptyState, { color: Colors.accent }]}>+ Add recipe</Text>
+          <Text style={[styles.emptyState, { color: ACCENT }]}>+ Add recipe</Text>
         </Pressable>
       )}
-
-      {!compact && slot.time_of_day ? (
-        <Text style={[styles.time, { color: theme.textSecondary }]}>{formatTime12(slot.time_of_day)}</Text>
-      ) : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   block: {
-    backgroundColor: 'rgba(74, 144, 217, 0.15)',
     borderLeftWidth: 3,
-    borderLeftColor: '#4A90D9',
     borderRadius: BorderRadius.sm,
     padding: Spacing.xs,
     flex: 1,
+    minHeight: 36,
   } as ViewStyle,
   blockCompact: {
     justifyContent: 'center',
+    paddingVertical: 3,
   } as ViewStyle,
-  cardHeader: {
+  compactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  } as ViewStyle,
+  compactLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    flexShrink: 0,
+    maxWidth: '45%',
+  } as TextStyle,
+  compactName: {
+    fontSize: FontSizes.xs,
+    fontWeight: '500',
+    flex: 1,
+  } as TextStyle,
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 2,
+    gap: 4,
   } as ViewStyle,
   deleteButton: {
+    flexShrink: 0,
     marginLeft: 2,
   } as ViewStyle,
   deleteIcon: {
     fontSize: 14,
     lineHeight: 14,
-    fontWeight: '400',
   } as TextStyle,
   label: {
     fontSize: FontSizes.xs,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontWeight: '700',
+    flex: 1,
   } as TextStyle,
   recipeRow: {
     flexDirection: 'row',
@@ -107,21 +138,22 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   recipeName: {
     fontSize: FontSizes.sm,
-    fontWeight: '500',
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 16,
   } as TextStyle,
   extraBadge: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
+    flexShrink: 0,
   } as TextStyle,
-  macroHint: {
+  calHint: {
     fontSize: FontSizes.xs,
+    marginTop: 2,
   } as TextStyle,
   emptyState: {
     fontSize: FontSizes.sm,
     fontWeight: '500',
-  } as TextStyle,
-  time: {
-    fontSize: FontSizes.xs,
     marginTop: 2,
   } as TextStyle,
 });

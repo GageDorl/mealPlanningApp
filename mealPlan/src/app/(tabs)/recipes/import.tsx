@@ -17,6 +17,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { importFromUrl, type ImportError } from '@/services/schema-import';
 import { IMPORT_PREFILL_KEY } from '@/app/(tabs)/recipes/create';
 import { useLoading } from '@/contexts/loading-context';
+import { requireOnline, OFFLINE_MESSAGE } from '@/utils/offline-gate';
 
 const ERROR_MESSAGES: Record<ImportError, string> = {
   invalid_url: "That doesn't look like a valid URL. Make sure it starts with https://.",
@@ -38,6 +39,13 @@ export default function ImportRecipeScreen() {
   async function handleImport() {
     const trimmed = url.trim();
     if (!trimmed) return;
+
+    try {
+      requireOnline();
+    } catch {
+      setError(OFFLINE_MESSAGE);
+      return;
+    }
 
     setLoading(true);
     setError(null);

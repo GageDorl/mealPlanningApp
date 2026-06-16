@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { supabase } from '@/services/supabase';
+import { supabase, getCachedUserId } from '@/services/supabase';
 
 export default function CalendarCallback() {
   const { code, state, error: oauthError } = useLocalSearchParams<{
@@ -21,10 +21,7 @@ export default function CalendarCallback() {
       }
 
       try {
-        // Session is restored asynchronously from localStorage after a redirect —
-        // await getSession() so the JWT is in memory before invoking the function.
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) throw new Error('No session');
+        if (!getCachedUserId()) throw new Error('No session');
 
         const redirectUrl = `${window.location.origin}/auth/calendar-callback`;
         const { data, error } = await supabase.functions.invoke('google-oauth-verify', {

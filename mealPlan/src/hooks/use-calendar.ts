@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePowerSync } from '@powersync/react-native';
 import type { CalendarEvent, CalendarInfo } from '@/services/calendar.types';
 import * as calendarService from '@/services/calendar';
+import { isOnline } from '@/utils/offline-gate';
 
 function toWeekStart(date: Date): string {
   const d = new Date(date);
@@ -13,6 +15,7 @@ function toWeekStart(date: Date): string {
 }
 
 export function useCalendar() {
+  const db = usePowerSync();
   const [connected, setConnected] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [googleEventsRefreshing, setGoogleEventsRefreshing] = useState(false);
@@ -65,9 +68,9 @@ export function useCalendar() {
   }, [loadCalendarMeta]);
 
   const selectCalendars = useCallback(async (ids: string[]) => {
-    await calendarService.setSelectedCalendarIds(ids);
+    await calendarService.setSelectedCalendarIds(db, ids);
     setSelectedCalendarIds(ids);
-  }, []);
+  }, [db]);
 
   const loadEvents = useCallback(
     async (start: Date, end: Date) => {
@@ -84,6 +87,12 @@ export function useCalendar() {
       // Phase 2: background refresh
       setGoogleEventsRefreshing(true);
       setLoadError(null);
+
+      if (!isOnline()) {
+        // Offline — already serving cached events from Phase 1; nothing more to do
+        if (seq === refreshSeqRef.current) setGoogleEventsRefreshing(false);
+        return;
+      }
 
       try {
         const fresh = await calendarService.getEvents(start, end);
@@ -119,9 +128,9 @@ export function useCalendar() {
   );
 
   const setExportEnabled = useCallback(async (enabled: boolean) => {
-    await calendarService.setCalendarExportEnabled(enabled);
+    await calendarService.setCalendarExportEnabled(db, enabled);
     setCalendarExportEnabledState(enabled);
-  }, []);
+  }, [db]);
 
   const disconnect = useCallback(async () => {
     await calendarService.disconnect();

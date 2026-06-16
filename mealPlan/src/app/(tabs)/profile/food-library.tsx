@@ -4,6 +4,7 @@ import {
   type ViewStyle, type TextStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { usePowerSync } from '@powersync/react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, Spacing, FontSizes, BorderRadius, MaxContentWidth } from '@/constants/theme';
 import { Input } from '@/components/ui/input';
@@ -39,6 +40,7 @@ interface EditState {
   protein: string;
   carbs: string;
   fat: string;
+  barcode: string;
 }
 
 function toEditState(food: PersonalFood): EditState {
@@ -51,6 +53,7 @@ function toEditState(food: PersonalFood): EditState {
     protein: food.protein != null ? String(food.protein) : '',
     carbs: food.carbs != null ? String(food.carbs) : '',
     fat: food.fat != null ? String(food.fat) : '',
+    barcode: food.barcode ?? '',
   };
 }
 
@@ -108,6 +111,7 @@ function FoodRow({
       protein: num(draft.protein),
       carbs: num(draft.carbs),
       fat: num(draft.fat),
+      barcode: draft.barcode.trim() || null,
     });
     setSaving(false);
     setEditing(false);
@@ -170,6 +174,12 @@ function FoodRow({
           ))}
         </View>
 
+        <Input
+          placeholder="Optional — scan or enter manually"
+          value={draft.barcode}
+          onChangeText={(v) => update({ barcode: v })}
+        />
+
         <View style={styles.editActions}>
           <Pressable style={[styles.actionBtn, { borderColor: theme.border }]} onPress={() => setEditing(false)}>
             <Text style={[styles.actionBtnText, { color: theme.text }]}>Cancel</Text>
@@ -228,6 +238,7 @@ function FoodRow({
 }
 
 export default function FoodLibraryScreen() {
+  const db = usePowerSync();
   const theme = useTheme();
   const router = useRouter();
   const { profile } = useUserProfile();
@@ -253,8 +264,8 @@ export default function FoodLibraryScreen() {
     }
   }, [profile]);
 
-  // Load on mount
-  useState(() => { load(''); });
+  // Load on mount (and whenever profile becomes available)
+  useEffect(() => { load(''); }, [load]);
 
   async function handleQueryChange(q: string) {
     setQuery(q);
@@ -262,12 +273,12 @@ export default function FoodLibraryScreen() {
   }
 
   async function handleDelete(id: string) {
-    await deletePersonalFood(id);
+    await deletePersonalFood(db, id);
     setFoods((prev) => prev.filter((f) => f.id !== id));
   }
 
   async function handleSave(id: string, patch: Partial<PersonalFood>) {
-    await updatePersonalFood(id, patch);
+    await updatePersonalFood(db, id, patch);
     setFoods((prev) => prev.map((f) => f.id === id ? { ...f, ...patch } : f));
   }
 

@@ -90,7 +90,12 @@ export async function signInWithEmail(email: string, password: string) {
 }
 
 export async function signUpWithEmail(email: string, password: string) {
-  return supabase.auth.signUp({ email, password });
+  const emailRedirectTo = isNative
+    ? redirectTo
+    : typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/callback`
+      : undefined;
+  return supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
 }
 
 export async function createSessionFromUrl(url: string) {
@@ -132,6 +137,7 @@ export async function createSessionFromUrl(url: string) {
 export async function signInWithProvider(provider: 'google' | 'apple'): Promise<{
   session: Session | null;
   error: AuthError | Error | null;
+  callbackUrl?: string;
 }> {
   if (!isNative) {
     const webRedirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined;
@@ -172,19 +178,28 @@ export async function signInWithProvider(provider: 'google' | 'apple'): Promise<
     return { session: null, error: new Error('Authentication was canceled before completion.') };
   }
 
-  try {
-    const session = await createSessionFromUrl(result.url);
-    return { session, error: null };
-  } catch (sessionError) {
-    return {
-      session: null,
-      error: sessionError instanceof Error ? sessionError : new Error('Failed to create session from OAuth callback.'),
-    };
-  }
+  return { session: null, error: null, callbackUrl: result.url };
 }
 
 export async function signOut() {
-  return supabase.auth.signOut();
+  // Clear any in-flight refresh deferred so the signOut call doesn't block
+  // waiting for _loadSession() which it calls internally to get the access token.
+  const auth = (supabase as any).auth;
+  if (auth._refreshingDeferred) {
+    try { auth._refreshingDeferred.reject(new Error('[session] signing out')); } catch { /* already settled */ }
+    auth._refreshingDeferred = null;
+  }
+
+  // Try to revoke the server session. If it hangs (network down or another
+  // deferred appears), fall back to local-only sign-out so the button always works.
+  const result = await Promise.race([
+    supabase.auth.signOut().then(() => 'ok').catch(() => 'error'),
+    new Promise<string>((resolve) => setTimeout(() => resolve('timeout'), 5000)),
+  ]);
+
+  if (result === 'timeout') {
+    await supabase.auth.signOut({ scope: 'local' });
+  }
 }
 
 export async function getCurrentSession() {

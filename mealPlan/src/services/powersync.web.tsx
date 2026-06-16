@@ -1,14 +1,18 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { PowerSyncContext } from '@powersync/react';
+import { db } from './powersync-database.web';
+import { SupabasePowerSyncConnector } from './powersync-connector.web';
 
-interface PowerSyncProviderProps {
-  children: ReactNode;
-}
+export function PowerSyncProvider({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    const connector = new SupabasePowerSyncConnector();
+    db.connect(connector);
+    return () => { db.disconnect(); };
+  }, []);
 
-/**
- * Web stub for PowerSyncProvider.
- * PowerSync's React Native SDK uses native SQLite which isn't available on web.
- * On web, data is fetched directly from Supabase without local-first sync.
- */
-export function PowerSyncProvider({ children }: PowerSyncProviderProps) {
-  return <>{children}</>;
+  return (
+    <PowerSyncContext.Provider value={db}>
+      {children}
+    </PowerSyncContext.Provider>
+  );
 }

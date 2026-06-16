@@ -32,6 +32,31 @@
   }
 }
 
+/* Manual theme overrides — set via data-theme on <html> to beat the media query */
+[data-theme="dark"] {
+  --color-text: #F5F5F7;
+  --color-background: #0A0A0A;
+  --color-background-element: #1C1C1E;
+  --color-background-selected: #2C2C2E;
+  --color-text-secondary: #98989F;
+  --color-border: #38383A;
+  --color-success: #30D158;
+  --color-warning: #FFD60A;
+  --color-error: #FF453A;
+}
+
+[data-theme="light"] {
+  --color-text: #1A1A1A;
+  --color-background: #FFFFFF;
+  --color-background-element: #F5F5F7;
+  --color-background-selected: #E8E8EC;
+  --color-text-secondary: #6B6E76;
+  --color-border: #E0E0E4;
+  --color-success: #34C759;
+  --color-warning: #FFB800;
+  --color-error: #FF3B30;
+}
+
 html, body {
   height: 100%;
   overflow: hidden;

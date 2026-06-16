@@ -5,6 +5,11 @@ import type { MealPlan } from '@/models/meal-plan';
 import type { MealSlot } from '@/models/meal-slot';
 import type { Recipe } from '@/models/recipe';
 
+interface PsDb {
+  execute(sql: string, params?: unknown[]): Promise<unknown>;
+  getAll<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
+}
+
 export interface MealSlotRecipeEntry {
   id: string;
   meal_slot_id: string;
@@ -37,7 +42,7 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-export async function getWeek(weekStart: Date): Promise<WeekPlan> {
+export async function getWeek(db: PsDb, weekStart: Date): Promise<WeekPlan> {
   const t0 = Date.now();
   const monday = getWeekStart(weekStart);
   const userId = getCachedUserId();
@@ -68,8 +73,11 @@ export async function getWeek(weekStart: Date): Promise<WeekPlan> {
       updated_at: now,
     };
 
-    const { data } = await supabase.from('meal_plans').insert(newPlan).select().single();
-    mealPlan = (data as MealPlan) ?? newPlan;
+    await db.execute(
+      'INSERT INTO meal_plans (id, user_id, week_start, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [newPlan.id, newPlan.user_id, newPlan.week_start, newPlan.created_at, newPlan.updated_at],
+    );
+    mealPlan = newPlan as MealPlan;
     console.log(`[getWeek] +${Date.now() - t0}ms created new meal_plan`);
   }
 
@@ -120,12 +128,13 @@ export async function getWeek(weekStart: Date): Promise<WeekPlan> {
   return { mealPlan, slots: slotsWithRecipes };
 }
 
-export async function createSlot(params: {
+export async function createSlot(db: PsDb, params: {
   mealPlanId: string;
   label: string;
   date: string;
   time?: string;
   displayOrder: number;
+  icon?: string | null;
 }): Promise<MealSlot> {
   const now = nowIso();
   const slot = {
@@ -135,19 +144,21 @@ export async function createSlot(params: {
     time_of_day: params.time ?? null,
     label: params.label,
     display_order: params.displayOrder,
+    icon: params.icon ?? null,
     created_at: now,
     updated_at: now,
   };
 
-  const { error } = await supabase.from('meal_slots').insert(slot);
-  if (error) throw error;
+  await db.execute(
+    'INSERT INTO meal_slots (id, meal_plan_id, recipe_id, label, date, time_of_day, serving_override, external_event_id, display_order, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [slot.id, slot.meal_plan_id, null, slot.label, slot.date, slot.time_of_day, null, null, slot.display_order, slot.icon, slot.created_at, slot.updated_at],
+  );
 
   return slot as MealSlot;
 }
 
 async function tryScheduleReminder(slotId: string, recipeId: string): Promise<void> {
-  const { data: session } = await supabase.auth.getSession();
-  const userId = session.session?.user.id;
+  const userId = getCachedUserId();
   if (!userId) return;
 
   const [{ data: user }, { data: slot }, { data: recipe }] = await Promise.all([
@@ -164,73 +175,89 @@ async function tryScheduleReminder(slotId: string, recipeId: string): Promise<vo
   await scheduleMealReminder(slotId, recipe.title as string, date);
 }
 
-export async function addRecipeToSlot(slotId: string, recipeId: string): Promise<void> {
-  const { data: existing } = await supabase
-    .from('meal_slot_recipes')
-    .select('display_order')
-    .eq('meal_slot_id', slotId)
-    .order('display_order', { ascending: false })
-    .limit(1);
-  const nextOrder = (existing as { display_order: number }[] | null)?.[0]?.display_order ?? -1;
+export async function addRecipeToSlot(db: PsDb, slotId: string, recipeId: string): Promise<void> {
+  const existing = await db.getAll<{ display_order: number }>(
+    'SELECT display_order FROM meal_slot_recipes WHERE meal_slot_id = ? ORDER BY display_order DESC LIMIT 1',
+    [slotId],
+  );
+  const nextOrder = existing[0]?.display_order ?? -1;
   const now = nowIso();
-  const { error } = await supabase.from('meal_slot_recipes').insert({
-    id: generateId(),
-    meal_slot_id: slotId,
-    recipe_id: recipeId,
-    servings_eaten: null,
-    display_order: nextOrder + 1,
-    created_at: now,
-    updated_at: now,
-  });
-  if (error) throw error;
+  await db.execute(
+    'INSERT INTO meal_slot_recipes (id, meal_slot_id, recipe_id, servings_eaten, display_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [generateId(), slotId, recipeId, null, nextOrder + 1, now, now],
+  );
   await tryScheduleReminder(slotId, recipeId).catch(() => {});
 }
 
-export async function removeRecipeFromSlot(slotRecipeId: string): Promise<void> {
-  const { error } = await supabase.from('meal_slot_recipes').delete().eq('id', slotRecipeId);
-  if (error) throw error;
+export async function removeRecipeFromSlot(db: PsDb, slotRecipeId: string): Promise<void> {
+  await db.execute('DELETE FROM meal_slot_recipes WHERE id = ?', [slotRecipeId]);
 }
 
-export async function updateSlotRecipeServings(slotRecipeId: string, servings: number | null): Promise<void> {
-  const { error } = await supabase
-    .from('meal_slot_recipes')
-    .update({ servings_eaten: servings, updated_at: nowIso() })
-    .eq('id', slotRecipeId);
-  if (error) throw error;
+export async function updateSlotRecipeServings(db: PsDb, slotRecipeId: string, servings: number | null): Promise<void> {
+  await db.execute(
+    'UPDATE meal_slot_recipes SET servings_eaten = ?, updated_at = ? WHERE id = ?',
+    [servings, nowIso(), slotRecipeId],
+  );
 }
 
-export async function updateServingsEaten(slotId: string, servingsEaten: number | null): Promise<void> {
-  const { error } = await supabase
-    .from('meal_slots')
-    .update({ servings_eaten: servingsEaten, updated_at: nowIso() })
-    .eq('id', slotId);
-  if (error) throw error;
+export async function updateSlot(db: PsDb, slotId: string, patch: { label?: string; time_of_day?: string | null; icon?: string | null }): Promise<void> {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  if (patch.label !== undefined) { sets.push('label = ?'); values.push(patch.label); }
+  if ('time_of_day' in patch) { sets.push('time_of_day = ?'); values.push(patch.time_of_day ?? null); }
+  if ('icon' in patch) { sets.push('icon = ?'); values.push(patch.icon ?? null); }
+  if (sets.length === 0) return;
+  sets.push('updated_at = ?');
+  values.push(nowIso(), slotId);
+  await db.execute(`UPDATE meal_slots SET ${sets.join(', ')} WHERE id = ?`, values);
 }
 
-export async function updateExternalEventId(slotId: string, eventId: string | null): Promise<void> {
-  await supabase
-    .from('meal_slots')
-    .update({ external_event_id: eventId, updated_at: nowIso() })
-    .eq('id', slotId);
+export async function updateServingsEaten(db: PsDb, slotId: string, servingsEaten: number | null): Promise<void> {
+  await db.execute(
+    'UPDATE meal_slots SET servings_eaten = ?, updated_at = ? WHERE id = ?',
+    [servingsEaten, nowIso(), slotId],
+  );
 }
 
-export async function deleteSlot(slotId: string): Promise<void> {
+export async function updateExternalEventId(db: PsDb, slotId: string, eventId: string | null): Promise<void> {
+  await db.execute(
+    'UPDATE meal_slots SET external_event_id = ?, updated_at = ? WHERE id = ?',
+    [eventId, nowIso(), slotId],
+  );
+}
+
+export async function deleteSlot(db: PsDb, slotId: string): Promise<void> {
   await cancelMealReminder(slotId).catch(() => {});
-  await supabase.from('meal_slots').delete().eq('id', slotId);
+  await db.execute('DELETE FROM meal_slot_recipes WHERE meal_slot_id = ?', [slotId]);
+  await db.execute('DELETE FROM meal_slots WHERE id = ?', [slotId]);
 }
 
 export async function reorderSlots(
+  db: PsDb,
   mealPlanId: string,
   _date: string,
   slotIds: string[],
 ): Promise<void> {
   const now = nowIso();
-  const updates = slotIds.map((id, index) =>
-    supabase
-      .from('meal_slots')
-      .update({ display_order: index, updated_at: now })
-      .eq('id', id)
-      .eq('meal_plan_id', mealPlanId),
+  for (let i = 0; i < slotIds.length; i++) {
+    await db.execute(
+      'UPDATE meal_slots SET display_order = ?, updated_at = ? WHERE id = ? AND meal_plan_id = ?',
+      [i, now, slotIds[i], mealPlanId],
+    );
+  }
+}
+
+export async function ensureMealPlan(db: PsDb, userId: string, weekStart: string): Promise<string> {
+  const existing = await db.getAll<{ id: string }>(
+    'SELECT id FROM meal_plans WHERE user_id = ? AND week_start = ? LIMIT 1',
+    [userId, weekStart],
   );
-  await Promise.all(updates);
+  if (existing.length > 0) return existing[0].id;
+  const id = generateId();
+  const now = nowIso();
+  await db.execute(
+    'INSERT INTO meal_plans (id, user_id, week_start, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+    [id, userId, weekStart, now, now],
+  );
+  return id;
 }

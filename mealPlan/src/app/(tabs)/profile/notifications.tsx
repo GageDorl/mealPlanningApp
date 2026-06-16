@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View, type ViewStyle, type TextStyle } from 'react-native';
+import { usePowerSync } from '@powersync/react-native';
 
 import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -38,6 +39,7 @@ const NOTIFICATION_TYPES = [
 ] as const;
 
 export default function NotificationsScreen() {
+  const db = usePowerSync();
   const theme = useTheme();
   const { profile, reload } = useUserProfile();
   const [notifications, setNotifications] = useState<NotificationState>({
@@ -71,7 +73,7 @@ export default function NotificationsScreen() {
       const updated = { ...notifications, [key]: next };
       setNotifications(updated);
 
-      await updateNotificationSettings(profile.user.id, {
+      await updateNotificationSettings(db, profile.user.id, {
         notification_meal_reminders: updated.mealReminders,
         notification_planning_nudges: updated.planningNudges,
         notification_macro_checkins: updated.macroCheckIns,

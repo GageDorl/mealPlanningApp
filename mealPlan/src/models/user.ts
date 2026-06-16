@@ -14,18 +14,3 @@ export interface User {
   onboardingCompleted: boolean;
 }
 
-export const userTable = {
-  name: 'users',
-  columns: {
-    id: 'text',
-    email: 'text',
-    displayName: 'text',
-    createdAt: 'text',
-    updatedAt: 'text',
-    macroGoals: 'json',
-    dietaryPreferences: 'json',
-    notificationSettings: 'json',
-    onboardingCompleted: 'boolean',
-  },
-  primaryKey: 'id',
-} as const;

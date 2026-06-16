@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { LoadingModal } from '@/components/ui/loading-modal';
+import { triggerSync } from '@/utils/trigger-sync';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { layout } from '@/styles/layout';
@@ -32,8 +32,15 @@ function isToday(date: Date): boolean {
 
 export default function MacrosScreen() {
   const theme = useTheme();
-  const { selectedDate, dailyProgress, loading, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
+  const { selectedDate, dailyProgress, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await triggerSync();
+    setRefreshing(false);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -71,13 +78,16 @@ export default function MacrosScreen() {
 
       <WeekSummaryStrip selectedDate={selectedDate} goToDate={goToDate} />
 
-      <LoadingModal visible={loading} message="Loading macros…" />
-      {!loading && error ? (
+      {error ? (
         <View style={layout.centered}>
           <Text style={[styles.statusText, { color: Colors.light.error }]}>{error}</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={layout.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={layout.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} colors={[Colors.accent]} />}
+        >
           {/* Calories ring */}
           {caloriesMacro && (
             <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>

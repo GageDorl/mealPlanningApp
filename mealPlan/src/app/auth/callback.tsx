@@ -1,29 +1,43 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { usePowerSync } from '@powersync/react-native';
 
-import { supabase, createSessionFromUrl, getCurrentSession } from '@/services/supabase';
+import { supabase, getCachedUserId, getCurrentSession } from '@/services/supabase';
 import { createUserProfile, getProfile } from '@/services/user-service';
 import { Spacing } from '@/constants/theme';
+import type { User } from '@supabase/supabase-js';
 
 export default function AuthCallbackScreen() {
+  const db = usePowerSync();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const {
+    code,
+    access_token,
+    refresh_token,
+    error: errParam,
+    error_description,
+  } = useLocalSearchParams<{
+    code?: string;
+    access_token?: string;
+    refresh_token?: string;
+    error?: string;
+    error_description?: string;
+  }>();
 
   useEffect(() => {
     let cancelled = false;
 
     const finishSignIn = async () => {
       try {
+        let user: User | null = null;
+
         if (Platform.OS === 'web') {
-          // Supabase JS v2 automatically exchanges the ?code= param via
-          // detectSessionInUrl on initialisation. Calling exchangeCodeForSession
-          // a second time would use a single-use code twice and hang/fail.
-          // Instead, wait for the SIGNED_IN event that fires once the auto-
-          // exchange completes (or resolve immediately if it already has).
+          // Supabase JS v2 auto-exchanges ?code= via detectSessionInUrl on init.
+          // Wait for SIGNED_IN event, or resolve immediately if it already fired.
           await new Promise<void>((resolve, reject) => {
             let settled = false;
-            let timeoutId: ReturnType<typeof setTimeout>;
             let sub: { unsubscribe: () => void } | null = null;
 
             const finish = (fn: () => void) => {
@@ -34,33 +48,51 @@ export default function AuthCallbackScreen() {
               fn();
             };
 
-            timeoutId = setTimeout(
+            const timeoutId = setTimeout(
               () => finish(() => reject(new Error('Sign-in timed out. Please try again.'))),
               20000,
             );
 
-            // Resolve immediately if session is already established (exchange may
-            // have completed before this effect ran).
-            supabase.auth.getSession().then(({ data }) => {
-              if (data.session) finish(resolve);
-            });
+            // Fast path: session already established before this effect ran.
+            if (getCachedUserId()) { finish(resolve); return; }
 
             const { data: { subscription } } = supabase.auth.onAuthStateChange(
               (_event, session) => {
-                if (session) finish(resolve);
+                if (session) { user = session.user; finish(resolve); }
               },
             );
             sub = subscription;
           });
+
+          // getCachedUserId() fast-path fires before user is captured — fetch it now.
+          // The exchange is already done so getSession() won't block.
+          if (!user) {
+            const { data } = await getCurrentSession();
+            user = data.session?.user ?? null;
+          }
         } else {
-          await createSessionFromUrl(window.location.href);
+          // Native / Android: signInWithProvider no longer exchanges the PKCE code —
+          // this screen is the sole exchanger to avoid a double-exchange race.
+          const errorDesc = error_description ?? errParam;
+          if (errorDesc) throw new Error(errorDesc);
+
+          if (getCachedUserId()) {
+            // Session already established (safety valve — shouldn't normally happen).
+            const { data } = await getCurrentSession();
+            user = data.session?.user ?? null;
+          } else if (code) {
+            const { data: exchData, error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
+            if (exchErr) throw exchErr;
+            user = exchData.session?.user ?? null;
+          } else if (access_token && refresh_token) {
+            const { data: setData, error: setErr } = await supabase.auth.setSession({ access_token, refresh_token });
+            if (setErr) throw setErr;
+            user = setData.session?.user ?? null;
+          }
         }
 
-        const { data } = await getCurrentSession();
-        const user = data.session?.user;
-
         if (!user) {
-          throw new Error('No authenticated session was created from the OAuth callback.');
+          throw new Error(`No session. code=${!!code} token=${!!access_token} cached=${!!getCachedUserId()} url=${typeof window !== 'undefined' ? window.location.href : 'n/a'}`);
         }
 
         const existingProfile = await getProfile(user.id);
@@ -77,7 +109,7 @@ export default function AuthCallbackScreen() {
           const authMethod =
             rawProvider === 'google' || rawProvider === 'apple' ? rawProvider : 'email';
 
-          await createUserProfile({
+          await createUserProfile(db, {
             id: user.id,
             email: user.email ?? '',
             displayName,
@@ -100,7 +132,7 @@ export default function AuthCallbackScreen() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [db, router, code, access_token, refresh_token, errParam, error_description]);
 
   return (
     <View style={styles.container}>

@@ -1,8 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/services/supabase';
-import { getDailyProgress, type DailyMacroProgress } from '@/services/macro-service';
+import { useCallback, useMemo, useState } from 'react';
+import { usePowerSync, useQuery } from '@powersync/react-native';
+import { getCachedUserId } from '@/services/supabase';
+import {
+  computeDailyProgress,
+  type DailyMacroProgress,
+  type FlatLogRow,
+  type FlatSlotRow,
+  type MacroGoalRow,
+} from '@/services/macro-service';
 import { deleteSlot } from '@/services/meal-plan-service';
-import { useSessionReload } from '@/hooks/use-session-reload';
 
 function dateToString(date: Date): string {
   const y = date.getFullYear();
@@ -11,34 +17,46 @@ function dateToString(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+const LOG_ITEMS_QUERY = `
+  SELECT fl.id AS log_id, fl.label, fl.time_of_day,
+    fli.id AS item_id, fli.food_name, fli.brand_name,
+    fli.calories, fli.protein, fli.carbs, fli.fat,
+    fli.dietary_fiber, fli.total_sugar, fli.sodium, fli.servings_eaten
+  FROM food_log_items fli
+  JOIN food_logs fl ON fl.id = fli.food_log_id
+  WHERE fl.user_id = ? AND fl.date = ?
+`;
+
+const SLOT_RECIPES_QUERY = `
+  SELECT ms.id AS slot_id, ms.label, ms.time_of_day,
+    msr.id AS msr_id, msr.servings_eaten,
+    r.title AS recipe_title, r.servings AS recipe_servings,
+    r.calories_per_serving, r.protein_per_serving, r.carbs_per_serving,
+    r.fat_per_serving, r.fiber_per_serving, r.sugar_per_serving, r.sodium_per_serving
+  FROM meal_slot_recipes msr
+  JOIN meal_slots ms ON ms.id = msr.meal_slot_id
+  JOIN recipes r ON r.id = msr.recipe_id
+  JOIN meal_plans mp ON mp.id = ms.meal_plan_id
+  WHERE mp.user_id = ? AND ms.date = ?
+`;
+
 export function useMacros(initialDate?: Date) {
+  const db = usePowerSync();
+  const userId = getCachedUserId() ?? '';
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate ?? new Date());
-  const [dailyProgress, setDailyProgress] = useState<DailyMacroProgress | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const dateStr = dateToString(selectedDate);
 
-  const loadProgress = useCallback(async (date: Date) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      const userId = session.session?.user.id;
-      if (!userId) {
-        setDailyProgress(null);
-        return;
-      }
-      const progress = await getDailyProgress(userId, dateToString(date));
-      setDailyProgress(progress);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load macro progress');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: goalRows } = useQuery<MacroGoalRow>(
+    'SELECT * FROM macro_goals WHERE user_id = ? AND is_active = 1 ORDER BY display_order',
+    [userId],
+  );
+  const { data: logRows } = useQuery<FlatLogRow>(LOG_ITEMS_QUERY, [userId, dateStr]);
+  const { data: slotRows } = useQuery<FlatSlotRow>(SLOT_RECIPES_QUERY, [userId, dateStr]);
 
-  useEffect(() => {
-    loadProgress(selectedDate);
-  }, [selectedDate, loadProgress]);
+  const dailyProgress = useMemo<DailyMacroProgress | null>(() => {
+    if (!userId) return null;
+    return computeDailyProgress(dateStr, goalRows, logRows, slotRows);
+  }, [userId, dateStr, goalRows, logRows, slotRows]);
 
   const goToPrevDay = useCallback(() => {
     setSelectedDate((d) => {
@@ -64,24 +82,20 @@ export function useMacros(initialDate?: Date) {
     setSelectedDate(new Date());
   }, []);
 
-  const refresh = useCallback(() => loadProgress(selectedDate), [selectedDate, loadProgress]);
-  useSessionReload(refresh);
-
   const deleteMealSlot = useCallback(async (slotId: string) => {
-    await deleteSlot(slotId);
-    await loadProgress(selectedDate);
-  }, [selectedDate, loadProgress]);
+    await deleteSlot(db, slotId);
+  }, [db]);
 
   return {
     selectedDate,
     dailyProgress,
-    loading,
-    error,
+    loading: false,
+    error: null,
     goToPrevDay,
     goToNextDay,
     goToToday,
     goToDate,
-    refresh,
+    refresh: useCallback(() => {}, []),
     deleteMealSlot,
   };
 }

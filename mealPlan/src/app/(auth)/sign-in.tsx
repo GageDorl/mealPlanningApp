@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useRouter } from 'expo-router';
+import { usePowerSync } from '@powersync/react-native';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { signInWithEmail, signInWithProvider } from '@/services/supabase';
 import { createUserProfile, getProfile } from '@/services/user-service';
 
 export default function SignInScreen() {
+  const db = usePowerSync();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,11 +37,21 @@ export default function SignInScreen() {
     setLoading(true);
     setError(null);
 
-    const { session, error } = await signInWithProvider(provider);
+    const { session, error, callbackUrl } = await signInWithProvider(provider);
 
     if (error) {
       setError(error.message);
       setLoading(false);
+      return;
+    }
+
+    if (callbackUrl) {
+      const parsed = new URL(callbackUrl);
+      const hashParams = new URLSearchParams(parsed.hash.slice(1));
+      const code = parsed.searchParams.get('code');
+      const access_token = parsed.searchParams.get('access_token') ?? hashParams.get('access_token');
+      const refresh_token = parsed.searchParams.get('refresh_token') ?? hashParams.get('refresh_token');
+      router.replace({ pathname: '/auth/callback', params: { code: code ?? undefined, access_token: access_token ?? undefined, refresh_token: refresh_token ?? undefined } });
       return;
     }
 
@@ -62,7 +74,7 @@ export default function SignInScreen() {
       const authMethod =
         rawProvider === 'google' || rawProvider === 'apple' ? rawProvider : 'email';
 
-      await createUserProfile({
+      await createUserProfile(db, {
         id: session.user.id,
         email: session.user.email ?? email,
         displayName,

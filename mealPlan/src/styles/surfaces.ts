@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 
 export const surfaces = StyleSheet.create({
   // Base card: add gap/flex/overflow per-component via array composition
@@ -21,14 +21,14 @@ export const surfaces = StyleSheet.create({
   // Full-screen modal overlay, content centred
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: Colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
   },
   // Full-screen sheet overlay, content anchored to bottom
   sheetOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: Colors.overlay,
     justifyContent: 'flex-end',
   },
 });

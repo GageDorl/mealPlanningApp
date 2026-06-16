@@ -22,7 +22,7 @@ export function RecipePreviewCard({ recipes, onRecipePress, onViewAll }: RecipeP
   return (
     <View style={[surfaces.card, styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
       <View style={layout.rowSpaceBetween}>
-        <Text style={[typography.label, { color: theme.textSecondary }]}>Most Used</Text>
+        <Text style={[typography.label, { color: theme.textSecondary }]}>Your Recipes</Text>
       </View>
 
       {recipes.length === 0 ? (

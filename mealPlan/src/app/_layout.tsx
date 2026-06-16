@@ -1,6 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { Slot } from 'expo-router';
+import { useQuery } from '@powersync/react-native';
+import Head from 'expo-router/head';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -17,8 +19,7 @@ if (__DEV__ && Platform.OS === 'web') {
 }
 
 import { PowerSyncProvider } from '@/services/powersync';
-import { supabase } from '@/services/supabase';
-import { getProfile } from '@/services/user-service';
+import { supabase, getCachedUserId } from '@/services/supabase';
 import { store } from '@/store';
 import { setThemeMode } from '@/store/slices/preferences-slice';
 import type { RootState } from '@/store';
@@ -32,36 +33,36 @@ function LayoutContent() {
   const dispatch = useDispatch();
   const userThemeMode = useSelector((state: RootState) => state.preferences.themeMode);
 
+  const [userId, setUserId] = useState<string | null>(getCachedUserId() ?? null);
+
   useEffect(() => {
-    const loadUserTheme = async () => {
-      const sessionResult = await supabase.auth.getSession();
-      const userId = sessionResult.data.session?.user.id;
-
-      if (userId) {
-        const profile = await getProfile(userId);
-        if (profile?.user.theme_preference) {
-          dispatch(setThemeMode(profile.user.theme_preference));
-        }
-      }
-    };
-
-    loadUserTheme();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user.id) {
-        const profile = await getProfile(session.user.id);
-        if (profile?.user.theme_preference) {
-          dispatch(setThemeMode(profile.user.theme_preference));
-        }
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
     });
+    return () => subscription.unsubscribe();
+  }, []);
 
-    return () => {
-      authListener?.subscription?.unsubscribe();
-    };
-  }, [dispatch]);
+  const { data: themeRows } = useQuery<{ theme_preference: string | null }>(
+    'SELECT theme_preference FROM users WHERE id = ?',
+    [userId ?? ''],
+  );
+
+  useEffect(() => {
+    if (!themeRows.length) return;
+    const pref = themeRows[0].theme_preference as 'light' | 'dark' | null;
+    dispatch(setThemeMode(pref));
+  }, [themeRows, dispatch]);
 
   const theme = userThemeMode ? (userThemeMode === 'dark' ? DarkTheme : DefaultTheme) : (colorScheme === 'dark' ? DarkTheme : DefaultTheme);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    if (userThemeMode) {
+      document.documentElement.setAttribute('data-theme', userThemeMode);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  }, [userThemeMode]);
 
   return (
     <ThemeProvider value={theme}>
@@ -94,6 +95,9 @@ export default function RootLayout() {
 
   return (
     <BetaErrorBoundary>
+      <Head>
+        <link rel="manifest" href="/manifest.json" />
+      </Head>
       <GestureHandlerRootView style={styles.root}>
         <SafeAreaProvider>
           <Provider store={store}>

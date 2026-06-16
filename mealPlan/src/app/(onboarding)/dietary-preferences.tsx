@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { usePowerSync } from '@powersync/react-native';
 
 import { Button } from '@/components/ui/button';
 import { OnboardingScreen } from '@/components/onboarding-screen';
@@ -10,6 +11,7 @@ import { useUserProfile } from '@/hooks/use-user-profile';
 import { Spacing } from '@/constants/theme';
 
 export default function DietaryPreferencesScreen() {
+  const db = usePowerSync();
   const router = useRouter();
   const { profile, loading } = useUserProfile();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -28,7 +30,7 @@ export default function DietaryPreferencesScreen() {
 
   const handleSave = async () => {
     if (!profile) return;
-    await updateDietaryPreferences(profile.user.id, selectedTags);
+    await updateDietaryPreferences(db, profile.user.id, selectedTags);
     router.push('/calendar-connect');
   };
 

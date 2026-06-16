@@ -1,5 +1,10 @@
 import { supabase } from '@/services/supabase';
 
+interface PsDb {
+  execute(sql: string, params?: unknown[]): Promise<unknown>;
+  getAll<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
+}
+
 interface MacroGoalInput {
   macro_name: string;
   daily_target: number;
@@ -25,41 +30,33 @@ export interface UserProfileData {
   dietaryPreferences: string[];
 }
 
-function createId() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+function createId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }
 
-export async function createUserProfile(user: {
+export async function createUserProfile(db: PsDb, user: {
   id: string;
   email: string;
   displayName?: string | null;
   authMethod?: 'email' | 'google' | 'apple';
-}) {
-  return supabase.from('users').insert([
-    {
-      id: user.id,
-      email: user.email,
-      display_name: user.displayName ?? null,
-      auth_method: user.authMethod ?? 'email',
-      onboarding_completed: false,
-      tutorial_completed: false,
-      tier: 'free',
-      notification_meal_reminders: false,
-      notification_planning_nudges: false,
-      notification_macro_checkins: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-  ]);
+}): Promise<void> {
+  const now = new Date().toISOString();
+  await db.execute(
+    'INSERT INTO users (id, email, display_name, auth_method, theme_preference, onboarding_completed, tutorial_completed, tier, notification_meal_reminders, notification_planning_nudges, notification_macro_checkins, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [user.id, user.email, user.displayName ?? null, user.authMethod ?? 'email', null, 0, 0, 'free', 0, 0, 0, now, now],
+  );
 }
 
 export async function getProfile(userId: string): Promise<UserProfileData | null> {
   const [{ data: userData, error: userError }, { data: macroData, error: macrosError }, { data: dietData, error: dietError }] =
     await Promise.all([
-      supabase.from('users').select('*').eq('id', userId).single(),
+      supabase.from('users').select('*').eq('id', userId).maybeSingle(),
       supabase.from('macro_goals').select('*').eq('user_id', userId),
       supabase.from('dietary_preferences').select('tag').eq('user_id', userId),
     ]);
@@ -75,46 +72,132 @@ export async function getProfile(userId: string): Promise<UserProfileData | null
   };
 }
 
-export async function updateMacroGoals(userId: string, macroGoals: MacroGoalInput[]) {
-  await supabase.from('macro_goals').delete().eq('user_id', userId);
-  const records = macroGoals.map((goal) => ({
-    id: createId(),
-    user_id: userId,
-    macro_name: goal.macro_name,
-    daily_target: goal.daily_target,
-    unit: goal.unit,
-    display_order: goal.display_order,
-    is_active: goal.is_active,
-    created_at: new Date().toISOString(),
-  }));
+export async function updateMacroGoals(db: PsDb, userId: string, macroGoals: MacroGoalInput[]) {
+  const now = new Date().toISOString();
+  const existing = await db.getAll<{ id: string; macro_name: string }>(
+    'SELECT id, macro_name FROM macro_goals WHERE user_id = ?',
+    [userId],
+  );
+  const existingMap = new Map(existing.map((r) => [r.macro_name, r.id]));
 
-  return supabase.from('macro_goals').insert(records);
+  for (const goal of macroGoals) {
+    const existingId = existingMap.get(goal.macro_name);
+    if (existingId) {
+      await db.execute(
+        'UPDATE macro_goals SET daily_target = ?, unit = ?, display_order = ?, is_active = ? WHERE id = ?',
+        [goal.daily_target, goal.unit, goal.display_order, goal.is_active ? 1 : 0, existingId],
+      );
+    } else {
+      await db.execute(
+        'INSERT INTO macro_goals (id, user_id, macro_name, daily_target, unit, display_order, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [createId(), userId, goal.macro_name, goal.daily_target, goal.unit, goal.display_order, goal.is_active ? 1 : 0, now],
+      );
+    }
+  }
 }
 
-export async function updateDietaryPreferences(userId: string, tags: string[]) {
-  await supabase.from('dietary_preferences').delete().eq('user_id', userId);
-  const records = tags.map((tag) => ({
-    id: createId(),
-    user_id: userId,
-    tag,
-    created_at: new Date().toISOString(),
-  }));
+export async function updateDietaryPreferences(db: PsDb, userId: string, tags: string[]) {
+  const now = new Date().toISOString();
+  const existing = await db.getAll<{ id: string; tag: string }>(
+    'SELECT id, tag FROM dietary_preferences WHERE user_id = ?',
+    [userId],
+  );
+  const existingByTag = new Map(existing.map((r) => [r.tag, r.id]));
+  const newTagSet = new Set(tags);
 
-  return supabase.from('dietary_preferences').insert(records);
+  // Delete only tags the user explicitly removed
+  for (const [tag, id] of existingByTag) {
+    if (!newTagSet.has(tag)) {
+      await db.execute('DELETE FROM dietary_preferences WHERE id = ?', [id]);
+    }
+  }
+
+  // Insert only newly added tags
+  for (const tag of tags) {
+    if (!existingByTag.has(tag)) {
+      await db.execute(
+        'INSERT INTO dietary_preferences (id, user_id, tag, created_at) VALUES (?, ?, ?, ?)',
+        [createId(), userId, tag, now],
+      );
+    }
+  }
 }
 
-export async function markOnboardingComplete(userId: string) {
-  return supabase.from('users').update({ onboarding_completed: true }).eq('id', userId);
+export async function markOnboardingComplete(db: PsDb, userId: string) {
+  await db.execute(
+    'UPDATE users SET onboarding_completed = 1, updated_at = ? WHERE id = ?',
+    [new Date().toISOString(), userId],
+  );
 }
 
-export async function updateNotificationSettings(userId: string, settings: {
+export async function updateNotificationSettings(db: PsDb, userId: string, settings: {
   notification_meal_reminders: boolean;
   notification_planning_nudges: boolean;
   notification_macro_checkins: boolean;
 }) {
-  return supabase.from('users').update(settings).eq('id', userId);
+  await db.execute(
+    'UPDATE users SET notification_meal_reminders = ?, notification_planning_nudges = ?, notification_macro_checkins = ?, updated_at = ? WHERE id = ?',
+    [
+      settings.notification_meal_reminders ? 1 : 0,
+      settings.notification_planning_nudges ? 1 : 0,
+      settings.notification_macro_checkins ? 1 : 0,
+      new Date().toISOString(),
+      userId,
+    ],
+  );
 }
 
-export async function updateThemePreference(userId: string, mode: 'light' | 'dark' | null) {
-  return supabase.from('users').update({ theme_preference: mode }).eq('id', userId);
+export async function updateDisplayName(db: PsDb, userId: string, displayName: string) {
+  await db.execute(
+    'UPDATE users SET display_name = ?, updated_at = ? WHERE id = ?',
+    [displayName || null, new Date().toISOString(), userId],
+  );
+}
+
+export async function updateThemePreference(db: PsDb, userId: string, mode: 'light' | 'dark' | null) {
+  await db.execute(
+    'UPDATE users SET theme_preference = ?, updated_at = ? WHERE id = ?',
+    [mode, new Date().toISOString(), userId],
+  );
+}
+
+export async function getCalendarPrefs(userId: string): Promise<{
+  selected_calendar_ids: string[];
+  calendar_export_enabled: boolean;
+}> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('selected_calendar_ids, calendar_export_enabled')
+    .eq('id', userId)
+    .single();
+  if (error || !data) return { selected_calendar_ids: [], calendar_export_enabled: false };
+  return {
+    selected_calendar_ids: (() => {
+      const raw = data.selected_calendar_ids;
+      if (!raw) return [];
+      if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return []; } }
+      return raw as string[];
+    })(),
+    calendar_export_enabled: (data.calendar_export_enabled as boolean) ?? false,
+  };
+}
+
+export async function setCalendarPrefs(
+  db: PsDb,
+  userId: string,
+  prefs: { selected_calendar_ids?: string[]; calendar_export_enabled?: boolean },
+): Promise<void> {
+  const updates: string[] = [];
+  const values: unknown[] = [];
+  if (prefs.selected_calendar_ids !== undefined) {
+    updates.push('selected_calendar_ids = ?');
+    values.push(JSON.stringify(prefs.selected_calendar_ids));
+  }
+  if (prefs.calendar_export_enabled !== undefined) {
+    updates.push('calendar_export_enabled = ?');
+    values.push(prefs.calendar_export_enabled ? 1 : 0);
+  }
+  if (updates.length === 0) return;
+  values.push(userId);
+  await db.execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
 }

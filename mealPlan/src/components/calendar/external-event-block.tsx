@@ -29,7 +29,7 @@ export function ExternalEventBlock({ event, compact = false, onPress }: External
 
 const styles = StyleSheet.create({
   block: {
-    backgroundColor: 'rgba(74, 144, 217, 0.15)',
+    backgroundColor: 'rgba(74, 144, 217, 0.4)',
     borderLeftWidth: 3,
     borderLeftColor: '#4A90D9',
     borderRadius: BorderRadius.sm,

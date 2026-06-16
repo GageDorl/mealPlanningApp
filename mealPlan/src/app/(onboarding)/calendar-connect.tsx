@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
+import { usePowerSync } from '@powersync/react-native';
 
 import { Button } from '@/components/ui/button';
 import { OnboardingScreen } from '@/components/onboarding-screen';
@@ -12,6 +13,7 @@ import { FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { markOnboardingComplete } from '@/services/user-service';
 
 export default function CalendarConnectScreen() {
+  const db = usePowerSync();
   const router = useRouter();
   const theme = useTheme();
   const { profile, loading } = useUserProfile();
@@ -20,7 +22,7 @@ export default function CalendarConnectScreen() {
 
   const finish = async () => {
     if (profile) {
-      await markOnboardingComplete(profile.user.id);
+      await markOnboardingComplete(db, profile.user.id);
     }
     router.replace('/');
   };

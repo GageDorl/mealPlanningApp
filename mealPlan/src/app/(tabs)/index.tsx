@@ -1,10 +1,11 @@
 import { useCallback, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { RefreshControl, ScrollView, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
-import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
 
 import { useTheme } from '@/hooks/use-theme';
+import { triggerSync } from '@/utils/trigger-sync';
+import { getCachedUserId } from '@/services/supabase';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useTopRecipes } from '@/hooks/use-top-recipes';
 import { useMacros } from '@/hooks/use-macros';
@@ -26,7 +27,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
 
-  const { profile, loading: profileLoading } = useUserProfile();
+  const { profile } = useUserProfile();
   const { recipes: topRecipes } = useTopRecipes();
   const { dailyProgress, refresh: refreshMacros } = useMacros(TODAY_DATE);
   const { state: grocery, refresh: refreshGrocery } = useGrocery();
@@ -39,14 +40,15 @@ export default function HomeScreen() {
 
   // Register combined refresh for pull-to-refresh
   useSetPageRefresh(useCallback(async () => {
+    await triggerSync();
     await Promise.all([refreshMacros(), refreshGrocery()]);
   }, [refreshMacros, refreshGrocery]));
 
   useEffect(() => {
-    if (!profileLoading && !profile) {
+    if (!profile && !getCachedUserId()) {
       router.replace('/sign-in');
     }
-  }, [profileLoading, profile, router]);
+  }, [profile, router]);
 
   const handleNudgePress = useCallback(() => {
     if (!calendarConnected) {
@@ -58,20 +60,8 @@ export default function HomeScreen() {
     }
   }, [calendarConnected, profile, router]);
 
-  if (profileLoading) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <LoadingModal visible message="Loading…" />
-      </View>
-    );
-  }
-
-  if (!profile) {
-    return null;
-  }
-
   const greeting = getGreeting();
-  const displayName = profile.user.display_name ?? 'there';
+  const displayName = profile?.user?.display_name ?? '';
 
   return (
     <ScrollView
@@ -99,11 +89,13 @@ export default function HomeScreen() {
       </View>
 
       {/* Contextual nudge banner */}
-      <NudgeBanner
-        profile={profile}
-        calendarConnected={calendarConnected}
-        onPress={handleNudgePress}
-      />
+      {profile && (
+        <NudgeBanner
+          profile={profile}
+          calendarConnected={calendarConnected}
+          onPress={handleNudgePress}
+        />
+      )}
 
       {/* Module grid: left column (Calendar + Grocery) + right column (Meals) */}
       <View style={styles.grid}>
@@ -152,11 +144,6 @@ function formatDate(date: Date): string {
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  } as ViewStyle,
   root: {
     flex: 1,
   } as ViewStyle,

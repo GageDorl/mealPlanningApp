@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { randomUUID } from 'expo-crypto';
-import { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Alert, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, Text, Pressable, ActivityIndicator, Alert, RefreshControl, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { triggerSync } from '@/utils/trigger-sync';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors, MaxContentWidth, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -10,7 +11,7 @@ import { ScheduleRecipeModal } from '@/components/calendar/schedule-recipe-modal
 import { getRecipeDetail } from '@/services/spoonacular';
 import { deleteRecipe, getRecipeById, getRecipeIngredients, getSavedRecipeIdByApiId, saveRecipe } from '@/services/recipe-service';
 import { getWeek } from '@/services/meal-plan-service';
-import { supabase } from '@/services/supabase';
+import { supabase, getCachedUserId } from '@/services/supabase';
 import type { Recipe } from '@/models/recipe';
 
 const EDIT_PREFILL_KEY = 'recipe:edit_prefill';
@@ -100,6 +101,13 @@ export default function RecipeDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [scheduleVisible, setScheduleVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await triggerSync();
+    setRefreshing(false);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -165,8 +173,7 @@ export default function RecipeDetailScreen() {
     setLoading(true);
     setError(null);
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const userId = session.session?.user.id;
+      const userId = getCachedUserId();
 
       if (isUUID(id)) {
         const recipe = await getRecipeById(id);
@@ -197,8 +204,7 @@ export default function RecipeDetailScreen() {
 
   async function handleSave() {
     if (!spoonacularRaw) return;
-    const { data: session } = await supabase.auth.getSession();
-    const userId = session.session?.user.id;
+    const userId = getCachedUserId();
     if (!userId) {
       Alert.alert('Sign in required', 'Please sign in to save recipes.');
       return;
@@ -246,8 +252,7 @@ export default function RecipeDetailScreen() {
 
   async function handleSchedule(date: string, label: string, time: string) {
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const userId = session.session?.user.id;
+      const userId = getCachedUserId();
       if (!userId) {
         Alert.alert('Sign in required', 'Please sign in to schedule recipes.');
         return;
@@ -401,7 +406,10 @@ export default function RecipeDetailScreen() {
         )}
       </View>
 
-      <RecipeDetailView recipe={detailData} />
+      <RecipeDetailView
+        recipe={detailData}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} colors={[Colors.accent]} />}
+      />
 
       <ScheduleRecipeModal
         visible={scheduleVisible}

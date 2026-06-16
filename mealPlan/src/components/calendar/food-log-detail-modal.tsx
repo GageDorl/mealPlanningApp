@@ -6,6 +6,7 @@ import type { FoodLogWithItems, FoodLogItemInput } from '@/services/food-log-ser
 import type { FoodLogItem } from '@/models/food-log';
 import { FatSecretAttribution } from '@/components/food/fatsecret-attribution';
 import { sharePublicFood, flagPublicFood } from '@/services/public-food-service';
+import { IconPicker } from '@/components/ui/icon-picker';
 import { LogFoodForm } from './log-food-form';
 
 interface FoodLogDetailModalProps {
@@ -17,6 +18,7 @@ interface FoodLogDetailModalProps {
   onUpdateItem: (logId: string, itemId: string, patch: Partial<FoodLogItem>) => void;
   onAddItems?: (logId: string, items: FoodLogItemInput[]) => Promise<void>;
   onUpdateTime?: (logId: string, newTime: string | null) => void;
+  onUpdateLog?: (logId: string, patch: { label?: string | null; icon?: string | null }) => void;
   onSaveToLibrary?: (item: FoodLogItem) => Promise<void>;
 }
 
@@ -238,18 +240,37 @@ function ItemRow({
   );
 }
 
-export function FoodLogDetailModal({ log, userId, onClose, onDeleteLog, onDeleteItem, onUpdateItem, onAddItems, onUpdateTime, onSaveToLibrary }: FoodLogDetailModalProps) {
+export function FoodLogDetailModal({ log, userId, onClose, onDeleteLog, onDeleteItem, onUpdateItem, onAddItems, onUpdateTime, onUpdateLog, onSaveToLibrary }: FoodLogDetailModalProps) {
   const theme = useTheme();
   const [addingItems, setAddingItems] = useState(false);
+  const [editingLog, setEditingLog] = useState(false);
+  const [editLabel, setEditLabel] = useState('');
+  const [editIcon, setEditIcon] = useState<string | null>(null);
   const [timeEditing, setTimeEditing] = useState(false);
   const [editHour, setEditHour] = useState(0);
   const [editMin, setEditMin] = useState<0 | 15 | 30 | 45>(0);
 
   useEffect(() => {
     setTimeEditing(false);
+    setEditingLog(false);
   }, [log?.id]);
 
   if (!log) return null;
+
+  function startEditLog() {
+    setEditLabel(log!.label ?? '');
+    setEditIcon(log!.icon ?? null);
+    setEditingLog(true);
+  }
+
+  function commitEditLog() {
+    if (!onUpdateLog) return;
+    onUpdateLog(log!.id, {
+      label: editLabel.trim() || null,
+      icon: editIcon,
+    });
+    setEditingLog(false);
+  }
 
   function startEditTime() {
     if (!onUpdateTime) return;
@@ -296,13 +317,48 @@ export function FoodLogDetailModal({ log, userId, onClose, onDeleteLog, onDelete
 
   const totalCals = log.items.reduce((sum, i) => sum + (i.calories ?? 0) * i.servings_eaten, 0);
 
+  const subView = editingLog ? 'edit' : addingItems ? 'add' : 'main';
+
+  function handleBackdropPress() {
+    if (subView !== 'main') { setAddingItems(false); setEditingLog(false); } else onClose();
+  }
+
   return (
-    <Modal visible={!!log} transparent animationType="fade" onRequestClose={addingItems ? () => setAddingItems(false) : onClose}>
-      <Pressable style={styles.overlay} onPress={addingItems ? () => setAddingItems(false) : onClose}>
+    <Modal visible={!!log} transparent animationType="fade" onRequestClose={subView !== 'main' ? () => { setAddingItems(false); setEditingLog(false); } : onClose}>
+      <Pressable style={styles.overlay} onPress={handleBackdropPress}>
         <Pressable style={[styles.card, { backgroundColor: theme.background }]} onPress={() => {}}>
           <View style={styles.strip} />
 
-          {addingItems ? (
+          {subView === 'edit' ? (
+            <>
+              <View style={styles.addHeader}>
+                <Pressable onPress={() => setEditingLog(false)} hitSlop={8} style={styles.backButton}>
+                  <Text style={[styles.backText, { color: Colors.accent }]}>‹ Back</Text>
+                </Pressable>
+                <Text style={[styles.addTitle, { color: theme.text }]}>Edit Log</Text>
+              </View>
+              <ScrollView contentContainerStyle={styles.editContent} showsVerticalScrollIndicator={false}>
+                <Text style={[styles.editFieldLabel, { color: theme.textSecondary }]}>Label</Text>
+                <TextInput
+                  style={[styles.editLabelInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.backgroundElement }]}
+                  value={editLabel}
+                  onChangeText={setEditLabel}
+                  placeholder="Log label (optional)"
+                  placeholderTextColor={theme.textSecondary}
+                />
+                <Text style={[styles.editFieldLabel, { color: theme.textSecondary }]}>Icon</Text>
+                <IconPicker value={editIcon} onChange={setEditIcon} />
+              </ScrollView>
+              <View style={styles.buttons}>
+                <Pressable style={[styles.button, { borderWidth: 1, borderColor: theme.border }]} onPress={() => setEditingLog(false)}>
+                  <Text style={[styles.buttonText, { color: theme.text }]}>Cancel</Text>
+                </Pressable>
+                <Pressable style={[styles.button, styles.closeButton, { backgroundColor: Colors.accent }]} onPress={commitEditLog}>
+                  <Text style={[styles.buttonText, styles.closeButtonText]}>Save</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : subView === 'add' ? (
             <>
               <View style={styles.addHeader}>
                 <Pressable onPress={() => setAddingItems(false)} hitSlop={8} style={styles.backButton}>
@@ -362,11 +418,20 @@ export function FoodLogDetailModal({ log, userId, onClose, onDeleteLog, onDelete
                     </Pressable>
                   )}
                 </View>
-                {onAddItems && !timeEditing ? (
-                  <Pressable style={[styles.addItemButton, { borderColor: Colors.accent }]} onPress={() => setAddingItems(true)}>
-                    <Text style={[styles.addItemButtonText, { color: Colors.accent }]}>+ Add Item</Text>
-                  </Pressable>
-                ) : null}
+                {!timeEditing && (
+                  <View style={styles.headerActions}>
+                    {onUpdateLog && (
+                      <Pressable style={[styles.addItemButton, { borderColor: theme.border }]} onPress={startEditLog}>
+                        <Text style={[styles.addItemButtonText, { color: theme.textSecondary }]}>Edit ✎</Text>
+                      </Pressable>
+                    )}
+                    {onAddItems && (
+                      <Pressable style={[styles.addItemButton, { borderColor: Colors.accent }]} onPress={() => setAddingItems(true)}>
+                        <Text style={[styles.addItemButtonText, { color: Colors.accent }]}>+ Add Item</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
               </View>
 
               <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -413,6 +478,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 440,
+    flex: 1,
     maxHeight: '80%',
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
@@ -438,6 +504,11 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
   } as ViewStyle,
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    flexShrink: 0,
+  } as ViewStyle,
   addItemButton: {
     borderWidth: 1,
     borderRadius: BorderRadius.full,
@@ -447,6 +518,25 @@ const styles = StyleSheet.create({
   addItemButtonText: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
+  } as TextStyle,
+  editContent: {
+    padding: Spacing.lg,
+    paddingTop: Spacing.sm,
+    gap: Spacing.sm,
+  } as ViewStyle,
+  editFieldLabel: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  } as TextStyle,
+  editLabelInput: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    fontSize: FontSizes.sm,
   } as TextStyle,
   addHeader: {
     flexDirection: 'row',
@@ -478,8 +568,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   } as TextStyle,
   scroll: {
-    flexGrow: 0,
-    maxHeight: 340,
+    flex: 1,
   } as ViewStyle,
   scrollContent: {
     paddingHorizontal: Spacing.lg,

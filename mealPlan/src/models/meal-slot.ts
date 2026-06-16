@@ -9,25 +9,8 @@ export interface MealSlot {
   servings_eaten?: number | null;
   external_event_id?: string | null;
   display_order: number;
+  icon?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export const mealSlotTable = {
-  name: 'meal_slots',
-  columns: {
-    id: 'text',
-    meal_plan_id: 'text',
-    recipe_id: 'text',
-    label: 'text',
-    date: 'text',
-    time_of_day: 'text',
-    serving_override: 'integer',
-    servings_eaten: 'real',
-    external_event_id: 'text',
-    display_order: 'integer',
-    created_at: 'text',
-    updated_at: 'text',
-  },
-  primaryKey: 'id',
-} as const;

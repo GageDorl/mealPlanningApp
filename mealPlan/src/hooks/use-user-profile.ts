@@ -1,76 +1,82 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/services/supabase';
-import { getProfile, UserProfileData } from '@/services/user-service';
-import { withTimeout } from '@/utils/with-timeout';
-import { waitForNetwork } from '@/utils/wait-for-network';
-import { foregroundAtRef } from '@/contexts/session-context';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@powersync/react-native';
+import { supabase, getCachedUserId } from '@/services/supabase';
+import type { UserProfileData } from '@/services/user-service';
+
+interface UserRow {
+  id: string;
+  email: string;
+  display_name: string | null;
+  theme_preference: string | null;
+  onboarding_completed: number;
+  notification_meal_reminders: number;
+  notification_planning_nudges: number;
+  notification_macro_checkins: number;
+}
+
+interface MacroGoalRow {
+  macro_name: string;
+  daily_target: number;
+  unit: string;
+  display_order: number;
+  is_active: number;
+}
 
 export function useUserProfile() {
-  const [profile, setProfile] = useState<UserProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const loadProfile = useCallback(async () => {
-    console.log('[profile] loadProfile started');
-    setLoading(true);
-    try {
-      const sessionResult = await supabase.auth.getSession();
-      const userId = sessionResult.data.session?.user.id;
-      console.log('[profile] session checked, userId:', userId ? 'present' : 'absent');
-
-      if (!userId) {
-        setProfile(null);
-        return;
-      }
-
-      // If we just came from background, probe network before the HTTP fetch
-      const msSinceForeground = foregroundAtRef.current > 0
-        ? Date.now() - foregroundAtRef.current
-        : Infinity;
-      if (msSinceForeground < 30_000) {
-        console.log(`[profile] post-foreground (${msSinceForeground}ms ago) — probing network...`);
-        const ready = await waitForNetwork();
-        console.log('[profile] network probe result:', ready ? 'ok' : 'failed');
-        if (!ready) {
-          setProfile(null);
-          return;
-        }
-      }
-
-      const profileData = await withTimeout(getProfile(userId), 10_000, 'getProfile');
-      console.log('[profile] getProfile done:', profileData ? 'found' : 'null');
-      setProfile(profileData);
-    } catch (e) {
-      console.log('[profile] loadProfile error (final):', e instanceof Error ? e.message : String(e));
-      setProfile(null);
-    } finally {
-      console.log('[profile] loadProfile done, loading → false');
-      setLoading(false);
-    }
-  }, []);
+  const [userId, setUserId] = useState<string | null>(getCachedUserId() ?? null);
 
   useEffect(() => {
-    let unsubscribe: any;
-    loadProfile();
-
-    unsubscribe = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user?.id) {
-        const profileData = await getProfile(session.user.id);
-        setProfile(profileData);
-      } else {
-        setProfile(null);
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
     });
+    return () => subscription.unsubscribe();
+  }, []);
 
-    return () => {
-      if (unsubscribe?.subscription?.unsubscribe) {
-        unsubscribe.subscription.unsubscribe();
-      }
+  const { data: userRows } = useQuery<UserRow>(
+    'SELECT * FROM users WHERE id = ?',
+    [userId ?? ''],
+  );
+
+  const { data: macroGoalRows } = useQuery<MacroGoalRow>(
+    'SELECT * FROM macro_goals WHERE user_id = ? AND is_active = 1 ORDER BY display_order',
+    [userId ?? ''],
+  );
+
+  const { data: dietRows } = useQuery<{ tag: string }>(
+    'SELECT tag FROM dietary_preferences WHERE user_id = ?',
+    [userId ?? ''],
+  );
+
+  const userRow = userRows[0];
+
+
+  const profile = useMemo<UserProfileData | null>(() => {
+    if (!userId || !userRow) return null;
+    return {
+      user: {
+        id: userRow.id,
+        email: userRow.email,
+        display_name: userRow.display_name,
+        theme_preference: (userRow.theme_preference as 'light' | 'dark' | null) ?? null,
+        onboarding_completed: Boolean(userRow.onboarding_completed),
+        notification_meal_reminders: Boolean(userRow.notification_meal_reminders),
+        notification_planning_nudges: Boolean(userRow.notification_planning_nudges),
+        notification_macro_checkins: Boolean(userRow.notification_macro_checkins),
+      },
+      macroGoals: macroGoalRows.map((g) => ({
+        macro_name: g.macro_name,
+        daily_target: g.daily_target,
+        unit: g.unit,
+        display_order: g.display_order,
+        is_active: Boolean(g.is_active),
+      })),
+      dietaryPreferences: dietRows.map((d) => d.tag),
     };
-  }, [loadProfile]);
+  }, [userId, userRow, macroGoalRows, dietRows]);
 
   return {
     profile,
-    loading,
-    reload: loadProfile,
+    loading: false,
+    reload: useCallback(() => {}, []),
   };
 }

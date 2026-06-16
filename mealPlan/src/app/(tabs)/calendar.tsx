@@ -1,11 +1,12 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { LoadingModal } from '@/components/ui/loading-modal';
-import { View, Text, ScrollView, Pressable, Platform, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, type ViewStyle, type TextStyle } from 'react-native';
+import { usePowerSync } from '@powersync/react-native';
+import { View, Text, ScrollView, RefreshControl, Pressable, Platform, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, type ViewStyle, type TextStyle } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { triggerSync } from '@/utils/trigger-sync';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useSessionContext } from '@/contexts/session-context';
 import { useMealPlan } from '@/hooks/use-meal-plan';
 import { useCalendar } from '@/hooks/use-calendar';
 import { useFoodLog } from '@/hooks/use-food-log';
@@ -64,14 +65,13 @@ function isSameDay(a: Date, b: string): boolean {
 }
 
 export default function WeeklyPlannerScreen() {
+  const db = usePowerSync();
   const theme = useTheme();
-  const { sessionReady } = useSessionContext();
   const { width: windowWidth } = useWindowDimensions();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekPickerVisible, setWeekPickerVisible] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [viewportHeight, setViewportHeight] = useState(0);
-  const [scrollX, setScrollX] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
   const gridHeight = (END_HOUR - START_HOUR + 1) * hourHeight;
@@ -81,7 +81,7 @@ export default function WeeklyPlannerScreen() {
   const currentWeekStart = getSunday(addDays(today, weekOffset * 7));
   const currentWeekEnd = addDays(currentWeekStart, 7);
 
-  const { weekPlan, loading, createSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, deleteSlot, refresh } = useMealPlan(currentWeekStart);
+  const { weekPlan, createSlot, updateSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, deleteSlot, refresh } = useMealPlan(currentWeekStart);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
   const { weekLogs, userId: currentUserId, createFoodLog, deleteFoodLog, deleteFoodLogItem, updateFoodLogItem, updateFoodLog, addItemsToFoodLog } = useFoodLog(currentWeekStart);
@@ -160,6 +160,15 @@ export default function WeeklyPlannerScreen() {
       panOffset.setValue({ x: panCurrentXY.current.x, y: cy });
     }
   }, [hourHeight]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await triggerSync();
+    if (connected) {
+      try { await loadEvents(currentWeekStart, currentWeekEnd); } catch {}
+    }
+    setRefreshing(false);
+  }, [connected, loadEvents, currentWeekStart, currentWeekEnd]);
 
   const changeWeek = useCallback((delta: number) => setWeekOffset((o) => o + delta), []);
 
@@ -248,18 +257,11 @@ export default function WeeklyPlannerScreen() {
         panOffset.setValue({ x: nx, y: ny });
       })
       .onEnd((e) => {
-        setScrollY(-panCurrentXY.current.y);
-        setScrollX(-panCurrentXY.current.x);
         Animated.decay(panOffset, {
           velocity: { x: e.velocityX / 1000, y: e.velocityY / 1000 },
           deceleration: 0.997,
           useNativeDriver: false,
-        }).start(({ finished }) => {
-          if (finished) {
-            setScrollY(-panCurrentXY.current.y);
-            setScrollX(-panCurrentXY.current.x);
-          }
-        });
+        }).start();
       }),
     [maxTranslateX, maxTranslateY]
   );
@@ -341,13 +343,14 @@ export default function WeeklyPlannerScreen() {
 
   const pendingRecipeCallback = useRef<((recipe: Recipe) => void) | null>(null);
 
-  const handleCreateSlot = async (label: string, time?: string, recipe?: Recipe) => {
+  const handleCreateSlot = async (label: string, time?: string, recipe?: Recipe, icon?: string | null) => {
     const daySlots = weekPlan?.slots.filter((s) => s.date === addSlotDate) ?? [];
     const slotId = await createSlot({
       label,
       date: addSlotDate,
       time,
       displayOrder: daySlots.length,
+      icon,
     });
     if (recipe && slotId) {
       await addRecipeToSlot(slotId, recipe.id);
@@ -358,7 +361,7 @@ export default function WeeklyPlannerScreen() {
           timeOfDay: time || null,
           slotId,
         });
-        if (eventId) await updateExternalEventId(slotId, eventId);
+        if (eventId) await updateExternalEventId(db, slotId, eventId);
       }
     }
   };
@@ -393,7 +396,7 @@ export default function WeeklyPlannerScreen() {
           timeOfDay: slot.time_of_day || null,
           slotId,
         });
-        if (eventId) await updateExternalEventId(slotId, eventId);
+        if (eventId) await updateExternalEventId(db, slotId, eventId);
       }
     }
   };
@@ -450,8 +453,8 @@ export default function WeeklyPlannerScreen() {
     });
   }, [updateFoodLogItem]);
 
-  const handleLogFood = useCallback(async (date: string, params: { label: string | null; timeOfDay: string | null; items: any[] }) => {
-    await createFoodLog(date, params.label, params.timeOfDay, params.items);
+  const handleLogFood = useCallback(async (date: string, params: { label: string | null; timeOfDay: string | null; items: any[]; icon?: string | null }) => {
+    await createFoodLog(date, params.label, params.timeOfDay, params.items, params.icon);
   }, [createFoodLog]);
 
   const handleDeleteFoodLog = useCallback(async (id: string) => {
@@ -461,6 +464,16 @@ export default function WeeklyPlannerScreen() {
   const handleUpdateFoodLogTime = useCallback(async (logId: string, newTime: string | null) => {
     await updateFoodLog(logId, { time_of_day: newTime });
     setSelectedLog((prev) => prev?.id === logId ? { ...prev, time_of_day: newTime } : prev);
+  }, [updateFoodLog]);
+
+  const handleUpdateSlot = useCallback(async (slotId: string, patch: { label?: string; time_of_day?: string | null; icon?: string | null }) => {
+    await updateSlot(slotId, patch);
+    setSelectedSlot((prev) => prev?.id === slotId ? { ...prev, ...patch } : prev);
+  }, [updateSlot]);
+
+  const handleUpdateFoodLog = useCallback(async (logId: string, patch: { label?: string | null; icon?: string | null }) => {
+    await updateFoodLog(logId, patch);
+    setSelectedLog((prev) => prev?.id === logId ? { ...prev, ...patch } : prev);
   }, [updateFoodLog]);
 
   const handleAddItemsToLog = useCallback(async (logId: string, items: import('@/services/food-log-service').FoodLogItemInput[]) => {
@@ -493,19 +506,7 @@ export default function WeeklyPlannerScreen() {
 
   const hasTopItems = days.some((d) => d.allDayEvents.length > 0 || d.untimedSlots.length > 0 || d.untimedFoodLogs.length > 0);
 
-  const now = new Date();
   const isCurrentWeek = weekOffset === 0;
-  const nowIndicatorY = ((now.getHours() * 60 + now.getMinutes() - START_HOUR * 60) / 60) * hourHeight;
-  const currentDayIndex = now.getDay();
-  const currentDayLeft = currentDayIndex * (MOBILE_DAY_WIDTH + DAY_GAP);
-  const currentDayRight = currentDayLeft + MOBILE_DAY_WIDTH;
-  const nowOffscreenTop = nowIndicatorY < scrollY + 16;
-  const nowOffscreenBottom = nowIndicatorY > scrollY + viewportHeight - 16;
-  const nowOffscreenLeft = isNarrow && viewportWidth > 0 && currentDayLeft < scrollX + 16;
-  const nowOffscreenRight = isNarrow && viewportWidth > 0 && currentDayRight > scrollX + viewportWidth - 16;
-  const showScrollToNow = isCurrentWeek && viewportHeight > 0 && (
-    nowOffscreenTop || nowOffscreenBottom || nowOffscreenLeft || nowOffscreenRight
-  );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -704,13 +705,17 @@ export default function WeeklyPlannerScreen() {
                 ref={verticalScrollRef}
                 style={styles.scrollArea}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor={Colors.accent}
+                    colors={[Colors.accent]}
+                  />
+                }
                 onLayout={(event) => {
                   const { height } = event.nativeEvent.layout;
                   setViewportHeight(height);
-                }}
-                onScroll={(event) => {
-                  const nextScrollY = event.nativeEvent.contentOffset.y;
-                  setScrollY(nextScrollY);
                 }}
                 scrollEventThrottle={16}
               >
@@ -745,11 +750,9 @@ export default function WeeklyPlannerScreen() {
         )}
       </View>
 
-      {showScrollToNow && (
-        <Pressable style={styles.scrollToNowButton} onPress={() => scrollToNow()}>
-          <Text style={styles.scrollToNowText}>Now</Text>
-        </Pressable>
-      )}
+      <Pressable style={styles.addButton} onPress={() => handleAddSlot(dateToString(today))}>
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </Pressable>
 
       {/* Modals */}
       <AddMealSlotModal
@@ -785,6 +788,7 @@ export default function WeeklyPlannerScreen() {
         onAddRecipe={handleAddRecipeToSlot}
         onRemoveRecipe={handleRemoveRecipeFromSlot}
         onSaveRecipeServings={handleSaveRecipeServings}
+        onUpdateSlot={handleUpdateSlot}
       />
 
       <FoodLogDetailModal
@@ -796,7 +800,8 @@ export default function WeeklyPlannerScreen() {
         onUpdateItem={handleUpdateFoodLogItem}
         onAddItems={handleAddItemsToLog}
         onUpdateTime={handleUpdateFoodLogTime}
-        onSaveToLibrary={currentUserId ? async (item) => { await saveToLibrary(currentUserId, item); } : undefined}
+        onUpdateLog={handleUpdateFoodLog}
+        onSaveToLibrary={currentUserId ? async (item) => { await saveToLibrary(db, currentUserId, item); } : undefined}
       />
 
       <EventDetailModal
@@ -811,7 +816,6 @@ export default function WeeklyPlannerScreen() {
         onClose={() => setWeekPickerVisible(false)}
       />
 
-      <LoadingModal visible={loading && sessionReady} message="Loading calendar…" />
     </View>
   );
 }
@@ -913,14 +917,16 @@ const styles = StyleSheet.create({
   weekGridWeb: {
     flex: 1,
   } as ViewStyle,
-  scrollToNowButton: {
+  addButton: {
     position: 'absolute',
     right: Spacing.lg,
     bottom: Spacing.xl,
     backgroundColor: Colors.accent,
     borderRadius: BorderRadius.full,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
     ...(Platform.OS === 'web'
       ? { boxShadow: '0px 3px 8px rgba(0,0,0,0.18)' }
       : {
@@ -931,9 +937,4 @@ const styles = StyleSheet.create({
           elevation: 4,
         }),
   } as ViewStyle,
-  scrollToNowText: {
-    color: '#FFFFFF',
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
-  } as TextStyle,
 });

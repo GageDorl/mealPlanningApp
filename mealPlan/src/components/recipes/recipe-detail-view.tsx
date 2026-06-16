@@ -1,3 +1,4 @@
+import { type ReactElement } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
@@ -23,12 +24,13 @@ export interface RecipeDetailData {
 interface RecipeDetailViewProps {
   recipe: RecipeDetailData;
   onServingsChange?: (servings: number) => void;
+  refreshControl?: ReactElement;
 }
 
 const DIFFICULTY_LABELS = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 const DIFFICULTY_COLORS = { easy: '#34C759', medium: '#FFB800', hard: '#FF3B30' };
 
-export function RecipeDetailView({ recipe, onServingsChange }: RecipeDetailViewProps) {
+export function RecipeDetailView({ recipe, onServingsChange, refreshControl }: RecipeDetailViewProps) {
   const theme = useTheme();
   const [servings, setServings] = useState(recipe.servings);
 
@@ -43,7 +45,7 @@ export function RecipeDetailView({ recipe, onServingsChange }: RecipeDetailViewP
   const totalMinutes = (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0);
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
       {recipe.image ? (
         <Image source={{ uri: recipe.image }} style={styles.image} contentFit="cover" />
       ) : null}

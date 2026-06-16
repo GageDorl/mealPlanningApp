@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { usePowerSync } from '@powersync/react-native';
 import {
   View, Text, TextInput, ScrollView, Pressable, StyleSheet, ActivityIndicator, Modal,
   type ViewStyle, type TextStyle,
@@ -17,6 +18,7 @@ import { cachePublicFood, searchPublicFoods } from '@/services/public-food-servi
 import type { PublicFood } from '@/services/public-food-service';
 import { FatSecretAttribution } from '@/components/food/fatsecret-attribution';
 import { BarcodeScanner } from '@/components/food/barcode-scanner';
+import { IconPicker } from '@/components/ui/icon-picker';
 
 const QUICK_LABELS = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Post-workout'];
 
@@ -43,6 +45,7 @@ export interface LogFoodSubmitParams {
   label: string | null;
   timeOfDay: string | null;
   items: FoodLogItemInput[];
+  icon?: string | null;
 }
 
 interface LogFoodFormProps {
@@ -151,6 +154,7 @@ type UnifiedFoodResult =
 
 export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSubmit, onCancel }: LogFoodFormProps) {
   const theme = useTheme();
+  const db = usePowerSync();
 
   const [formMode, setFormMode] = useState<FormMode>('manual');
 
@@ -173,7 +177,7 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
       const [libraryItems, communityItems, fsResponse] = await Promise.all([
         userId ? getPersonalFoods(userId, trimmed) : Promise.resolve([] as PersonalFood[]),
         searchPublicFoods(trimmed).catch(() => [] as PublicFood[]),
-        lookupIngredient(trimmed).catch(() => ({ results: [] as FoodSearchResult[] })),
+        lookupIngredient(trimmed, 1, db).catch(() => ({ results: [] as FoodSearchResult[] })),
       ]);
       // Suppress FatSecret duplicates that exist in community (matched by fatsecret_id)
       const communityFsIds = new Set(communityItems.map((f) => f.fatsecret_id).filter(Boolean));
@@ -393,8 +397,9 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
     });
   }
 
-  // Meal label + time
+  // Meal label + time + icon
   const [label, setLabel] = useState('');
+  const [icon, setIcon] = useState<string | null>(null);
   const init = initialTime ? parse24to12(initialTime) : { hour: '12', minute: '00', period: 'PM' as const };
   const [hour, setHour] = useState(init.hour);
   const [minute, setMinute] = useState(init.minute);
@@ -432,6 +437,7 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
       label: label.trim() || null,
       timeOfDay: hasTime ? to24(hour, minute, period) : null,
       items: allItems.map(toItemInput),
+      icon,
     });
   };
 
@@ -491,7 +497,7 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
               <Ionicons name="barcode-outline" size={22} color="#888" />
             </Pressable>
           </View>
-          {searchLoading ? (
+          {searchLoading && searchResults.length === 0 ? (
             <ActivityIndicator size="small" color={Colors.accent} style={styles.librarySpinner} />
           ) : searchResults.length === 0 ? (
             <Text style={[styles.libraryEmpty, { color: theme.textSecondary }]}>
@@ -604,6 +610,9 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
                 ))}
               </View>
               <Input placeholder="Custom meal label (optional)" value={label} onChangeText={setLabel} />
+
+              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Icon (optional)</Text>
+              <IconPicker value={icon} onChange={setIcon} />
 
               <View style={styles.timeToggleRow}>
                 <Pressable onPress={() => setHasTime((v) => !v)} style={styles.timeToggle}>

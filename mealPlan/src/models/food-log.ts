@@ -4,6 +4,7 @@ export interface FoodLog {
   date: string; // 'YYYY-MM-DD'
   time_of_day?: string | null; // 'HH:MM'
   label?: string | null;
+  icon?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -34,46 +35,3 @@ export interface FoodLogItem {
   updated_at: string;
 }
 
-export const foodLogTable = {
-  name: 'food_logs',
-  columns: {
-    id: 'text',
-    user_id: 'text',
-    date: 'text',
-    time_of_day: 'text',
-    label: 'text',
-    created_at: 'text',
-    updated_at: 'text',
-  },
-  primaryKey: 'id',
-} as const;
-
-export const foodLogItemTable = {
-  name: 'food_log_items',
-  columns: {
-    id: 'text',
-    food_log_id: 'text',
-    food_name: 'text',
-    brand_name: 'text',
-    serving_size_amount: 'real',
-    serving_size_unit: 'text',
-    servings_eaten: 'real',
-    calories: 'real',
-    protein: 'real',
-    carbs: 'real',
-    fat: 'real',
-    saturated_fat: 'real',
-    trans_fat: 'real',
-    cholesterol: 'real',
-    sodium: 'real',
-    dietary_fiber: 'real',
-    total_sugar: 'real',
-    added_sugar: 'real',
-    source: 'text',
-    source_id: 'text',
-    display_order: 'integer',
-    created_at: 'text',
-    updated_at: 'text',
-  },
-  primaryKey: 'id',
-} as const;

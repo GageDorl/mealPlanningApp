@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  RefreshControl,
   TextInput,
   Pressable,
   Alert,
@@ -10,6 +11,7 @@ import {
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
+import { triggerSync } from '@/utils/trigger-sync';
 import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
 import { Colors, MaxContentWidth, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
@@ -25,6 +27,13 @@ export default function SavedRecipesScreen() {
   const isOffline = useOffline();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await triggerSync();
+    setRefreshing(false);
+  }, []);
 
   const filtered = searchQuery.trim()
     ? recipes.filter((r) => r.title.toLowerCase().includes(searchQuery.toLowerCase().trim()))
@@ -121,7 +130,11 @@ export default function SavedRecipesScreen() {
           )}
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.grid}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} colors={[Colors.accent]} />}
+        >
           {filtered.map((recipe) => (
             <View key={recipe.id} style={styles.cardWrapper}>
               <RecipeCard

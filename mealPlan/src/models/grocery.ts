@@ -1,51 +1,31 @@
-export interface GroceryItem {
-  id: string;
-  listId: string;
-  name: string;
-  quantity: number;
-  unit: string;
-  category?: string;
-  checked: boolean;
-  isPantryStaple: boolean;
-  assignedRecipeId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface GroceryList {
   id: string;
-  userId: string;
+  user_id: string;
+  meal_plan_id: string;
+  generated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GroceryItem {
+  id: string;
+  grocery_list_id: string;
+  ingredient_id?: string | null;
   name: string;
-  createdAt: string;
-  updatedAt: string;
+  quantity?: number | null;
+  unit?: string | null;
+  category?: string | null;
+  is_checked: number; // SQLite stores booleans as 0/1
+  deficit_note?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PantryStaple {
   id: string;
-  userId: string;
-  name: string;
-  category?: string;
-  quantity: number;
-  unit: string;
-  createdAt: string;
-  updatedAt: string;
+  user_id: string;
+  ingredient_name: string;
+  quantity?: number | null;
+  unit?: string | null;
+  created_at: string;
 }
-
-export const groceryTable = {
-  name: 'groceries',
-  columns: {
-    id: 'text',
-    listId: 'text',
-    userId: 'text',
-    name: 'text',
-    quantity: 'real',
-    unit: 'text',
-    category: 'text',
-    checked: 'boolean',
-    isPantryStaple: 'boolean',
-    assignedRecipeId: 'text',
-    createdAt: 'text',
-    updatedAt: 'text',
-  },
-  primaryKey: 'id',
-} as const;

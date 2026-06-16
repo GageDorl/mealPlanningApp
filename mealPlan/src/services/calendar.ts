@@ -1,9 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { supabase } from './supabase';
+import { supabase, getCachedUserId } from './supabase';
+import { getCalendarPrefs, setCalendarPrefs } from './user-service';
 import env from '@/constants/env';
 import type { CalendarEvent, CalendarInfo, CachedEventData, MealEventInput } from './calendar.types';
+
+interface PsDb {
+  execute(sql: string, params?: unknown[]): Promise<unknown>;
+}
 
 export type { CalendarEvent, CalendarInfo, CachedEventData, MealEventInput };
 
@@ -54,8 +59,7 @@ export async function restoreSession(): Promise<boolean> {
     if (stored === 'true') {
       // Verify there's an active session — stale flag from a previous sign-out
       // would otherwise mark a new (or no) session as connected.
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      if (!getCachedUserId()) {
         await AsyncStorage.removeItem(CONNECTED_KEY);
         return false;
       }
@@ -63,18 +67,19 @@ export async function restoreSession(): Promise<boolean> {
       return true;
     }
 
-    // Web: after the first OAuth connection CONNECTED_KEY isn't cached yet — check the
-    // API. Guard with a session check so we don't cold-start the edge function on
-    // every page load for users who have never connected.
-    if (Platform.OS === 'web') {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const result = await callFunction('google-calendar', { action: 'isConnected' });
-        if (result?.connected) {
-          await AsyncStorage.setItem(CONNECTED_KEY, 'true');
-          _connected = true;
-          return true;
-        }
+    // No local cache — check calendar_tokens DB. Covers first login after connecting
+    // on another device (DB is the cross-device source of truth).
+    const userId = getCachedUserId();
+    if (userId) {
+      const { data } = await supabase
+        .from('calendar_tokens')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (data) {
+        await AsyncStorage.setItem(CONNECTED_KEY, 'true');
+        _connected = true;
+        return true;
       }
     }
 
@@ -93,7 +98,7 @@ export async function connect(): Promise<{ granted: boolean }> {
       const redirectUrl = `${origin}/auth/calendar-callback`;
       const { url } = await callFunction('google-oauth-link', { redirectUrl });
       if (!url) return { granted: false };
-      (globalThis as any).window.location.href = url;
+      if ((globalThis as any).window?.location) (globalThis as any).window.location.href = url;
       return { granted: false }; // unreachable — page redirects
     }
 
@@ -150,16 +155,34 @@ export async function getAvailableCalendars(): Promise<CalendarInfo[]> {
 export async function getSelectedCalendarIds(): Promise<string[]> {
   try {
     const stored = await AsyncStorage.getItem(SELECTED_CALENDARS_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
+      // Corrupted cache (stored a string instead of array) — evict and re-fetch from DB
+      await AsyncStorage.removeItem(SELECTED_CALENDARS_KEY);
+    }
+
+    // Cache miss — fall back to DB (covers first login on a new device)
+    const userId = getCachedUserId();
+    if (userId) {
+      const prefs = await getCalendarPrefs(userId);
+      if (prefs.selected_calendar_ids.length > 0) {
+        await AsyncStorage.setItem(SELECTED_CALENDARS_KEY, JSON.stringify(prefs.selected_calendar_ids));
+        return prefs.selected_calendar_ids;
+      }
+    }
+    return [];
   } catch {
     return [];
   }
 }
 
-export async function setSelectedCalendarIds(ids: string[]): Promise<void> {
+export async function setSelectedCalendarIds(db: PsDb, ids: string[]): Promise<void> {
   try {
     await AsyncStorage.setItem(SELECTED_CALENDARS_KEY, JSON.stringify(ids));
   } catch {}
+  const userId = getCachedUserId();
+  if (userId) await setCalendarPrefs(db, userId, { selected_calendar_ids: ids });
 }
 
 // --- Export toggle ---
@@ -167,32 +190,43 @@ export async function setSelectedCalendarIds(ids: string[]): Promise<void> {
 export async function getCalendarExportEnabled(): Promise<boolean> {
   try {
     const stored = await AsyncStorage.getItem(EXPORT_ENABLED_KEY);
-    return stored === 'true';
+    if (stored !== null) return stored === 'true';
+
+    // Cache miss — fall back to DB
+    const userId = getCachedUserId();
+    if (userId) {
+      const prefs = await getCalendarPrefs(userId);
+      await AsyncStorage.setItem(EXPORT_ENABLED_KEY, String(prefs.calendar_export_enabled));
+      return prefs.calendar_export_enabled;
+    }
+    return false;
   } catch {
     return false;
   }
 }
 
-export async function setCalendarExportEnabled(enabled: boolean): Promise<void> {
+export async function setCalendarExportEnabled(db: PsDb, enabled: boolean): Promise<void> {
   try {
     await AsyncStorage.setItem(EXPORT_ENABLED_KEY, String(enabled));
   } catch {}
+  const userId = getCachedUserId();
+  if (userId) await setCalendarPrefs(db, userId, { calendar_export_enabled: enabled });
 }
 
 // --- Event caching ---
 
 export async function getCachedEvents(weekStart: string): Promise<CachedEventData | null> {
   try {
-    const raw = await AsyncStorage.getItem(`${EVENTS_CACHE_PREFIX}${weekStart}`);
+    const { getCached } = await import('./local-cache-service');
+    const raw = await getCached<{ events: any[]; fetchedAt: number }>('cached_calendar_events', weekStart);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
     return {
-      events: parsed.events.map((e: any) => ({
+      events: raw.events.map((e) => ({
         ...e,
         startDate: new Date(e.startDate),
         endDate: new Date(e.endDate),
       })),
-      fetchedAt: parsed.fetchedAt,
+      fetchedAt: raw.fetchedAt,
     };
   } catch {
     return null;
@@ -201,10 +235,8 @@ export async function getCachedEvents(weekStart: string): Promise<CachedEventDat
 
 export async function setCachedEvents(weekStart: string, events: CalendarEvent[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(
-      `${EVENTS_CACHE_PREFIX}${weekStart}`,
-      JSON.stringify({ events, fetchedAt: Date.now() }),
-    );
+    const { setCached } = await import('./local-cache-service');
+    await setCached('cached_calendar_events', weekStart, { events, fetchedAt: Date.now() });
   } catch {}
 }
 

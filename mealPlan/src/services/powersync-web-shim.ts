@@ -1,0 +1,6 @@
+// Web shim for @powersync/react-native.
+// @powersync/react-native imports 'react-native' at module level, which fails in the
+// web SSR (transform.environment=node) context. This shim re-exports the same API
+// surface from the web-safe packages that Metro aliases @powersync/react-native to on web.
+export * from '@powersync/react';  // hooks: usePowerSync, useQuery, PowerSyncContext, ...
+export * from '@powersync/web';    // database: PowerSyncDatabase, Schema, Table, column, ...

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LogFoodForm, type LogFoodSubmitParams } from './log-food-form';
 import type { Recipe } from '@/models/recipe';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { IconPicker } from '@/components/ui/icon-picker';
 
 interface AddMealSlotModalProps {
   visible: boolean;
@@ -14,7 +16,7 @@ interface AddMealSlotModalProps {
   initialTime?: string;
   userId?: string;
   onClose: () => void;
-  onAdd: (label: string, time?: string, recipe?: Recipe) => void;
+  onAdd: (label: string, time?: string, recipe?: Recipe, icon?: string | null) => void;
   onLogFood: (date: string, params: LogFoodSubmitParams) => Promise<void>;
   onPickRecipe: (onPicked: (recipe: Recipe) => void) => void;
 }
@@ -45,6 +47,7 @@ export function AddMealSlotModal({ visible, date, initialTime, userId, onClose, 
   const [mode, setMode] = useState<Mode>('plan');
   const [label, setLabel] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [icon, setIcon] = useState<string | null>(null);
 
   const init = initialTime ? parse24to12(initialTime) : { hour: '12', minute: '00', period: 'PM' as const };
   const [hour, setHour] = useState(init.hour);
@@ -60,12 +63,13 @@ export function AddMealSlotModal({ visible, date, initialTime, userId, onClose, 
       setPeriod(parsed.period);
       setLabel('');
       setSelectedRecipe(null);
+      setIcon(null);
     }
   }, [visible, initialTime]);
 
   const handleAdd = () => {
     if (!label.trim()) return;
-    onAdd(label.trim(), to24(hour, minute, period) || undefined, selectedRecipe ?? undefined);
+    onAdd(label.trim(), to24(hour, minute, period) || undefined, selectedRecipe ?? undefined, icon);
     onClose();
   };
 
@@ -88,10 +92,14 @@ export function AddMealSlotModal({ visible, date, initialTime, userId, onClose, 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable style={styles.backdrop} />
         <Animated.View
           style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide }] }]}
         >
+          <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
+            <Ionicons name="close" size={22} color={theme.textSecondary} />
+          </Pressable>
+
           {/* Mode toggle */}
           <View style={[styles.modeToggle, { backgroundColor: theme.backgroundElement }]}>
             <Pressable
@@ -116,6 +124,8 @@ export function AddMealSlotModal({ visible, date, initialTime, userId, onClose, 
 
           {mode === 'plan' ? (
             <>
+              <IconPicker value={icon} onChange={setIcon} />
+
               <View style={styles.quickLabels}>
                 {QUICK_LABELS.map((ql) => (
                   <Pressable
@@ -216,6 +226,20 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     paddingBottom: Spacing.xxxl,
     gap: Spacing.md,
+  } as ViewStyle,
+  closeButton: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    zIndex: 1,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#000000',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   } as ViewStyle,
   modeToggle: {
     flexDirection: 'row',

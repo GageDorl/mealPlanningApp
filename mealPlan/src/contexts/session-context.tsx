@@ -12,6 +12,27 @@ interface SessionContextValue {
 
 const SessionContext = createContext<SessionContextValue>({ sessionReady: true });
 
+// Chrome may cancel (not just freeze) setTimeout timers for backgrounded tabs.
+// If an auto-refresh tick fired just before the tab was hidden, its fetch's
+// AbortController timer may never fire, leaving _refreshingDeferred pending
+// forever. Every getSession() call then waits on that deferred indefinitely.
+// This clears the stale deferred on foreground return so callers can proceed.
+function clearStaleRefresh(refreshing: { current: boolean }) {
+  const auth = (supabase as any).auth;
+  if (auth._refreshingDeferred) {
+    console.log('[session] clearing stale _refreshingDeferred from background');
+    try {
+      auth._refreshingDeferred.reject(new Error('[session] cleared on foreground'));
+    } catch {
+      // already settled
+    }
+    auth._refreshingDeferred = null;
+  }
+  // Also reset the lock so a new doRefresh can start even if the previous one
+  // is still stuck awaiting the now-cleared deferred.
+  refreshing.current = false;
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [sessionReady, setSessionReady] = useState(true);
   const [overlayVisible, setOverlayVisible] = useState(false);
@@ -32,7 +53,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     refreshing.current = true;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Wrap getSession() — if a fresh _refreshingDeferred gets set between the
+      // clearStaleRefresh call and here, we need a ceiling to fall through to finally.
+      let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null;
+      try {
+        const result = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('[session] getSession timeout')), 6000)),
+        ]);
+        session = result.data.session;
+      } catch (e) {
+        console.log('[session] getSession failed:', e instanceof Error ? e.message : String(e));
+        return;
+      }
       const nowSecs = Math.floor(Date.now() / 1000);
       const expiresAt = session?.expires_at;
       const needsRefresh =
@@ -62,6 +95,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       console.log(`[session] refresh outcome: ${outcome} (${Date.now() - t0}ms)`);
+
+      // refreshSession() timed out but is still in-flight with _refreshingDeferred set.
+      // Any data fetch calling getSession() is blocked on it. Clear it so they can
+      // fail fast and be retried when sessionReady flips back to true below.
+      if (outcome === 'timeout') {
+        const auth = (supabase as any).auth;
+        if (auth._refreshingDeferred) {
+          console.log('[session] clearing stale _refreshingDeferred after refresh timeout');
+          try { auth._refreshingDeferred.reject(new Error('[session] refresh timed out')); } catch { /* already settled */ }
+          auth._refreshingDeferred = null;
+        }
+      }
     } finally {
       refreshing.current = false;
       setSessionReady(true);
@@ -78,6 +123,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const ts = new Date().toISOString();
         if (state === 'active') {
           console.log(`[session] AppState → active at ${ts}`);
+          clearStaleRefresh(refreshing);
           foregroundAtRef.current = Date.now();
           doRefresh();
         } else {
@@ -90,8 +136,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const onVisibility = () => {
         if (!document.hidden) {
           console.log(`[session] visibilitychange → visible at ${new Date().toISOString()}`);
+          clearStaleRefresh(refreshing);
           foregroundAtRef.current = Date.now();
           doRefresh();
+        } else {
+          console.log(`[session] visibilitychange → hidden at ${new Date().toISOString()}`);
+          supabase.auth.stopAutoRefresh();
         }
       };
       document.addEventListener('visibilitychange', onVisibility);

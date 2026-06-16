@@ -17,17 +17,3 @@ export interface Ingredient {
   updatedAt: string;
 }
 
-export const ingredientTable = {
-  name: 'ingredients',
-  columns: {
-    id: 'text',
-    name: 'text',
-    defaultUnit: 'text',
-    defaultQuantity: 'real',
-    category: 'text',
-    nutrition: 'json',
-    createdAt: 'text',
-    updatedAt: 'text',
-  },
-  primaryKey: 'id',
-} as const;

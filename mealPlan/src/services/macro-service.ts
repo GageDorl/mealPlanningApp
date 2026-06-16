@@ -174,6 +174,112 @@ export async function getDailyProgress(userId: string, date: string): Promise<Da
   return { date, macros, meal_breakdown };
 }
 
+export interface FlatLogRow {
+  log_id: string;
+  label: string | null;
+  time_of_day: string | null;
+  item_id: string;
+  food_name: string;
+  brand_name: string | null;
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  dietary_fiber: number | null;
+  total_sugar: number | null;
+  sodium: number | null;
+  servings_eaten: number;
+}
+
+export interface FlatSlotRow {
+  slot_id: string;
+  label: string | null;
+  time_of_day: string | null;
+  msr_id: string;
+  servings_eaten: number | null;
+  recipe_title: string;
+  recipe_servings: number;
+  calories_per_serving: number | null;
+  protein_per_serving: number | null;
+  carbs_per_serving: number | null;
+  fat_per_serving: number | null;
+  fiber_per_serving: number | null;
+  sugar_per_serving: number | null;
+  sodium_per_serving: number | null;
+}
+
+export function computeDailyProgress(
+  date: string,
+  goals: MacroGoalRow[],
+  logRows: FlatLogRow[],
+  slotRows: FlatSlotRow[],
+): DailyMacroProgress {
+  const now = new Date();
+  const filteredSlots = slotRows.filter((r) => isSlotTimeReached(date, r.time_of_day, now));
+
+  const foodLogEntries: MealMacroEntry[] = logRows.map((r) => ({
+    id: r.item_id,
+    entry_type: 'logged' as const,
+    label: r.label,
+    food_name: r.food_name,
+    brand_name: r.brand_name,
+    time_of_day: r.time_of_day,
+    calories: Math.round((r.calories ?? 0) * r.servings_eaten),
+    protein: Math.round(((r.protein ?? 0) * r.servings_eaten) * 10) / 10,
+    carbs: Math.round(((r.carbs ?? 0) * r.servings_eaten) * 10) / 10,
+    fat: Math.round(((r.fat ?? 0) * r.servings_eaten) * 10) / 10,
+  }));
+
+  const plannedEntries: MealMacroEntry[] = filteredSlots.map((r) => {
+    const servings = r.servings_eaten ?? r.recipe_servings ?? 1;
+    return {
+      id: r.msr_id,
+      entry_type: 'planned' as const,
+      label: r.label,
+      recipe_title: r.recipe_title,
+      time_of_day: r.time_of_day,
+      calories: Math.round((r.calories_per_serving ?? 0) * servings),
+      protein: Math.round(((r.protein_per_serving ?? 0) * servings) * 10) / 10,
+      carbs: Math.round(((r.carbs_per_serving ?? 0) * servings) * 10) / 10,
+      fat: Math.round(((r.fat_per_serving ?? 0) * servings) * 10) / 10,
+    };
+  });
+
+  const contributions = filteredSlots.map((r) => ({
+    recipe: {
+      calories_per_serving: r.calories_per_serving,
+      protein_per_serving: r.protein_per_serving,
+      carbs_per_serving: r.carbs_per_serving,
+      fat_per_serving: r.fat_per_serving,
+      fiber_per_serving: r.fiber_per_serving,
+      sugar_per_serving: r.sugar_per_serving,
+      sodium_per_serving: r.sodium_per_serving,
+    } as import('@/models/recipe').Recipe,
+    servings: r.servings_eaten ?? r.recipe_servings ?? 1,
+  }));
+
+  const logItems: FoodLogItem[] = logRows.map((r) => ({
+    id: r.item_id,
+    food_log_id: r.log_id,
+    food_name: r.food_name,
+    servings_eaten: r.servings_eaten,
+    calories: r.calories ?? undefined,
+    protein: r.protein ?? undefined,
+    carbs: r.carbs ?? undefined,
+    fat: r.fat ?? undefined,
+    dietary_fiber: r.dietary_fiber ?? undefined,
+    total_sugar: r.total_sugar ?? undefined,
+    sodium: r.sodium ?? undefined,
+    source: 'manual' as const,
+    display_order: 0,
+    created_at: '',
+    updated_at: '',
+  }));
+
+  const macros = buildMacroProgress(goals, contributions, logItems);
+  return { date, macros, meal_breakdown: sortByTime([...plannedEntries, ...foodLogEntries]) };
+}
+
 export async function getWeeklyProgress(userId: string, weekStart: Date): Promise<DailyMacroProgress[]> {
   const start = weekStart.toISOString().split('T')[0];
   const endDate = new Date(weekStart);

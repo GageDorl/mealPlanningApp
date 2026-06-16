@@ -4,10 +4,12 @@ import {
   type ViewStyle, type TextStyle,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { usePowerSync } from '@powersync/react-native';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { lookupBarcode } from '@/services/fatsecret';
 import type { FoodDetails } from '@/services/fatsecret';
+import { isOnline, OFFLINE_MESSAGE } from '@/utils/offline-gate';
 
 interface BarcodeScannerProps {
   onFoodFound: (details: FoodDetails, barcode: string) => void;
@@ -17,27 +19,36 @@ interface BarcodeScannerProps {
 
 export function BarcodeScanner({ onFoodFound, onNotFound, onDismiss }: BarcodeScannerProps) {
   const theme = useTheme();
+  const db = usePowerSync();
   const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
-  const [notFound, setNotFound] = useState(false);
+  const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
   const scannedRef = useRef(false);
 
   const handleBarcode = useCallback(async ({ data }: { data: string }) => {
     if (scannedRef.current || loading) return;
     scannedRef.current = true;
     setLoading(true);
-    setNotFound(false);
+    setNotFoundMessage(null);
     try {
       const normalizedBarcode = data.padStart(13, '0');
-      const details = await lookupBarcode(normalizedBarcode);
+      const details = await lookupBarcode(normalizedBarcode, db);
       if (details) {
         onFoodFound(details, normalizedBarcode);
       } else {
-        setNotFound(true);
+        setNotFoundMessage(
+          isOnline()
+            ? 'Product not found. You can add it manually to your personal food library.'
+            : OFFLINE_MESSAGE,
+        );
         scannedRef.current = false;
       }
     } catch {
-      setNotFound(true);
+      setNotFoundMessage(
+        isOnline()
+          ? 'Product not found. You can add it manually to your personal food library.'
+          : OFFLINE_MESSAGE,
+      );
       scannedRef.current = false;
     } finally {
       setLoading(false);
@@ -74,7 +85,7 @@ export function BarcodeScanner({ onFoodFound, onNotFound, onDismiss }: BarcodeSc
         style={StyleSheet.absoluteFill}
         facing="back"
         barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'] }}
-        onBarcodeScanned={loading || notFound ? undefined : handleBarcode}
+        onBarcodeScanned={loading || notFoundMessage ? undefined : handleBarcode}
       />
 
       {/* Dimmed overlay with cut-out */}
@@ -96,9 +107,9 @@ export function BarcodeScanner({ onFoodFound, onNotFound, onDismiss }: BarcodeSc
               <ActivityIndicator color="#FFFFFF" size="small" />
               <Text style={styles.statusText}>Looking up food…</Text>
             </View>
-          ) : notFound ? (
+          ) : notFoundMessage ? (
             <View style={styles.notFoundBox}>
-              <Text style={styles.notFoundText}>No food found for this barcode.</Text>
+              <Text style={styles.notFoundText}>{notFoundMessage}</Text>
               <Pressable style={styles.manualBtn} onPress={onNotFound}>
                 <Text style={styles.manualBtnText}>Enter manually</Text>
               </Pressable>

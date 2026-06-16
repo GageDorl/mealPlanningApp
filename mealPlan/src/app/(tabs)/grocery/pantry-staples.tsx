@@ -1,53 +1,48 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet,
+  View, Text, ScrollView, RefreshControl, Pressable, StyleSheet,
   type ViewStyle, type TextStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { usePowerSync, useQuery } from '@powersync/react-native';
+import { triggerSync } from '@/utils/trigger-sync';
 import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { supabase } from '@/services/supabase';
+import { getCachedUserId } from '@/services/supabase';
 import {
-  getPantryStaples, addPantryStaple, removePantryStaple, updatePantryStaple,
+  addPantryStaple, removePantryStaple, updatePantryStaple,
   type PantryStapleRow,
 } from '@/services/grocery-service';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 export default function PantryStaplesScreen() {
+  const db = usePowerSync();
   const theme = useTheme();
   const router = useRouter();
-  const [staples, setStaples] = useState<PantryStapleRow[]>([]);
+  const userId = getCachedUserId() ?? '';
+
+  const { data: staples, isLoading } = useQuery<PantryStapleRow>(
+    'SELECT * FROM pantry_staples WHERE user_id = ? ORDER BY ingredient_name',
+    [userId],
+  );
+
   const [newName, setNewName] = useState('');
   const [newQty, setNewQty] = useState('');
   const [newUnit, setNewUnit] = useState('');
-  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await triggerSync();
+    setRefreshing(false);
+  }, []);
 
   // Inline edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editQty, setEditQty] = useState('');
   const [editUnit, setEditUnit] = useState('');
-
-  const load = useCallback(async (uid: string) => {
-    setLoading(true);
-    try {
-      const result = await getPantryStaples(uid);
-      setStaples(result);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const uid = data.session?.user.id ?? null;
-      setUserId(uid);
-      if (uid) load(uid);
-      else setLoading(false);
-    });
-  }, [load]);
 
   const handleAdd = async () => {
     const trimmed = newName.trim();
@@ -57,8 +52,7 @@ export default function PantryStaplesScreen() {
     if (newQty.trim() && isNaN(qty!)) return;
     setAdding(true);
     try {
-      const staple = await addPantryStaple(userId, trimmed, qty, unit);
-      setStaples((prev) => [...prev, staple].sort((a, b) => a.ingredient_name.localeCompare(b.ingredient_name)));
+      await addPantryStaple(db, userId, trimmed, qty, unit);
       setNewName('');
       setNewQty('');
       setNewUnit('');
@@ -68,12 +62,7 @@ export default function PantryStaplesScreen() {
   };
 
   const handleRemove = async (staple: PantryStapleRow) => {
-    setStaples((prev) => prev.filter((s) => s.id !== staple.id));
-    try {
-      await removePantryStaple(staple.id);
-    } catch {
-      if (userId) load(userId);
-    }
+    await removePantryStaple(db, staple.id);
   };
 
   const startEdit = (staple: PantryStapleRow) => {
@@ -92,15 +81,8 @@ export default function PantryStaplesScreen() {
     const qty = editQty.trim() ? parseFloat(editQty.trim()) : null;
     const unit = editUnit.trim() || null;
     if (editQty.trim() && isNaN(qty!)) return;
-    setStaples((prev) =>
-      prev.map((s) => (s.id === staple.id ? { ...s, quantity: qty, unit } : s))
-    );
     setEditingId(null);
-    try {
-      await updatePantryStaple(staple.id, qty, unit);
-    } catch {
-      if (userId) load(userId);
-    }
+    await updatePantryStaple(db, staple.id, qty, unit);
   };
 
   const formatStock = (staple: PantryStapleRow): string | null => {
@@ -158,7 +140,7 @@ export default function PantryStaplesScreen() {
         </View>
       </View>
 
-      {loading ? (
+      {isLoading ? (
         <View style={styles.center}>
           <Text style={[styles.statusText, { color: theme.textSecondary }]}>Loading…</Text>
         </View>
@@ -169,7 +151,11 @@ export default function PantryStaplesScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} colors={[Colors.accent]} />}
+        >
           {staples.map((staple) => {
             const isEditing = editingId === staple.id;
             const stock = formatStock(staple);

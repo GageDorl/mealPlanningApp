@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useRouter } from 'expo-router';
+import { usePowerSync } from '@powersync/react-native';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { signUpWithEmail } from '@/services/supabase';
 import { createUserProfile } from '@/services/user-service';
 
 export default function SignUpScreen() {
+  const db = usePowerSync();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,8 +29,17 @@ export default function SignUpScreen() {
       return;
     }
 
+    // No session means Supabase requires email confirmation before sign-in.
+    // Profile creation would fail (RLS needs an authenticated session), so
+    // we hold here and let the user know to check their email.
+    if (!data.session) {
+      setLoading(false);
+      setError('Check your email and click the confirmation link to finish creating your account.');
+      return;
+    }
+
     if (data.user) {
-      await createUserProfile({
+      await createUserProfile(db, {
         id: data.user.id,
         email: data.user.email ?? email,
         displayName: name,
