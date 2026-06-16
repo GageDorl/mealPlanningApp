@@ -266,6 +266,11 @@ export default function ProfileScreen() {
                 onPress={() => router.push('/(tabs)/profile/admin/flagged-foods')}
                 variant="secondary"
               />
+              <Button
+                label="Popular Recipes"
+                onPress={() => router.push('/(tabs)/profile/admin/popular-recipes')}
+                variant="secondary"
+              />
               {role === 'admin' ? (
                 <Button
                   label="User Roles"

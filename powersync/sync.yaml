@@ -9,6 +9,14 @@ streams:
     queries:
       - SELECT * FROM ingredients
 
+  global_popular:
+    # Popular recipes list + the recipe rows they reference (so every user can read them offline)
+    auto_subscribe: true
+    queries:
+      - SELECT * FROM popular_recipes
+      - SELECT recipes.* FROM recipes JOIN popular_recipes ON popular_recipes.recipe_id = recipes.id
+      - SELECT recipe_ingredients.* FROM recipe_ingredients JOIN popular_recipes ON popular_recipes.recipe_id = recipe_ingredients.recipe_id
+
   user_data:
     # Per-user data scoped to the authenticated user's id
     auto_subscribe: true

@@ -223,6 +223,13 @@ const grocery_items = new Table({
   updated_at: column.text,
 });
 
+const popular_recipes = new Table({
+  recipe_id: column.text,
+  display_order: column.integer,
+  added_by: column.text,
+  created_at: column.text,
+});
+
 export const AppSchema = new Schema({
   users,
   recipes,
@@ -239,6 +246,7 @@ export const AppSchema = new Schema({
   pantry_staples,
   grocery_lists,
   grocery_items,
+  popular_recipes,
   cached_recipes,
   cached_foods,
   cached_calendar_events,

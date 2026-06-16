@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useState } from 'react';
+import { usePowerSync } from '@powersync/react-native';
 import { View, Text, Pressable, ActivityIndicator, Alert, RefreshControl, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { triggerSync } from '@/utils/trigger-sync';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -90,6 +91,7 @@ function savedRecipeToDetailData(recipe: Recipe): RecipeDetailData {
 export default function RecipeDetailScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const db = usePowerSync();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [detailData, setDetailData] = useState<RecipeDetailData | null>(null);
@@ -156,7 +158,7 @@ export default function RecipeDetailScreen() {
           onPress: async () => {
             setDeleting(true);
             try {
-              await deleteRecipe(id);
+              await deleteRecipe(db, id);
               router.back();
             } catch (e) {
               Alert.alert('Error', e instanceof Error ? e.message : 'Failed to delete recipe');
@@ -212,7 +214,7 @@ export default function RecipeDetailScreen() {
 
     setSaving(true);
     try {
-      const saved = await saveRecipe(userId, {
+      const saved = await saveRecipe(db, userId, {
         title: spoonacularRaw.title,
         description: spoonacularRaw.description,
         image_url: spoonacularRaw.image,
@@ -267,7 +269,7 @@ export default function RecipeDetailScreen() {
         let localId = savedRecipeId;
         if (!localId) {
           if (!spoonacularRaw) return;
-          const saved = await saveRecipe(userId, {
+          const saved = await saveRecipe(db, userId, {
             title: spoonacularRaw.title,
             description: spoonacularRaw.description,
             image_url: spoonacularRaw.image,
@@ -304,7 +306,7 @@ export default function RecipeDetailScreen() {
       }
 
       const [y, m, dayNum] = date.split('-').map(Number);
-      const weekPlan = await getWeek(new Date(y, m - 1, dayNum));
+      const weekPlan = await getWeek(db, new Date(y, m - 1, dayNum));
       const slotsForDate = weekPlan.slots.filter((s) => s.date === date);
 
       // Use supabase directly so we can surface errors instead of silently swallowing them

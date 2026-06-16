@@ -17,6 +17,7 @@ import { layout } from '@/styles/layout';
 import { typography } from '@/styles/typography';
 import { RecipeCard } from '@/components/recipes/recipe-card';
 import { searchRecipes, type SpoonacularSearchResult } from '@/services/spoonacular';
+import { usePopularRecipes } from '@/hooks/use-popular-recipes';
 
 const CUISINE_OPTIONS = ['Italian', 'Mexican', 'Asian', 'American', 'Mediterranean', 'Indian'];
 const DIET_OPTIONS = ['vegetarian', 'vegan', 'gluten-free', 'dairy-free'];
@@ -41,6 +42,7 @@ export default function RecipeSearchScreen() {
   const [searched, setSearched] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { items: popularRecipes } = usePopularRecipes();
 
   const doSearch = useCallback(
     async (q: string, cuisine: string | null, diets: string[], maxTime: number | null) => {
@@ -186,12 +188,31 @@ export default function RecipeSearchScreen() {
           </Text>
         </View>
       ) : !searched && !loading ? (
-        <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.sm }]}>
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>Search for recipes</Text>
-          <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-            Try "chicken stir-fry" or "pasta"
-          </Text>
-        </View>
+        popularRecipes.length > 0 ? (
+          <ScrollView contentContainerStyle={layout.scrollContent} showsVerticalScrollIndicator={false}>
+            <Text style={[styles.popularHeading, { color: theme.textSecondary }]}>POPULAR RECIPES</Text>
+            {popularRecipes.map((entry) => (
+              <RecipeCard
+                key={entry.id}
+                recipe={{
+                  id: entry.recipe_id,
+                  title: entry.recipe.title,
+                  image: entry.recipe.image_url ?? '',
+                  readyInMinutes: (entry.recipe.prep_minutes ?? 0) + (entry.recipe.cook_minutes ?? 0),
+                  calories: entry.recipe.calories_per_serving ?? undefined,
+                }}
+                onPress={() => router.push(`/recipes/${entry.recipe_id}` as any)}
+              />
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.sm }]}>
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>Search for recipes</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+              Try "chicken stir-fry" or "pasta"
+            </Text>
+          </View>
+        )
       ) : searched && results.length === 0 && !loading ? (
         <View style={[layout.centered, { padding: Spacing.xl, gap: Spacing.sm }]}>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No results found</Text>
@@ -317,5 +338,11 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: FontSizes.md,
     textAlign: 'center',
+  } as TextStyle,
+  popularHeading: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: Spacing.sm,
   } as TextStyle,
 });

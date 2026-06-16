@@ -12,6 +12,7 @@ import {
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
+import { usePowerSync } from '@powersync/react-native';
 import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -34,6 +35,7 @@ interface RecipePickerModalProps {
 
 export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerModalProps) {
   const theme = useTheme();
+  const db = usePowerSync();
   const keyboardSlide = useKeyboardSlide();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UnifiedResult[]>([]);
@@ -103,7 +105,7 @@ export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerMo
         recipe = data as Recipe;
       } else {
         const detail = await getRecipeDetail(item.id);
-        recipe = await saveRecipe(userId, {
+        recipe = await saveRecipe(db, userId, {
           title: detail.title,
           description: detail.description,
           image_url: detail.image,
