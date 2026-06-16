@@ -51,7 +51,7 @@ function spoonacularToDetailData(raw: Awaited<ReturnType<typeof getRecipeDetail>
   };
 }
 
-function savedRecipeToDetailData(recipe: Recipe): RecipeDetailData {
+function savedRecipeToDetailData(recipe: Recipe, ingredients: import('@/services/recipe-service').RecipeIngredientRow[] = []): RecipeDetailData {
   const instructions: string[] = (() => {
     if (!recipe.instructions) return [];
     if (Array.isArray(recipe.instructions)) return recipe.instructions as string[];
@@ -73,7 +73,7 @@ function savedRecipeToDetailData(recipe: Recipe): RecipeDetailData {
     servings: recipe.servings,
     difficulty: recipe.difficulty,
     cuisineType: recipe.cuisine_type,
-    ingredients: [],
+    ingredients: ingredients.map((ing) => ({ name: ing.name, quantity: ing.quantity ?? undefined, unit: ing.unit ?? undefined, raw_text: ing.raw_text })),
     instructions,
     macros: {
       calories_per_serving: recipe.calories_per_serving ?? null,
@@ -178,12 +178,12 @@ export default function RecipeDetailScreen() {
       const userId = getCachedUserId();
 
       if (isUUID(id)) {
-        const recipe = await getRecipeById(id);
+        const [recipe, ingredients] = await Promise.all([getRecipeById(id), getRecipeIngredients(id)]);
         if (!recipe) {
           setError('Recipe not found');
           return;
         }
-        setDetailData(savedRecipeToDetailData(recipe));
+        setDetailData(savedRecipeToDetailData(recipe, ingredients));
         setIsSaved(true);
       } else {
         const spoonacularId = parseInt(id, 10);
