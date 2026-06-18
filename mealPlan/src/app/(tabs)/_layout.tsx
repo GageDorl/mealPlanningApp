@@ -16,11 +16,13 @@ export default function TabLayout() {
           backgroundColor: theme.backgroundElement,
           borderTopColor: theme.border,
           borderTopWidth: StyleSheet.hairlineWidth,
-
+          height: 64,
+          paddingBottom: 4,
+          paddingTop: 4,
         },
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: theme.textSecondary,
-        tabBarLabelStyle: { fontSize: 9, fontWeight: '500' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
         tabBarIconStyle: { marginBottom: -2 },
       }}
     >
