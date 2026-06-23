@@ -251,6 +251,11 @@ export default function ProfileScreen() {
             onPress={() => router.push('/(tabs)/profile/food-library')}
             variant="secondary"
           />
+          <Button
+            label="Macro planner"
+            onPress={() => router.push('/(tabs)/profile/macro-planner')}
+            variant="secondary"
+          />
 
           {/* Admin */}
           {(role === 'moderator' || role === 'admin') ? (
