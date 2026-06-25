@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   View,
@@ -109,14 +109,7 @@ export function MacroTrendChart({ userId }: Props) {
     }
   }, [range]);
 
-  // Clear tooltip when macro or range changes
-  const prevMacroRef = useRef(selectedMacro);
-  const prevRangeRef = useRef(range);
-  if (prevMacroRef.current !== selectedMacro || prevRangeRef.current !== range) {
-    prevMacroRef.current = selectedMacro;
-    prevRangeRef.current = range;
-    setTooltip(null);
-  }
+  useEffect(() => { setTooltip(null); }, [selectedMacro, range]);
 
   // — PowerSync queries (reactive, local SQLite) —
   const { data: goalRows } = useQuery<{

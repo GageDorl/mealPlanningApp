@@ -54,14 +54,23 @@ export function MacroAdjustmentCard({ userId }: Props) {
   );
 
   const { data: calorieRows } = useQuery<{ date: string; calories: number }>(
-    `SELECT fl.date, COALESCE(SUM(fli.calories * fli.servings_eaten), 0) as calories
-     FROM food_logs fl
-     LEFT JOIN food_log_items fli ON fli.food_log_id = fl.id
-     WHERE fl.user_id = ?
-     GROUP BY fl.date
-     ORDER BY fl.date DESC
+    `SELECT date, COALESCE(SUM(calories), 0) as calories FROM (
+       SELECT fl.date, fli.calories * fli.servings_eaten as calories
+       FROM food_logs fl
+       LEFT JOIN food_log_items fli ON fli.food_log_id = fl.id
+       WHERE fl.user_id = ?
+       UNION ALL
+       SELECT ms.date, r.calories_per_serving * msr.servings_eaten as calories
+       FROM meal_slots ms
+       JOIN meal_slot_recipes msr ON msr.meal_slot_id = ms.id
+       JOIN recipes r ON r.id = msr.recipe_id
+       JOIN meal_plans mp ON mp.id = ms.meal_plan_id
+       WHERE mp.user_id = ?
+     ) combined
+     GROUP BY date
+     ORDER BY date DESC
      LIMIT 90`,
-    [userId],
+    [userId, userId],
   );
 
   const { data: macroGoalRows } = useQuery<{
@@ -149,8 +158,6 @@ export function MacroAdjustmentCard({ userId }: Props) {
   const handleDismiss = async () => {
     await dismissAdjustment(db, userId, weightGoal);
   };
-
-  const currentCalories = macroGoalRows.find((g) => g.macro_name === 'calories')?.daily_target ?? 0;
 
   return (
     <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>

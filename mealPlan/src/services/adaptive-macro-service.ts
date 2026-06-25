@@ -51,7 +51,12 @@ export function detectSuspiciousDays(
   dailyCalories: DailyCalories[],
 ): SuspiciousDay[] {
   const calMap = new Map(dailyCalories.map((d) => [d.date, d.calories]));
-  const sortedWeights = [...weightLogs].sort((a, b) => a.date.localeCompare(b.date));
+  const calDates = [...calMap.keys()].sort();
+  const windowStart = calDates[0];
+  const windowEnd = calDates[calDates.length - 1];
+  const sortedWeights = [...weightLogs]
+    .filter((w) => w.date >= windowStart && w.date <= windowEnd)
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   const suspicious: SuspiciousDay[] = [];
 
@@ -92,26 +97,52 @@ export function calculateActualTdee(
   dailyCalories: DailyCalories[],
   excludeDates: Set<string>,
 ): number {
-  const sorted = [...weightLogs]
-    .filter((w) => !excludeDates.has(w.date))
+  const calDates = dailyCalories
+    .filter((d) => !excludeDates.has(d.date))
+    .map((d) => d.date)
+    .sort();
+  if (calDates.length === 0) return 0;
+
+  const windowStart = calDates[0];
+  const windowEnd = calDates[calDates.length - 1];
+
+  const weightInWindow = [...weightLogs]
+    .filter((w) => !excludeDates.has(w.date) && w.date >= windowStart && w.date <= windowEnd)
     .sort((a, b) => a.date.localeCompare(b.date));
+  if (weightInWindow.length < 2) return 0;
 
-  if (sorted.length < 2) return 0;
+  const mean = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / arr.length;
+  const weekOf = (date: string) =>
+    Math.floor((new Date(date).getTime() - new Date(windowStart).getTime()) / (7 * 86400000));
 
+  // Average weight per calendar week, then compare the two most recent weeks.
+  // Week-over-week change automatically adapts as metabolism shifts.
+  const weightByWeek = new Map<number, number[]>();
+  for (const w of weightInWindow) {
+    const wk = weekOf(w.date);
+    if (!weightByWeek.has(wk)) weightByWeek.set(wk, []);
+    weightByWeek.get(wk)!.push(w.weight_lbs);
+  }
+  const weekAvgWeights = [...weightByWeek.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, ws]) => mean(ws));
+  if (weekAvgWeights.length < 2) return 0;
+
+  const weightChangeLbs =
+    weekAvgWeights[weekAvgWeights.length - 1] - weekAvgWeights[weekAvgWeights.length - 2];
+
+  // Average daily calories per week, then average those to treat all weeks equally.
   const calMap = new Map(dailyCalories.map((d) => [d.date, d.calories]));
-  const firstWeight = sorted[0].weight_lbs;
-  const lastWeight = sorted[sorted.length - 1].weight_lbs;
-  const weightChangeLbs = lastWeight - firstWeight;
+  const calByWeek = new Map<number, number[]>();
+  for (const date of calDates) {
+    const wk = weekOf(date);
+    if (!calByWeek.has(wk)) calByWeek.set(wk, []);
+    calByWeek.get(wk)!.push(calMap.get(date) ?? 0);
+  }
+  const avgDailyCals = mean([...calByWeek.values()].map((cals) => mean(cals)));
 
-  const includedCals = [...calMap.entries()]
-    .filter(([date]) => !excludeDates.has(date))
-    .reduce((sum, [, cal]) => sum + cal, 0);
-
-  const days = dailyCalories.filter((d) => !excludeDates.has(d.date)).length;
-  if (days === 0) return 0;
-
-  const netSurplusKcal = weightChangeLbs * 3500;
-  return Math.round((includedCals - netSurplusKcal) / days);
+  // weight change is week-over-week (7 days), so normalize surplus to per-day
+  return Math.round(avgDailyCals - (weightChangeLbs * 3500) / 7);
 }
 
 export function buildMacroAdjustment(
