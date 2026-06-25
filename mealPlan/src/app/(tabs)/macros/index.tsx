@@ -37,6 +37,7 @@ export default function MacrosScreen() {
   const { selectedDate, dailyProgress, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const userId = getCachedUserId();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -130,16 +131,16 @@ export default function MacrosScreen() {
           </View>
 
           {/* Macro trend chart */}
-          {getCachedUserId() && (
+          {userId && (
             <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Trends</Text>
-              <MacroTrendChart userId={getCachedUserId()!} />
+              <MacroTrendChart userId={userId} />
             </View>
           )}
 
           {/* Adaptive macro adjustment — only visible when 7+ days of data exist */}
-          {getCachedUserId() && (
-            <MacroAdjustmentCard userId={getCachedUserId()!} />
+          {userId && (
+            <MacroAdjustmentCard userId={userId} />
           )}
         </ScrollView>
       )}

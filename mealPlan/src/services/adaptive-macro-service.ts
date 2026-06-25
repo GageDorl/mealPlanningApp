@@ -113,7 +113,7 @@ export function calculateActualTdee(
 
   const mean = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / arr.length;
   const weekOf = (date: string) =>
-    Math.floor((new Date(date).getTime() - new Date(windowStart).getTime()) / (7 * 86400000));
+    Math.floor((new Date(`${date}T12:00:00`).getTime() - new Date(`${windowStart}T12:00:00`).getTime()) / (7 * 86400000));
 
   // Average weight per calendar week, then compare the two most recent weeks.
   // Week-over-week change automatically adapts as metabolism shifts.

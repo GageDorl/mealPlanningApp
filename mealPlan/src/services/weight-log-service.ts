@@ -31,7 +31,12 @@ export function parseWeightGoal(raw: string | null | undefined): WeightGoal | nu
   try {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
-    if (typeof parsed.goal_weight_lbs !== 'number' || typeof parsed.goal_date !== 'string') return null;
+    if (
+      typeof parsed.goal_weight_lbs !== 'number' ||
+      typeof parsed.goal_date !== 'string' ||
+      typeof parsed.baseline_weight_lbs !== 'number' ||
+      typeof parsed.baseline_date !== 'string'
+    ) return null;
     return parsed as WeightGoal;
   } catch {
     return null;

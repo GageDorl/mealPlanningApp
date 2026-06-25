@@ -156,7 +156,11 @@ export function MacroAdjustmentCard({ userId }: Props) {
   };
 
   const handleDismiss = async () => {
-    await dismissAdjustment(db, userId, weightGoal);
+    try {
+      await dismissAdjustment(db, userId, weightGoal);
+    } catch {
+      Alert.alert('Error', 'Failed to dismiss. Please try again.');
+    }
   };
 
   return (

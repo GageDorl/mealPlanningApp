@@ -130,15 +130,24 @@ export function recommendMacroPlan(input: MacroPlannerInput): MacroRecommendatio
   const bmr = estimateBmr(weightLbs, heightIn, age, sex);
   const tdee = bmr * activityFactors[activityLevel];
 
-  const targetCalories = goalWeightLbs !== undefined && goalDate !== undefined
+  const proteinRefLbs = goalType === 'lose' ? Math.min(weightLbs, 200) : weightLbs;
+  const protein = Math.round(proteinRefLbs * proteinPerLb[goalType]);
+
+  // Minimum fat: 0.5g per kg body weight (hormonal health floor)
+  // Minimum carbs: 20g/day (brain function floor)
+  const minFatG = Math.round((weightLbs / 2.205) * 0.5);
+  const minCarbsG = 20;
+  const minCaloriesForMacros = protein * 4 + minCarbsG * 4 + minFatG * 9;
+
+  const rawTargetCalories = goalWeightLbs !== undefined && goalDate !== undefined
     ? Math.max(1200, Math.round(tdee + calculateDailyDeficit(weightLbs, goalWeightLbs, goalDate)))
     : Math.round(tdee * goalAdjustments[goalType]);
+  const targetCalories = Math.max(rawTargetCalories, minCaloriesForMacros);
 
-  const protein = Math.round(weightLbs * proteinPerLb[goalType]);
   const remainingCalories = targetCalories - protein * 4;
   const split = carbFatSplit[goalType];
-  const carbs = Math.round((remainingCalories * split.carbs) / 4);
-  const fat = Math.round((remainingCalories * split.fat) / 9);
+  const carbs = Math.max(minCarbsG, Math.round((remainingCalories * split.carbs) / 4));
+  const fat = Math.max(minFatG, Math.round((remainingCalories * split.fat) / 9));
 
   const proteinCalories = protein * 4;
   const carbsCalories = carbs * 4;
