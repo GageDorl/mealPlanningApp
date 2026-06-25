@@ -6,7 +6,6 @@ import { useRouter } from 'expo-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DietaryTags } from '@/constants/dietary-tags';
-import { DefaultMacros, type MacroDefinition } from '@/constants/macros';
 import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useThemeToggle } from '@/hooks/use-theme-toggle';
@@ -16,14 +15,14 @@ import { useCalendar } from '@/hooks/use-calendar';
 import { CalendarPickerList } from '@/components/calendar/calendar-picker-list';
 import { usePowerSync } from '@powersync/react-native';
 import { signOut } from '@/services/supabase';
-import { updateDietaryPreferences, updateDisplayName, updateMacroGoals, updateNotificationSettings } from '@/services/user-service';
+import { updateDietaryPreferences, updateDisplayName, updateNotificationSettings } from '@/services/user-service';
 
 export default function ProfileScreen() {
   const db = usePowerSync();
   const router = useRouter();
   const theme = useTheme();
   const { themeMode, setTheme } = useThemeToggle();
-  const { profile, loading, reload } = useUserProfile();
+  const { profile, reload } = useUserProfile();
   const { role } = useUserRole();
   const {
     connected, connectError, availableCalendars, selectedCalendarIds,
@@ -31,7 +30,6 @@ export default function ProfileScreen() {
   } = useCalendar();
   const [refreshing, setRefreshing] = useState(false);
   const [displayName, setDisplayName] = useState('');
-  const [macros, setMacros] = useState<MacroDefinition[]>(DefaultMacros);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -55,42 +53,18 @@ export default function ProfileScreen() {
       macroCheckIns: profile.user.notification_macro_checkins,
     });
 
-    const syncedMacros = DefaultMacros.map((macro) => {
-      const match = profile.macroGoals.find((item) => item.macro_name === macro.key);
-      return { ...macro, defaultGoal: match ? Number(match.daily_target) : macro.defaultGoal };
-    });
-    setMacros(syncedMacros);
   }, [profile]);
 
   const toggleTag = (tag: string) => {
+
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  };
-
-  const updateMacroValue = (index: number, value: string) => {
-    const amount = Number(value);
-    setMacros((prev) =>
-      prev.map((item, idx) =>
-        idx === index ? { ...item, defaultGoal: Number.isNaN(amount) ? item.defaultGoal : amount } : item
-      )
     );
   };
 
   const handleSave = async () => {
     if (!profile) return;
     await updateDisplayName(db, profile.user.id, displayName);
-    await updateMacroGoals(
-      db,
-      profile.user.id,
-      macros.map((macro, index) => ({
-        macro_name: macro.key,
-        daily_target: macro.defaultGoal,
-        unit: macro.unit,
-        display_order: index,
-        is_active: true,
-      }))
-    );
     await updateDietaryPreferences(db, profile.user.id, selectedTags);
     await updateNotificationSettings(db, profile.user.id, {
       notification_meal_reminders: notifications.mealReminders,
@@ -132,26 +106,6 @@ export default function ProfileScreen() {
           </View>
           <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Display name</Text>
           <Input value={displayName} onChangeText={setDisplayName} placeholder="Your name" />
-
-          {/* Macro goals */}
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Macro goals</Text>
-          {macros.map((macro, index) => (
-            <View key={macro.key} style={styles.macroRow}>
-              <View style={styles.macroLabelRow}>
-                <View style={[styles.macroSwatch, { backgroundColor: macro.color }]} />
-                <Text style={[styles.macroLabel, { color: theme.text }]}>
-                  {macro.label}
-                  <Text style={[styles.macroUnit, { color: theme.textSecondary }]}> ({macro.unit})</Text>
-                </Text>
-              </View>
-              <Input
-                value={String(macro.defaultGoal)}
-                onChangeText={(v) => updateMacroValue(index, v)}
-                keyboardType="numeric"
-                containerStyle={styles.macroInput}
-              />
-            </View>
-          ))}
 
           {/* Dietary preferences */}
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Dietary preferences</Text>
@@ -251,6 +205,11 @@ export default function ProfileScreen() {
             onPress={() => router.push('/(tabs)/profile/food-library')}
             variant="secondary"
           />
+          <Button
+            label="Macro Planner"
+            onPress={() => router.push('/(tabs)/profile/macro-planner')}
+            variant="secondary"
+          />
 
           {/* Admin */}
           {(role === 'moderator' || role === 'admin') ? (
@@ -342,35 +301,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
     marginTop: Spacing.sm,
   } as TextStyle,
-  macroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-    marginBottom: Spacing.sm,
-  } as ViewStyle,
-  macroLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    flex: 1,
-  } as ViewStyle,
-  macroSwatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  } as ViewStyle,
-  macroLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-  } as TextStyle,
-  macroUnit: {
-    fontSize: FontSizes.xs,
-    fontWeight: '400',
-  } as TextStyle,
-  macroInput: {
-    width: 90,
-  } as ViewStyle,
   tagGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
