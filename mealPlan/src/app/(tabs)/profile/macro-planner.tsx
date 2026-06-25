@@ -47,8 +47,9 @@ export default function MacroPlannerScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { profile, loading } = useUserProfile();
-  const [weight, setWeight] = useState('70');
-  const [height, setHeight] = useState('170');
+  const [weight, setWeight] = useState('170');
+  const [heightFt, setHeightFt] = useState('5');
+  const [heightIn, setHeightIn] = useState('10');
   const [age, setAge] = useState('30');
   const [sex, setSex] = useState<Sex>('other');
   const [goalType, setGoalType] = useState<GoalType>('maintain');
@@ -81,13 +82,18 @@ export default function MacroPlannerScreen() {
 
   const validateInputs = () => {
     const weightValue = Number(weight);
-    if (Number.isNaN(weightValue) || weightValue < 40 || weightValue > 200) {
-      return 'Please enter a weight between 40 and 200 kg.';
+    if (Number.isNaN(weightValue) || weightValue < 80 || weightValue > 500) {
+      return 'Please enter a weight between 80 and 500 lbs.';
     }
 
-    const heightValue = Number(height);
-    if (Number.isNaN(heightValue) || heightValue < 120 || heightValue > 230) {
-      return 'Please enter a height between 120 and 230 cm.';
+    const ftValue = Number(heightFt);
+    const inValue = Number(heightIn);
+    if (Number.isNaN(ftValue) || Number.isNaN(inValue) || inValue < 0 || inValue > 11) {
+      return 'Please enter a valid height (feet 3–7, inches 0–11).';
+    }
+    const totalInches = ftValue * 12 + inValue;
+    if (totalInches < 48 || totalInches > 90) {
+      return 'Please enter a height between 4\'0" and 7\'6".';
     }
 
     const ageValue = Number(age);
@@ -105,15 +111,15 @@ export default function MacroPlannerScreen() {
 
   const inputPayload: MacroPlannerInput = useMemo(
     () => ({
-      weightKg: clampNumber(Number(weight), 40, 200),
-      heightCm: clampNumber(Number(height), 120, 230),
+      weightLbs: clampNumber(Number(weight), 80, 500),
+      heightIn: clampNumber(Number(heightFt) * 12 + Number(heightIn), 48, 90),
       age: clampNumber(Number(age), 18, 100),
       sex,
       goalType,
       activityLevel,
       dietaryTags: profile?.dietaryPreferences ?? [],
     }),
-    [weight, height, age, sex, goalType, activityLevel, profile?.dietaryPreferences],
+    [weight, heightFt, heightIn, age, sex, goalType, activityLevel, profile?.dietaryPreferences],
   );
 
   const recommendation: MacroRecommendation = useMemo(
@@ -201,15 +207,24 @@ export default function MacroPlannerScreen() {
           <Text style={[styles.sectionTitle, { color: theme.text }]}>About you</Text>
           <View style={styles.fieldRow}>
             <View style={styles.fieldLabel}>
-              <Text style={[styles.fieldLabelText, { color: theme.text }]}>Weight (kg)</Text>
+              <Text style={[styles.fieldLabelText, { color: theme.text }]}>Weight (lbs)</Text>
             </View>
             <Input value={weight} onChangeText={setWeight} keyboardType="numeric" />
           </View>
           <View style={styles.fieldRow}>
             <View style={styles.fieldLabel}>
-              <Text style={[styles.fieldLabelText, { color: theme.text }]}>Height (cm)</Text>
+              <Text style={[styles.fieldLabelText, { color: theme.text }]}>Height</Text>
             </View>
-            <Input value={height} onChangeText={setHeight} keyboardType="numeric" />
+            <View style={styles.heightRow}>
+              <View style={styles.heightField}>
+                <Input value={heightFt} onChangeText={setHeightFt} keyboardType="numeric" />
+                <Text style={[styles.heightUnit, { color: theme.textSecondary }]}>ft</Text>
+              </View>
+              <View style={styles.heightField}>
+                <Input value={heightIn} onChangeText={setHeightIn} keyboardType="numeric" />
+                <Text style={[styles.heightUnit, { color: theme.textSecondary }]}>in</Text>
+              </View>
+            </View>
           </View>
           <View style={styles.fieldRow}>
             <View style={styles.fieldLabel}>
@@ -335,6 +350,20 @@ const styles = StyleSheet.create({
   fieldLabel: {
     marginBottom: 6,
   } as ViewStyle,
+  heightRow: {
+    flexDirection: 'row',
+    gap: 12,
+  } as ViewStyle,
+  heightField: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  } as ViewStyle,
+  heightUnit: {
+    fontSize: 14,
+    fontWeight: '500',
+  } as TextStyle,
   fieldLabelText: {
     fontSize: 15,
     fontWeight: '600',

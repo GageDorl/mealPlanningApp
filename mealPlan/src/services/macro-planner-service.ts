@@ -3,8 +3,8 @@ export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active';
 export type Sex = 'male' | 'female' | 'other';
 
 export interface MacroPlannerInput {
-  weightKg: number;
-  heightCm: number;
+  weightLbs: number;
+  heightIn: number;
   age: number;
   sex: Sex;
   goalType: GoalType;
@@ -40,10 +40,18 @@ const goalAdjustments: Record<GoalType, number> = {
   gain: 1.1,
 };
 
-const macroRatios: Record<GoalType, { protein: number; carbs: number; fat: number }> = {
-  lose: { protein: 0.3, carbs: 0.35, fat: 0.35 },
-  maintain: { protein: 0.25, carbs: 0.45, fat: 0.3 },
-  gain: { protein: 0.25, carbs: 0.5, fat: 0.25 },
+// g of protein per lb of bodyweight by goal — based on current sports nutrition research
+const proteinPerLb: Record<GoalType, number> = {
+  lose: 0.80,
+  maintain: 0.60,
+  gain: 0.70,
+};
+
+// carb/fat split of remaining calories after protein is accounted for
+const carbFatSplit: Record<GoalType, { carbs: number; fat: number }> = {
+  lose: { carbs: 0.50, fat: 0.50 },
+  maintain: { carbs: 0.60, fat: 0.40 },
+  gain: { carbs: 0.67, fat: 0.33 },
 };
 
 const goalLabels: Record<GoalType, string> = {
@@ -65,14 +73,12 @@ const sexLabels: Record<Sex, string> = {
   other: 'Prefer not to say',
 };
 
-function estimateBmr(weightKg: number, heightCm: number, age: number, sex: Sex): number {
-  if (sex === 'male') {
-    return 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
-  }
-  if (sex === 'female') {
-    return 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
-  }
-  return 10 * weightKg + 6.25 * heightCm - 5 * age - 78;
+// Mifflin-St Jeor in US customary: 4.536 × lbs + 15.875 × inches − 5 × age ± sex offset
+function estimateBmr(weightLbs: number, heightIn: number, age: number, sex: Sex): number {
+  const base = 4.536 * weightLbs + 15.875 * heightIn - 5 * age;
+  if (sex === 'male') return base + 5;
+  if (sex === 'female') return base - 161;
+  return base - 78;
 }
 
 export function getGoalLabel(goalType: GoalType): string {
@@ -88,20 +94,21 @@ export function getSexLabel(sex: Sex): string {
 }
 
 export function recommendMacroPlan(input: MacroPlannerInput): MacroRecommendation {
-  const { weightKg, heightCm, age, sex, goalType, activityLevel, dietaryTags } = input;
-  const bmr = estimateBmr(weightKg, heightCm, age, sex);
+  const { weightLbs, heightIn, age, sex, goalType, activityLevel, dietaryTags } = input;
+  const bmr = estimateBmr(weightLbs, heightIn, age, sex);
   const activityFactor = activityFactors[activityLevel];
   const goalAdjustment = goalAdjustments[goalType];
   const targetCalories = Math.round(bmr * activityFactor * goalAdjustment);
 
-  const ratios = macroRatios[goalType];
-  const proteinCalories = targetCalories * ratios.protein;
-  const carbsCalories = targetCalories * ratios.carbs;
-  const fatCalories = targetCalories * ratios.fat;
+  const protein = Math.round(weightLbs * proteinPerLb[goalType]);
+  const remainingCalories = targetCalories - protein * 4;
+  const split = carbFatSplit[goalType];
+  const carbs = Math.round((remainingCalories * split.carbs) / 4);
+  const fat = Math.round((remainingCalories * split.fat) / 9);
 
-  const protein = Math.round(proteinCalories / 4);
-  const carbs = Math.round(carbsCalories / 4);
-  const fat = Math.round(fatCalories / 9);
+  const proteinCalories = protein * 4;
+  const carbsCalories = carbs * 4;
+  const fatCalories = fat * 9;
 
   const mealPattern = goalType === 'gain'
     ? '3 meals plus 1-2 snacks to support muscle growth.'
@@ -135,9 +142,9 @@ export function recommendMacroPlan(input: MacroPlannerInput): MacroRecommendatio
     goalType,
     activityLevel,
     caloriesLabel: `${targetCalories} kcal · ${goalLabels[goalType]}`,
-    proteinRatio: ratios.protein,
-    carbsRatio: ratios.carbs,
-    fatRatio: ratios.fat,
+    proteinRatio: proteinCalories / targetCalories,
+    carbsRatio: carbsCalories / targetCalories,
+    fatRatio: fatCalories / targetCalories,
     mealPattern,
     guidance,
   };
