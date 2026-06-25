@@ -107,7 +107,7 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
   return (
     <PowerSyncContext.Provider value={db}>
       {children}
-      {/* {visible ? (
+      {visible ? (
         <Animated.View style={[styles.banner, { transform: pan.getTranslateTransform() }]} {...panResponder.panHandlers}>
           <View style={styles.header}>
             <Text style={styles.headerText}>Debug Log</Text>
@@ -151,7 +151,7 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
         <TouchableOpacity style={styles.pill} onPress={() => setVisible(true)}>
           <Text style={styles.pillText}>LOG</Text>
         </TouchableOpacity>
-      )} */}
+      )}
     </PowerSyncContext.Provider>
   );
 }
