@@ -14,9 +14,6 @@ import {
   ActivityLevel,
   GoalType,
   Sex,
-  getActivityLabel,
-  getGoalLabel,
-  getSexLabel,
   recommendMacroPlan,
   type MacroPlannerInput,
   type MacroRecommendation,
@@ -57,6 +54,7 @@ export default function MacroPlannerScreen() {
   const [goalType, setGoalType] = useState<GoalType>('maintain');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
   const [goals, setGoals] = useState<MacroDefinition[]>(DefaultMacros);
+  const [goalInputs, setGoalInputs] = useState<string[]>(DefaultMacros.map((m) => String(m.defaultGoal)));
   const [initialGoals, setInitialGoals] = useState<MacroDefinition[]>(DefaultMacros);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -71,11 +69,13 @@ export default function MacroPlannerScreen() {
       };
     });
     setGoals(synced);
+    setGoalInputs(synced.map((m) => String(m.defaultGoal)));
     setInitialGoals(synced);
   }, [profile]);
 
   const restoreCurrentGoals = () => {
     setGoals(initialGoals);
+    setGoalInputs(initialGoals.map((m) => String(m.defaultGoal)));
     setSaveError(null);
   };
 
@@ -129,19 +129,25 @@ export default function MacroPlannerScreen() {
   }), [recommendation]);
 
   const applyRecommendationToGoals = () => {
-    setGoals((prev) => prev.map((item) => {
+    const updated = goals.map((item) => {
+      if (item.key === 'calories') return { ...item, defaultGoal: recommendation.calories };
       if (item.key === 'protein') return { ...item, defaultGoal: recommendation.protein };
       if (item.key === 'carbs') return { ...item, defaultGoal: recommendation.carbs };
       if (item.key === 'fat') return { ...item, defaultGoal: recommendation.fat };
       return item;
-    }));
+    });
+    setGoals(updated);
+    setGoalInputs(updated.map((m) => String(m.defaultGoal)));
   };
 
   const updateGoal = (index: number, value: string) => {
+    setGoalInputs((prev) => prev.map((v, idx) => (idx === index ? value : v)));
     const amount = Number(value);
-    setGoals((prev) => prev.map((item, idx) => (
-      idx === index ? { ...item, defaultGoal: Number.isNaN(amount) ? item.defaultGoal : amount } : item
-    )));
+    if (value !== '' && !Number.isNaN(amount) && amount > 0) {
+      setGoals((prev) => prev.map((item, idx) => (
+        idx === index ? { ...item, defaultGoal: amount } : item
+      )));
+    }
   };
 
   const handleSave = async () => {
@@ -263,19 +269,19 @@ export default function MacroPlannerScreen() {
               <Text key={line} style={[styles.guidanceLine, { color: theme.textSecondary }]}>{line}</Text>
             ))}
             <View style={styles.summaryGrid}>
-              <View style={styles.summaryItem}>
+              <View style={[styles.summaryItem, { backgroundColor: theme.backgroundSelected }]}>
                 <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Weekly calories</Text>
                 <Text style={[styles.summaryValue, { color: theme.text }]}>{weeklySummary.calories} kcal</Text>
               </View>
-              <View style={styles.summaryItem}>
+              <View style={[styles.summaryItem, { backgroundColor: theme.backgroundSelected }]}>
                 <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Weekly protein</Text>
                 <Text style={[styles.summaryValue, { color: theme.text }]}>{weeklySummary.protein} g</Text>
               </View>
-              <View style={styles.summaryItem}>
+              <View style={[styles.summaryItem, { backgroundColor: theme.backgroundSelected }]}>
                 <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Weekly carbs</Text>
                 <Text style={[styles.summaryValue, { color: theme.text }]}>{weeklySummary.carbs} g</Text>
               </View>
-              <View style={styles.summaryItem}>
+              <View style={[styles.summaryItem, { backgroundColor: theme.backgroundSelected }]}>
                 <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Weekly fat</Text>
                 <Text style={[styles.summaryValue, { color: theme.text }]}>{weeklySummary.fat} g</Text>
               </View>
@@ -299,7 +305,7 @@ export default function MacroPlannerScreen() {
                 <Text style={[styles.fieldLabelText, { color: theme.text }]}>{macro.label}</Text>
               </View>
               <Input
-                value={String(macro.defaultGoal)}
+                value={goalInputs[index]}
                 onChangeText={(value) => updateGoal(index, value)}
                 keyboardType="numeric"
               />
@@ -390,7 +396,6 @@ const styles = StyleSheet.create({
     width: '48%',
     padding: 10,
     borderRadius: 12,
-    backgroundColor: '#F2F3F5',
   } as ViewStyle,
   summaryLabel: {
     fontSize: 12,

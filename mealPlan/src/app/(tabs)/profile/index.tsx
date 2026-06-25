@@ -23,7 +23,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { themeMode, setTheme } = useThemeToggle();
-  const { profile, loading, reload } = useUserProfile();
+  const { profile, reload } = useUserProfile();
   const { role } = useUserRole();
   const {
     connected, connectError, availableCalendars, selectedCalendarIds,
@@ -252,7 +252,7 @@ export default function ProfileScreen() {
             variant="secondary"
           />
           <Button
-            label="Macro planner"
+            label="Macro Planner"
             onPress={() => router.push('/(tabs)/profile/macro-planner')}
             variant="secondary"
           />
