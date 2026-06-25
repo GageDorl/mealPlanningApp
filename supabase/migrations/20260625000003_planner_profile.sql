@@ -1,0 +1,6 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS planner_sex TEXT,
+  ADD COLUMN IF NOT EXISTS planner_age INTEGER,
+  ADD COLUMN IF NOT EXISTS planner_height_ft INTEGER,
+  ADD COLUMN IF NOT EXISTS planner_height_in INTEGER,
+  ADD COLUMN IF NOT EXISTS planner_activity_level TEXT;

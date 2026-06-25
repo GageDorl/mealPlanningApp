@@ -19,6 +19,7 @@ import { GroceryPreviewCard } from '@/components/dashboard/grocery-preview-card'
 import { RecipePreviewCard } from '@/components/dashboard/recipe-preview-card';
 import { MacrosPreviewCard } from '@/components/dashboard/macros-preview-card';
 import { NudgeBanner } from '@/components/dashboard/nudge-banner';
+import { DailyWeightBanner } from '@/components/DailyWeightBanner';
 import { Colors, FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
 
 const TODAY_DATE = new Date();
@@ -96,6 +97,9 @@ export default function HomeScreen() {
           onPress={handleNudgePress}
         />
       )}
+
+      {/* Daily weight check-in — only shows when user has an active goal and hasn't logged today */}
+      {profile && <DailyWeightBanner userId={profile.user.id} />}
 
       {/* Module grid: left column (Calendar + Grocery) + right column (Meals) */}
       <View style={styles.grid}>

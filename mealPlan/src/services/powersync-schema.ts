@@ -29,6 +29,13 @@ const users = new Table({
   notification_macro_checkins: column.integer,
   selected_calendar_ids: column.text,
   calendar_export_enabled: column.integer,
+  weight_logs: column.text,
+  weight_goal: column.text,
+  planner_sex: column.text,
+  planner_age: column.integer,
+  planner_height_ft: column.integer,
+  planner_height_in: column.integer,
+  planner_activity_level: column.text,
   created_at: column.text,
   updated_at: column.text,
 });
