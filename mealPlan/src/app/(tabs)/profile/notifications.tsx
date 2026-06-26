@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View, type ViewStyle, type TextStyle } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { usePowerSync } from '@powersync/react-native';
 
 import { FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
@@ -50,64 +51,61 @@ const NOTIFICATION_TYPES = [
 export default function NotificationsScreen() {
   const db = usePowerSync();
   const theme = useTheme();
-  const { profile, reload } = useUserProfile();
+  const { profile } = useUserProfile();
+  const [initialized, setInitialized] = useState(false);
   const [notifications, setNotifications] = useState<NotificationState>({
     mealReminders: false,
     planningNudges: false,
     macroCheckIns: false,
     macroAdjustment: false,
   });
-  const [saving, setSaving] = useState(false);
 
+  // Always-current ref for the blur save so the cleanup captures latest state
+  const notificationsRef = useRef(notifications);
+  const profileRef = useRef(profile);
+  useEffect(() => { notificationsRef.current = notifications; }, [notifications]);
+  useEffect(() => { profileRef.current = profile; }, [profile]);
+
+  // Initialize from DB once on first load
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || initialized) return;
     setNotifications({
       mealReminders: profile.user.notification_meal_reminders,
       planningNudges: profile.user.notification_planning_nudges,
       macroCheckIns: profile.user.notification_macro_checkins,
       macroAdjustment: profile.user.notification_macro_adjustment,
     });
-  }, [profile]);
+    setInitialized(true);
+  }, [profile, initialized]);
+
+  // Save to DB when the user navigates away
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        const p = profileRef.current;
+        const n = notificationsRef.current;
+        if (!p) return;
+        updateNotificationSettings(db, p.user.id, {
+          notification_meal_reminders: n.mealReminders,
+          notification_planning_nudges: n.planningNudges,
+          notification_macro_checkins: n.macroCheckIns,
+          notification_macro_adjustment: n.macroAdjustment,
+        }).catch(console.error);
+      };
+    }, [db]),
+  );
 
   const handleToggle = async (key: keyof NotificationState, next: boolean) => {
-    if (!profile || saving) return;
-    setSaving(true);
-    try {
-      if (next && Platform.OS !== 'web') {
-        const granted = await register();
-        if (!granted) {
-          setSaving(false);
-          return;
-        }
-      }
-
-      const updated = { ...notifications, [key]: next };
-      setNotifications(updated);
-
-      await updateNotificationSettings(db, profile.user.id, {
-        notification_meal_reminders: updated.mealReminders,
-        notification_planning_nudges: updated.planningNudges,
-        notification_macro_checkins: updated.macroCheckIns,
-        notification_macro_adjustment: updated.macroAdjustment,
-      });
-
-      if (key === 'planningNudges') {
-        if (next) await schedulePlanningNudge();
-        else await cancelPlanningNudge();
-      }
-      if (key === 'macroCheckIns') {
-        if (next) await scheduleMacroCheckIn();
-        else await cancelMacroCheckIn();
-      }
-      if (key === 'macroAdjustment') {
-        if (next) await scheduleMacroAdjustmentReminder();
-        else await cancelMacroAdjustmentReminder();
-      }
-
-      reload();
-    } finally {
-      setSaving(false);
+    if (next && Platform.OS !== 'web') {
+      const granted = await register();
+      if (!granted) return;
     }
+    setNotifications((prev) => ({ ...prev, [key]: next }));
+
+    // Schedule / cancel immediately so notification fires even before the user leaves
+    if (key === 'planningNudges') { next ? schedulePlanningNudge() : cancelPlanningNudge(); }
+    if (key === 'macroCheckIns') { next ? scheduleMacroCheckIn() : cancelMacroCheckIn(); }
+    if (key === 'macroAdjustment') { next ? scheduleMacroAdjustmentReminder() : cancelMacroAdjustmentReminder(); }
   };
 
   return (
@@ -136,7 +134,6 @@ export default function NotificationsScreen() {
                 <Toggle
                   value={notifications[key]}
                   onValueChange={(next) => handleToggle(key, next)}
-                  disabled={saving}
                 />
               </View>
             ))}
