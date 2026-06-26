@@ -23,7 +23,9 @@ import {
 
 function calculateAge(dob: string): number {
   const [y, m, d] = dob.split('-').map(Number);
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return 30;
   const birth = new Date(y, m - 1, d, 12, 0, 0);
+  if (Number.isNaN(birth.getTime())) return 30;
   const now = new Date();
   let age = now.getFullYear() - birth.getFullYear();
   const monthDiff = now.getMonth() - birth.getMonth();
@@ -145,10 +147,15 @@ export default function MacroRecommendationScreen() {
       if (hasGoal) {
         const today = dateToStr(new Date());
         const existingBaseline = params.existingBaselineWeight ? Number(params.existingBaselineWeight) : undefined;
+        const parsedCurrentWeight = Number(params.weight);
+        const baselineWeight =
+          existingBaseline != null && !Number.isNaN(existingBaseline) ? existingBaseline
+          : !Number.isNaN(parsedCurrentWeight) && parsedCurrentWeight > 0 ? parsedCurrentWeight
+          : gwn!;
         const goal: WeightGoal = {
           goal_weight_lbs: gwn!,
           goal_date: params.goalDate!,
-          baseline_weight_lbs: existingBaseline ?? Number(params.weight) ?? gwn!,
+          baseline_weight_lbs: baselineWeight,
           baseline_date: params.existingBaselineDate || today,
           last_dismissed_at: params.existingDismissedAt || undefined,
         };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePowerSync, useQuery } from '@powersync/react-native';
 
@@ -27,12 +27,15 @@ const MONTH_NAMES = [
 
 function formatDob(dob: string): string {
   const [y, m, d] = dob.split('-').map(Number);
-  if (!y || !m || !d) return dob;
+  if (!y || !m || !d || Number.isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31) return dob;
   return `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
 }
 
 function dobToDate(dob: string): Date {
   const [y, m, d] = dob.split('-').map(Number);
+  if (!y || !m || !d || Number.isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31) {
+    return new Date(1990, 0, 1, 12, 0, 0);
+  }
   return new Date(y, m - 1, d, 12, 0, 0);
 }
 
@@ -50,6 +53,7 @@ export default function AccountScreen() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Body stats
   const [sex, setSex] = useState<Sex>('other');
@@ -101,15 +105,23 @@ export default function AccountScreen() {
 
   const handleSave = async () => {
     if (!profile) return;
-    await updateDisplayName(db, profile.user.id, displayName);
-    await updateDietaryPreferences(db, profile.user.id, selectedTags);
-    await updateBodyProfile(db, profile.user.id, {
-      sex,
-      dob,
-      height_ft: Number(heightFt) || 0,
-      height_in: Number(heightIn) || 0,
-    });
-    reload();
+    setSaving(true);
+    try {
+      await updateDisplayName(db, profile.user.id, displayName);
+      await updateDietaryPreferences(db, profile.user.id, selectedTags);
+      await updateBodyProfile(db, profile.user.id, {
+        sex,
+        dob,
+        height_ft: Number(heightFt) || 0,
+        height_in: Number(heightIn) || 0,
+      });
+      reload();
+      Alert.alert('Saved', 'Your account settings have been updated.');
+    } catch (err) {
+      Alert.alert('Save failed', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -253,7 +265,7 @@ export default function AccountScreen() {
 
           {/* Actions */}
           <View style={styles.actions}>
-            <Button label="Save" onPress={handleSave} />
+            <Button label={saving ? 'Saving…' : 'Save'} onPress={handleSave} disabled={saving} />
             <Button label="Sign out" onPress={handleSignOut} variant="secondary" />
           </View>
 
