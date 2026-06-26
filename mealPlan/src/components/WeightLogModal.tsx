@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
 import { usePowerSync } from '@powersync/react-native';
 import { DatePickerModal } from '@/components/ui/date-picker-modal';
@@ -14,6 +14,13 @@ interface Props {
   userId: string;
   onClose: () => void;
   onSaved?: () => void;
+  initialDate?: Date;
+}
+
+function toNoon(d: Date): Date {
+  const result = new Date(d);
+  result.setHours(12, 0, 0, 0);
+  return result;
 }
 
 function dateToStr(d: Date): string {
@@ -24,13 +31,20 @@ function formatDate(d: Date): string {
   return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
-export function WeightLogModal({ visible, userId, onClose, onSaved }: Props) {
+export function WeightLogModal({ visible, userId, onClose, onSaved, initialDate }: Props) {
   const db = usePowerSync();
   const theme = useTheme();
   const [weightInput, setWeightInput] = useState('');
-  const [logDate, setLogDate] = useState(() => new Date());
+  const [logDate, setLogDate] = useState(() => toNoon(initialDate ?? new Date()));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setWeightInput('');
+      setLogDate(toNoon(initialDate ?? new Date()));
+    }
+  }, [visible, initialDate]);
 
   const handleSave = async () => {
     const lbs = parseFloat(weightInput);
@@ -54,8 +68,6 @@ export function WeightLogModal({ visible, userId, onClose, onSaved }: Props) {
   };
 
   const handleClose = () => {
-    setWeightInput('');
-    setLogDate(new Date());
     onClose();
   };
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { parseWeightLogs, parseWeightGoal } from '@/services/weight-log-service';
 import {
   Animated,
   View,
@@ -17,7 +18,7 @@ import { type DailyMacroProgress, type MacroProgress } from '@/services/macro-se
 import { FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type MacroKey = 'calories' | 'protein' | 'carbs' | 'fat';
+type MacroKey = 'calories' | 'protein' | 'carbs' | 'fat' | 'weight';
 type ChartType = 'bar' | 'line';
 type Range = '7d' | '30d';
 
@@ -26,6 +27,7 @@ const MACRO_OPTIONS: { key: MacroKey; label: string; color: string }[] = [
   { key: 'protein', label: 'Protein', color: '#4A90D9' },
   { key: 'carbs', label: 'Carbs', color: '#F5A623' },
   { key: 'fat', label: 'Fat', color: '#7B68EE' },
+  { key: 'weight', label: 'Weight', color: '#34C759' },
 ];
 
 const DAY_ABBREVS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -110,8 +112,25 @@ export function MacroTrendChart({ userId }: Props) {
   }, [range]);
 
   useEffect(() => { setTooltip(null); }, [selectedMacro, range]);
+  useLayoutEffect(() => { if (selectedMacro === 'weight') setChartType('line'); }, [selectedMacro]);
 
   // — PowerSync queries (reactive, local SQLite) —
+  const { data: weightUserRows } = useQuery<{ weight_logs: string | null; weight_goal: string | null }>(
+    'SELECT weight_logs, weight_goal FROM users WHERE id = ?',
+    [userId],
+  );
+
+  const weightByDate = useMemo(() => {
+    if (selectedMacro !== 'weight') return new Map<string, number>();
+    const logs = parseWeightLogs(weightUserRows[0]?.weight_logs);
+    return new Map(logs.map((e) => [e.date, e.weight_lbs]));
+  }, [weightUserRows, selectedMacro]);
+
+  const parsedWeightGoal = useMemo(() => {
+    if (selectedMacro !== 'weight') return null;
+    return parseWeightGoal(weightUserRows[0]?.weight_goal);
+  }, [weightUserRows, selectedMacro]);
+
   const { data: goalRows } = useQuery<{
     macro_name: string; daily_target: number; unit: string; display_order: number;
   }>(
@@ -240,6 +259,7 @@ export function MacroTrendChart({ userId }: Props) {
   );
 
   const macroOption = MACRO_OPTIONS.find((m) => m.key === selectedMacro)!;
+  const isWeight = selectedMacro === 'weight';
 
   const baseChartWidth = containerWidth > Y_AXIS_WIDTH ? containerWidth - Y_AXIS_WIDTH : 0;
   baseChartWidthRef.current = baseChartWidth;
@@ -248,24 +268,40 @@ export function MacroTrendChart({ userId }: Props) {
   const slotWidth = chartWidth / n;
   const labelStep = 1;
 
-  const chartPoints = histData.map((day, i) => {
-    const macro = day.macros.find((m) => m.macro_name === selectedMacro);
-    return {
-      value: macro?.current ?? 0,
-      goal: macro?.goal ?? 0,
-      label: xLabel(day.date, i, range, labelStep),
-      date: day.date,
-    };
-  });
+  const chartPoints = isWeight
+    ? buildDateRange(startDate, endDate).map((date, i) => ({
+        value: weightByDate.get(date) ?? 0,
+        goal: parsedWeightGoal?.goal_weight_lbs ?? 0,
+        label: xLabel(date, i, range, labelStep),
+        date,
+      }))
+    : histData.map((day, i) => {
+        const macro = day.macros.find((m) => m.macro_name === selectedMacro);
+        return {
+          value: macro?.current ?? 0,
+          goal: macro?.goal ?? 0,
+          label: xLabel(day.date, i, range, labelStep),
+          date: day.date,
+        };
+      });
 
   const goalValue = chartPoints.find((p) => p.goal > 0)?.goal ?? 0;
-  const maxRaw = Math.max(...chartPoints.map((p) => p.value), goalValue);
-  const stepValue = selectedMacro === 'calories' ? 500 : 25;
-  const noOfSections = Math.max(1, Math.ceil((maxRaw * 1.1) / stepValue));
-  const maxValue = noOfSections * stepValue;
+  const maxRaw = Math.max(...chartPoints.map((p) => p.value), goalValue, 0);
+
+  // Weight: 0 → next 100 above max, grid lines every 10 lbs
+  const stepValue = isWeight ? 10 : selectedMacro === 'calories' ? 500 : 25;
+  const maxValue = isWeight
+    ? Math.max(100, Math.ceil(maxRaw / 100) * 100)
+    : Math.max(stepValue, Math.ceil((maxRaw * 1.1) / stepValue) * stepValue);
+  const noOfSections = maxValue / stepValue;
   const hasData = chartPoints.some((p) => p.value > 0);
 
-  const yAxisLabels = Array.from({ length: noOfSections + 1 }, (_, i) => (noOfSections - i) * stepValue);
+  // Weight: label only every 50 lbs (every 5th section) so they don't crowd the axis.
+  // noOfSections is always maxValue/10 and maxValue is always a multiple of 100,
+  // so noOfSections/5 is always a whole number and the labels land on exact grid lines.
+  const yAxisLabels = isWeight
+    ? Array.from({ length: noOfSections / 5 + 1 }, (_, i) => (noOfSections / 5 - i) * 50)
+    : Array.from({ length: noOfSections + 1 }, (_, i) => (noOfSections - i) * stepValue);
 
   const labelStyle = { color: theme.textSecondary, fontSize: 10 };
 
@@ -277,13 +313,15 @@ export function MacroTrendChart({ userId }: Props) {
     onPress: () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
   }));
 
-  const lineData: lineDataItem[] = chartPoints.map(({ value, label, date }) => ({
-    value,
-    label,
-    labelTextStyle: labelStyle,
-    dataPointColor: macroOption.color,
-    onPress: () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
-  }));
+  const lineData: lineDataItem[] = chartPoints
+    .filter(({ value }) => value > 0)
+    .map(({ value, label, date }) => ({
+      value,
+      label,
+      labelTextStyle: labelStyle,
+      dataPointColor: macroOption.color,
+      onPress: () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
+    }));
 
   const refLineConfig: referenceConfigType = {
     color: macroOption.color,
@@ -319,19 +357,21 @@ export function MacroTrendChart({ userId }: Props) {
     <View onLayout={onLayout} style={{ width: '100%' }}>
       {/* Controls row */}
       <View style={styles.controlsRow}>
-        <View style={[styles.toggleGroup, { backgroundColor: toggleBg }]}>
-          {(['bar', 'line'] as ChartType[]).map((type) => (
-            <Pressable
-              key={type}
-              style={[styles.toggleBtn, chartType === type && { backgroundColor: macroOption.color }]}
-              onPress={() => setChartType(type)}
-            >
-              <Text style={[styles.toggleText, { color: chartType === type ? '#fff' : theme.textSecondary }]}>
-                {type === 'bar' ? 'Bar' : 'Line'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        {!isWeight && (
+          <View style={[styles.toggleGroup, { backgroundColor: toggleBg }]}>
+            {(['bar', 'line'] as ChartType[]).map((type) => (
+              <Pressable
+                key={type}
+                style={[styles.toggleBtn, chartType === type && { backgroundColor: macroOption.color }]}
+                onPress={() => setChartType(type)}
+              >
+                <Text style={[styles.toggleText, { color: chartType === type ? '#fff' : theme.textSecondary }]}>
+                  {type === 'bar' ? 'Bar' : 'Line'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         <View style={[styles.toggleGroup, { backgroundColor: toggleBg }]}>
           {(['7d', '30d'] as Range[]).map((r) => (
@@ -366,7 +406,7 @@ export function MacroTrendChart({ userId }: Props) {
       <View style={styles.tooltipRow}>
         {tooltip && (
           <Text style={[styles.tooltipText, { color: macroOption.color }]}>
-            {formatTooltipDate(tooltip.date, range)}: {tooltip.value.toFixed(0)} {macroOption.key === 'calories' ? 'kcal' : 'g'}
+            {formatTooltipDate(tooltip.date, range)}: {tooltip.value.toFixed(isWeight ? 1 : 0)} {isWeight ? 'lbs' : macroOption.key === 'calories' ? 'kcal' : 'g'}
           </Text>
         )}
       </View>
