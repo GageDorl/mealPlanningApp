@@ -1,5 +1,4 @@
-import { View, Pressable, StyleSheet, Linking, type ViewStyle } from 'react-native';
-import { SvgUri } from 'react-native-svg';
+import { View, Image, Pressable, StyleSheet, Linking, type ViewStyle } from 'react-native';
 import { Spacing, Colors } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -18,10 +17,10 @@ export function FatSecretAttribution({ style }: FatSecretAttributionProps) {
   return (
     <View style={[styles.container, style]}>
       <Pressable onPress={() => Linking.openURL('https://platform.fatsecret.com')}>
-        <SvgUri
-          uri={badgeUri}
-          width={140}
-          height={30}
+        <Image
+          source={{ uri: badgeUri }}
+          style={styles.badge}
+          resizeMode="contain"
           accessibilityLabel="Nutrition information provided by fatsecret Platform API"
         />
       </Pressable>
@@ -34,4 +33,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xs,
   } as ViewStyle,
+  badge: {
+    width: 140,
+    height: 30,
+  },
 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, RefreshControl, StyleSheet, Switch, Text, View, type ViewStyle, type TextStyle, Pressable } from 'react-native';
+import { ScrollView, RefreshControl, StyleSheet, Switch, Text, View, Modal, type ViewStyle, type TextStyle, Pressable } from 'react-native';
 import { triggerSync } from '@/utils/trigger-sync';
 import { useRouter } from 'expo-router';
 
@@ -15,7 +15,7 @@ import { useCalendar } from '@/hooks/use-calendar';
 import { CalendarPickerList } from '@/components/calendar/calendar-picker-list';
 import { usePowerSync } from '@powersync/react-native';
 import { signOut } from '@/services/supabase';
-import { updateDietaryPreferences, updateDisplayName, updateNotificationSettings } from '@/services/user-service';
+import { updateDietaryPreferences, updateDisplayName, updateNotificationSettings, deleteAccount } from '@/services/user-service';
 
 export default function ProfileScreen() {
   const db = usePowerSync();
@@ -30,6 +30,8 @@ export default function ProfileScreen() {
   } = useCalendar();
   const [refreshing, setRefreshing] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -77,6 +79,18 @@ export default function ProfileScreen() {
   const handleSignOut = async () => {
     await signOut();
     router.replace('/sign-in');
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      router.replace('/about');
+    } catch (err) {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+      console.error('[deleteAccount]', err);
+    }
   };
 
   if (!profile) {
@@ -246,8 +260,60 @@ export default function ProfileScreen() {
             <Button label="Sign out" onPress={handleSignOut} variant="secondary" />
           </View>
 
+          {/* Danger zone */}
+          <View style={[styles.dangerZone, { borderColor: theme.error }]}>
+            <Text style={[styles.dangerTitle, { color: theme.error }]}>Danger zone</Text>
+            <Text style={[styles.dangerDesc, { color: theme.textSecondary }]}>
+              Permanently delete your account and all data. This cannot be undone.
+            </Text>
+            <Pressable
+              onPress={() => setShowDeleteConfirm(true)}
+              style={[styles.deleteButton, { borderColor: theme.error }]}
+            >
+              <Text style={[styles.deleteButtonLabel, { color: theme.error }]}>Delete account</Text>
+            </Pressable>
+          </View>
+
         </View>
       </ScrollView>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deleting && setShowDeleteConfirm(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => !deleting && setShowDeleteConfirm(false)}
+        >
+          <Pressable style={[styles.modalCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Delete account?</Text>
+            <Text style={[styles.modalBody, { color: theme.textSecondary }]}>
+              This will permanently delete your account, all meal plans, food logs, recipes, and preferences. This action cannot be undone.
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setShowDeleteConfirm(false)}
+                style={[styles.modalBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}
+                disabled={deleting}
+              >
+                <Text style={[styles.modalBtnLabel, { color: theme.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleDeleteAccount}
+                style={[styles.modalBtn, styles.modalBtnDanger, { opacity: deleting ? 0.6 : 1 }]}
+                disabled={deleting}
+              >
+                <Text style={[styles.modalBtnLabel, { color: '#FFFFFF' }]}>
+                  {deleting ? 'Deleting…' : 'Delete account'}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -350,6 +416,81 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   } as ViewStyle,
   themeButtonLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  } as TextStyle,
+  dangerZone: {
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.xxl,
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+  } as ViewStyle,
+  dangerTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  } as TextStyle,
+  dangerDesc: {
+    fontSize: FontSizes.sm,
+    lineHeight: 20,
+  } as TextStyle,
+  deleteButton: {
+    marginTop: Spacing.xs,
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+  } as ViewStyle,
+  deleteButtonLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  } as TextStyle,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  } as ViewStyle,
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.xl,
+    gap: Spacing.md,
+  } as ViewStyle,
+  modalTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '700',
+  } as TextStyle,
+  modalBody: {
+    fontSize: FontSizes.sm,
+    lineHeight: 22,
+  } as TextStyle,
+  modalActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  } as ViewStyle,
+  modalBtn: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  } as ViewStyle,
+  modalBtnDanger: {
+    backgroundColor: '#FF3B30',
+  } as ViewStyle,
+  modalBtnLabel: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
   } as TextStyle,
