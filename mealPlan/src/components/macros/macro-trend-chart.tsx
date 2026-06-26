@@ -313,15 +313,19 @@ export function MacroTrendChart({ userId }: Props) {
     onPress: () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
   }));
 
-  const lineData: lineDataItem[] = chartPoints
-    .filter(({ value }) => value > 0)
-    .map(({ value, label, date }) => ({
+  const lineData: lineDataItem[] = chartPoints.map(({ value, label, date }, i) => {
+    const noData = value === 0;
+    const nextIsGap = i < chartPoints.length - 1 && chartPoints[i + 1].value === 0;
+    return {
       value,
       label,
       labelTextStyle: labelStyle,
+      hideDataPoint: noData,
       dataPointColor: macroOption.color,
-      onPress: () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
-    }));
+      color: noData || nextIsGap ? 'transparent' : macroOption.color,
+      onPress: noData ? undefined : () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
+    };
+  });
 
   const refLineConfig: referenceConfigType = {
     color: macroOption.color,
