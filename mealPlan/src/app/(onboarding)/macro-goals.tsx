@@ -17,7 +17,7 @@ export default function MacroGoalsScreen() {
       </Text>
       <Button
         label="Open Macro Planner"
-        onPress={() => router.push('/(tabs)/profile/macro-planner')}
+        onPress={() => router.push('/(tabs)/macros/macro-planner')}
       />
       <Button
         label="Continue"

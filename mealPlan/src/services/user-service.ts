@@ -147,20 +147,43 @@ export async function updateNotificationSettings(db: PsDb, userId: string, setti
   );
 }
 
+export async function updateBodyProfile(
+  db: PsDb,
+  userId: string,
+  profile: {
+    sex?: string;
+    dob?: string;
+    height_ft?: number;
+    height_in?: number;
+  },
+): Promise<void> {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+
+  if (profile.sex) { sets.push('planner_sex = ?'); values.push(profile.sex); }
+  if (profile.dob) { sets.push('planner_dob = ?'); values.push(profile.dob); }
+  if (profile.height_ft != null && profile.height_ft > 0) {
+    sets.push('planner_height_ft = ?'); values.push(profile.height_ft);
+    sets.push('planner_height_in = ?'); values.push(profile.height_in ?? 0);
+  }
+
+  if (sets.length === 0) return;
+  sets.push('updated_at = ?'); values.push(new Date().toISOString());
+  values.push(userId);
+
+  await db.execute(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, values);
+}
+
 export async function updatePlannerProfile(
   db: PsDb,
   userId: string,
   profile: {
-    sex: string;
-    age: number;
-    height_ft: number;
-    height_in: number;
     activity_level: string;
   },
 ): Promise<void> {
   await db.execute(
-    'UPDATE users SET planner_sex = ?, planner_age = ?, planner_height_ft = ?, planner_height_in = ?, planner_activity_level = ?, updated_at = ? WHERE id = ?',
-    [profile.sex, profile.age, profile.height_ft, profile.height_in, profile.activity_level, new Date().toISOString(), userId],
+    'UPDATE users SET planner_activity_level = ?, updated_at = ? WHERE id = ?',
+    [profile.activity_level, new Date().toISOString(), userId],
   );
 }
 

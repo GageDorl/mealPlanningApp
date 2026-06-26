@@ -84,32 +84,6 @@ export default function MacrosScreen() {
         </Pressable>
       </View>
 
-      {/* Macro goals bar */}
-      <Pressable
-        onPress={() => router.push('/(tabs)/profile/macro-planner')}
-        style={[styles.goalsBar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-      >
-        {caloriesGoal ? (
-          <View style={styles.goalsBarInner}>
-            <Text style={[styles.goalsCalories, { color: theme.text }]}>
-              {caloriesGoal.daily_target.toLocaleString()} kcal
-            </Text>
-            <View style={styles.goalsMacros}>
-              {macroGoals.map((g) => (
-                <Text key={g.macro_name} style={[styles.goalsMacroItem, { color: theme.textSecondary }]}>
-                  {g.daily_target}{g.unit} {g.macro_name}
-                </Text>
-              ))}
-            </View>
-            <Text style={[styles.goalsChevron, { color: theme.textSecondary }]}>›</Text>
-          </View>
-        ) : (
-          <View style={styles.goalsBarInner}>
-            <Text style={[styles.goalsEmpty, { color: Colors.accent }]}>Set macro goals →</Text>
-          </View>
-        )}
-      </Pressable>
-
       <WeekSummaryStrip selectedDate={selectedDate} goToDate={goToDate} />
 
       {error ? (
@@ -122,6 +96,32 @@ export default function MacrosScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} colors={[Colors.accent]} />}
         >
+          {/* Macro goals bar */}
+          <Pressable
+            onPress={() => router.push('/(tabs)/macros/macro-planner')}
+            style={[styles.goalsBar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+          >
+            {caloriesGoal ? (
+              <View style={styles.goalsBarInner}>
+                <Text style={[styles.goalsCalories, { color: theme.text }]}>
+                  {caloriesGoal.daily_target.toLocaleString()} kcal
+                </Text>
+                <View style={styles.goalsMacros}>
+                  {macroGoals.map((g) => (
+                    <Text key={g.macro_name} style={[styles.goalsMacroItem, { color: theme.textSecondary }]}>
+                      {g.daily_target}{g.unit} {g.macro_name}
+                    </Text>
+                  ))}
+                </View>
+                <Text style={[styles.goalsChevron, { color: theme.textSecondary }]}>›</Text>
+              </View>
+            ) : (
+              <View style={styles.goalsBarInner}>
+                <Text style={[styles.goalsEmpty, { color: Colors.accent }]}>Set macro goals →</Text>
+              </View>
+            )}
+          </Pressable>
+
           {/* Calories ring */}
           {caloriesMacro && (
             <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
@@ -226,8 +226,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
   } as TextStyle,
   goalsBar: {
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.xs,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,

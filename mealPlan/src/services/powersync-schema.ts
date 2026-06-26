@@ -32,7 +32,7 @@ const users = new Table({
   weight_logs: column.text,
   weight_goal: column.text,
   planner_sex: column.text,
-  planner_age: column.integer,
+  planner_dob: column.text,
   planner_height_ft: column.integer,
   planner_height_in: column.integer,
   planner_activity_level: column.text,

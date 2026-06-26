@@ -1,0 +1,5 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS planner_dob TEXT;
+
+ALTER TABLE users
+  DROP COLUMN IF EXISTS planner_age;

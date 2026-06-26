@@ -1,16 +1,47 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle, type TextStyle } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
-import { usePowerSync } from '@powersync/react-native';
+import { usePowerSync, useQuery } from '@powersync/react-native';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePickerModal } from '@/components/ui/date-picker-modal';
 import { DietaryTags } from '@/constants/dietary-tags';
 import { Colors, FontSizes, Spacing, BorderRadius, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUserProfile } from '@/hooks/use-user-profile';
-import { updateDietaryPreferences, updateDisplayName, deleteAccount } from '@/services/user-service';
+import { updateBodyProfile, updateDietaryPreferences, updateDisplayName, deleteAccount } from '@/services/user-service';
 import { signOut } from '@/services/supabase';
+import type { Sex } from '@/services/macro-planner-service';
+
+const SEX_OPTIONS: Array<{ label: string; value: Sex }> = [
+  { label: 'Male', value: 'male' },
+  { label: 'Female', value: 'female' },
+  { label: 'Prefer not to say', value: 'other' },
+];
+
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+function formatDob(dob: string): string {
+  const [y, m, d] = dob.split('-').map(Number);
+  if (!y || !m || !d || Number.isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31) return dob;
+  return `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
+}
+
+function dobToDate(dob: string): Date {
+  const [y, m, d] = dob.split('-').map(Number);
+  if (!y || !m || !d || Number.isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31) {
+    return new Date(1990, 0, 1, 12, 0, 0);
+  }
+  return new Date(y, m - 1, d, 12, 0, 0);
+}
+
+function dateToDob(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 export default function AccountScreen() {
   const db = usePowerSync();
@@ -22,12 +53,49 @@ export default function AccountScreen() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Body stats
+  const [sex, setSex] = useState<Sex>('other');
+  const [dob, setDob] = useState('');
+  const [dobDate, setDobDate] = useState<Date>(new Date(1990, 0, 1, 12, 0, 0));
+  const [showDobPicker, setShowDobPicker] = useState(false);
+  const [heightFt, setHeightFt] = useState('');
+  const [heightIn, setHeightIn] = useState('');
+
+  const { data: bodyRows } = useQuery<{
+    planner_sex: string | null;
+    planner_dob: string | null;
+    planner_height_ft: number | null;
+    planner_height_in: number | null;
+  }>(
+    'SELECT planner_sex, planner_dob, planner_height_ft, planner_height_in FROM users WHERE id = ?',
+    [profile?.user.id ?? ''],
+  );
 
   useEffect(() => {
     if (!profile) return;
     setDisplayName(profile.user.display_name ?? '');
     setSelectedTags(profile.dietaryPreferences ?? []);
   }, [profile]);
+
+  useEffect(() => {
+    const row = bodyRows[0];
+    if (!row) return;
+    if (row.planner_sex) setSex(row.planner_sex as Sex);
+    if (row.planner_dob) {
+      setDob(row.planner_dob);
+      setDobDate(dobToDate(row.planner_dob));
+    }
+    if (row.planner_height_ft != null) setHeightFt(String(row.planner_height_ft));
+    if (row.planner_height_in != null) setHeightIn(String(row.planner_height_in));
+  }, [bodyRows]);
+
+  const handleDobSelect = (date: Date) => {
+    setDobDate(date);
+    setDob(dateToDob(date));
+    setShowDobPicker(false);
+  };
 
   const toggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) =>
@@ -37,9 +105,23 @@ export default function AccountScreen() {
 
   const handleSave = async () => {
     if (!profile) return;
-    await updateDisplayName(db, profile.user.id, displayName);
-    await updateDietaryPreferences(db, profile.user.id, selectedTags);
-    reload();
+    setSaving(true);
+    try {
+      await updateDisplayName(db, profile.user.id, displayName);
+      await updateDietaryPreferences(db, profile.user.id, selectedTags);
+      await updateBodyProfile(db, profile.user.id, {
+        sex,
+        dob,
+        height_ft: Number(heightFt) || 0,
+        height_in: Number(heightIn) || 0,
+      });
+      reload();
+      Alert.alert('Saved', 'Your account settings have been updated.');
+    } catch (err) {
+      Alert.alert('Save failed', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -65,6 +147,7 @@ export default function AccountScreen() {
         style={{ backgroundColor: theme.background }}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={[styles.content, { maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' }]}>
 
@@ -80,6 +163,78 @@ export default function AccountScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Display name</Text>
             <Input value={displayName} onChangeText={setDisplayName} placeholder="Your name" />
+          </View>
+
+          {/* Body stats */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Body stats</Text>
+            <Text style={[styles.sectionHint, { color: theme.textSecondary }]}>
+              Used to calculate personalized macro recommendations.
+            </Text>
+            <View style={[styles.group, { backgroundColor: theme.backgroundElement }]}>
+              {/* Height */}
+              <View style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
+                <Text style={[styles.rowLabel, { color: theme.text }]}>Height</Text>
+                <View style={styles.rowRight}>
+                  <TextInput
+                    style={[styles.inlineInput, { color: theme.text }]}
+                    value={heightFt}
+                    onChangeText={setHeightFt}
+                    keyboardType="number-pad"
+                    textAlign="right"
+                    placeholderTextColor={theme.textSecondary}
+                    placeholder="5"
+                  />
+                  <Text style={[styles.unit, { color: theme.textSecondary }]}>ft</Text>
+                  <TextInput
+                    style={[styles.inlineInput, { color: theme.text }]}
+                    value={heightIn}
+                    onChangeText={setHeightIn}
+                    keyboardType="number-pad"
+                    textAlign="right"
+                    placeholderTextColor={theme.textSecondary}
+                    placeholder="10"
+                  />
+                  <Text style={[styles.unit, { color: theme.textSecondary }]}>in</Text>
+                </View>
+              </View>
+              {/* Birthday */}
+              <Pressable
+                style={[styles.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}
+                onPress={() => setShowDobPicker(true)}
+              >
+                <Text style={[styles.rowLabel, { color: theme.text }]}>Birthday</Text>
+                <View style={styles.rowRight}>
+                  <Text style={[styles.rowValue, { color: dob ? theme.text : theme.textSecondary }]}>
+                    {dob ? formatDob(dob) : 'Not set'}
+                  </Text>
+                  <Text style={[styles.chevron, { color: Colors.accent }]}>›</Text>
+                </View>
+              </Pressable>
+              {/* Biological sex */}
+              <View style={styles.sexRow}>
+                <Text style={[styles.rowLabel, { color: theme.text }]}>Biological sex</Text>
+                <View style={styles.chipRow}>
+                  {SEX_OPTIONS.map((opt) => (
+                    <Pressable
+                      key={opt.value}
+                      style={[
+                        styles.chip,
+                        {
+                          borderColor: sex === opt.value ? Colors.accent : theme.border,
+                          backgroundColor: sex === opt.value ? Colors.accent : theme.backgroundElement,
+                        },
+                      ]}
+                      onPress={() => setSex(opt.value)}
+                    >
+                      <Text style={[styles.chipText, { color: sex === opt.value ? '#fff' : theme.text }]}>
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </View>
           </View>
 
           {/* Dietary preferences */}
@@ -110,7 +265,7 @@ export default function AccountScreen() {
 
           {/* Actions */}
           <View style={styles.actions}>
-            <Button label="Save" onPress={handleSave} />
+            <Button label={saving ? 'Saving…' : 'Save'} onPress={handleSave} disabled={saving} />
             <Button label="Sign out" onPress={handleSignOut} variant="secondary" />
           </View>
 
@@ -130,6 +285,13 @@ export default function AccountScreen() {
 
         </View>
       </ScrollView>
+
+      <DatePickerModal
+        visible={showDobPicker}
+        currentDate={dobDate}
+        onSelect={handleDobSelect}
+        onClose={() => setShowDobPicker(false)}
+      />
 
       {/* Delete confirmation modal */}
       <Modal
@@ -190,6 +352,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   } as TextStyle,
+  sectionHint: {
+    fontSize: FontSizes.xs,
+    lineHeight: 16,
+    marginTop: -2,
+  } as TextStyle,
   readonlyField: {
     borderWidth: 1,
     borderRadius: BorderRadius.md,
@@ -200,6 +367,67 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   readonlyValue: {
     fontSize: FontSizes.md,
+  } as TextStyle,
+  group: {
+    borderRadius: BorderRadius.md,
+    overflow: 'hidden',
+  } as ViewStyle,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 48,
+  } as ViewStyle,
+  sexRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  } as ViewStyle,
+  rowLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+  } as TextStyle,
+  rowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  } as ViewStyle,
+  rowValue: {
+    fontSize: 15,
+  } as TextStyle,
+  inlineInput: {
+    fontSize: 15,
+    minWidth: 36,
+    maxWidth: 60,
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+  } as TextStyle,
+  unit: {
+    fontSize: 13,
+    fontWeight: '500',
+    minWidth: 18,
+  } as TextStyle,
+  chevron: {
+    fontSize: 20,
+    fontWeight: '300',
+    marginLeft: 4,
+  } as TextStyle,
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  } as ViewStyle,
+  chip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  } as ViewStyle,
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
   } as TextStyle,
   tagGrid: {
     flexDirection: 'row',
