@@ -112,7 +112,7 @@ export function MacroTrendChart({ userId }: Props) {
   }, [range]);
 
   useEffect(() => { setTooltip(null); }, [selectedMacro, range]);
-  useEffect(() => { if (selectedMacro === 'weight') setChartType('line'); }, [selectedMacro]);
+  useLayoutEffect(() => { if (selectedMacro === 'weight') setChartType('line'); }, [selectedMacro]);
 
   // — PowerSync queries (reactive, local SQLite) —
   const { data: weightUserRows } = useQuery<{ weight_logs: string | null; weight_goal: string | null }>(
@@ -313,13 +313,15 @@ export function MacroTrendChart({ userId }: Props) {
     onPress: () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
   }));
 
-  const lineData: lineDataItem[] = chartPoints.map(({ value, label, date }) => ({
-    value,
-    label,
-    labelTextStyle: labelStyle,
-    dataPointColor: macroOption.color,
-    onPress: () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
-  }));
+  const lineData: lineDataItem[] = chartPoints
+    .filter(({ value }) => value > 0)
+    .map(({ value, label, date }) => ({
+      value,
+      label,
+      labelTextStyle: labelStyle,
+      dataPointColor: macroOption.color,
+      onPress: () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
+    }));
 
   const refLineConfig: referenceConfigType = {
     color: macroOption.color,
