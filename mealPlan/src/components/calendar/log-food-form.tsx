@@ -652,8 +652,7 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
             </>
           ) : null}
 
-          {stagedItems.length > 0 ? (
-            <>
+          {stagedItems.length > 0 && (
             <View style={styles.stagedList}>
               <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Added items</Text>
               {stagedItems.map((item) => (
@@ -673,9 +672,10 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
                 </View>
               ))}
             </View>
-            <Button label="+ Add Another Item" onPress={handleAddItem} variant="secondary" disabled={!canAddItem} />
-            </>
-          ) : null}
+          )}
+          {canAddItem && (
+            <Button label="+ Add Another Item" onPress={handleAddItem} variant="secondary" />
+          )}
 
           <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
             {stagedItems.length > 0 ? 'Next item' : 'Food item'}

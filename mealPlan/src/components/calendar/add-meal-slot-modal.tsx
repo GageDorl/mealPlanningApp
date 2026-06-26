@@ -132,11 +132,11 @@ export function AddMealSlotModal({
   }, []);
 
   useEffect(() => {
-    if (step !== 3 || entryType !== 'plan') return;
+    if (!visible || step !== 3 || entryType !== 'plan') return;
     if (recipeDebounceRef.current) clearTimeout(recipeDebounceRef.current);
     recipeDebounceRef.current = setTimeout(() => runRecipeSearch(recipeQuery), 400);
     return () => { if (recipeDebounceRef.current) clearTimeout(recipeDebounceRef.current); };
-  }, [recipeQuery, step, entryType, runRecipeSearch]);
+  }, [visible, recipeQuery, step, entryType, runRecipeSearch]);
 
   const time24 = to24(hour, minute, period);
 
