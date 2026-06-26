@@ -341,8 +341,6 @@ export default function WeeklyPlannerScreen() {
     setAddSlotVisible(true);
   }, []);
 
-  const pendingRecipeCallback = useRef<((recipe: Recipe) => void) | null>(null);
-
   const handleCreateSlot = async (label: string, time?: string, recipe?: Recipe, icon?: string | null) => {
     const daySlots = weekPlan?.slots.filter((s) => s.date === addSlotDate) ?? [];
     const slotId = await createSlot({
@@ -371,17 +369,7 @@ export default function WeeklyPlannerScreen() {
     setPickerVisible(true);
   }, []);
 
-  const handlePickRecipe = useCallback((onPicked: (recipe: Recipe) => void) => {
-    pendingRecipeCallback.current = onPicked;
-    setPickerVisible(true);
-  }, []);
-
   const handleRecipeSelected = async (recipe: Recipe) => {
-    if (pendingRecipeCallback.current) {
-      pendingRecipeCallback.current(recipe);
-      pendingRecipeCallback.current = null;
-      return;
-    }
     const slotId = activeSlotId;
     if (!slotId) return;
     await addRecipeToSlot(slotId, recipe.id);
@@ -763,7 +751,6 @@ export default function WeeklyPlannerScreen() {
         onClose={() => setAddSlotVisible(false)}
         onAdd={handleCreateSlot}
         onLogFood={handleLogFood}
-        onPickRecipe={handlePickRecipe}
       />
 
       <RecipePickerModal

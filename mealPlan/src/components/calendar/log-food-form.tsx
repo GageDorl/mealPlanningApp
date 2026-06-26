@@ -156,7 +156,7 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
   const theme = useTheme();
   const db = usePowerSync();
 
-  const [formMode, setFormMode] = useState<FormMode>('manual');
+  const [formMode, setFormMode] = useState<FormMode>('search');
 
   // Unified search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -653,6 +653,7 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
           ) : null}
 
           {stagedItems.length > 0 ? (
+            <>
             <View style={styles.stagedList}>
               <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Added items</Text>
               {stagedItems.map((item) => (
@@ -672,10 +673,12 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
                 </View>
               ))}
             </View>
+            <Button label="+ Add Another Item" onPress={handleAddItem} variant="secondary" disabled={!canAddItem} />
+            </>
           ) : null}
 
           <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-            {stagedItems.length > 0 ? 'Add another item' : 'Food item'}
+            {stagedItems.length > 0 ? 'Next item' : 'Food item'}
           </Text>
           <View style={styles.foodNameRow}>
             <Input
@@ -777,8 +780,6 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
           {draft.source === 'fatsecret' ? (
             <FatSecretAttribution />
           ) : null}
-
-          <Button label="+ Add Another Item" onPress={handleAddItem} variant="secondary" disabled={!canAddItem} />
 
           <View style={styles.actions}>
             <Button label="Cancel" onPress={onCancel} variant="secondary" />
