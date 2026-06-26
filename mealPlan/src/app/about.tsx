@@ -83,9 +83,15 @@ export default function AboutScreen() {
         {/* Footer */}
         <View style={[styles.footer, { borderTopColor: theme.border }]}>
           <FatSecretAttribution />
-          <Pressable onPress={() => router.push('/privacy-policy')} style={styles.privacyLink}>
-            <Text style={[styles.privacyText, { color: theme.textSecondary }]}>Privacy Policy</Text>
-          </Pressable>
+          <View style={styles.legalLinks}>
+            <Pressable onPress={() => router.push('/privacy-policy')} style={styles.legalLink}>
+              <Text style={[styles.legalText, { color: theme.textSecondary }]}>Privacy Policy</Text>
+            </Pressable>
+            <Text style={[styles.legalSep, { color: theme.textSecondary }]}>·</Text>
+            <Pressable onPress={() => router.push('/terms-of-service')} style={styles.legalLink}>
+              <Text style={[styles.legalText, { color: theme.textSecondary }]}>Terms of Service</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </ScrollView>
@@ -173,10 +179,18 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     borderTopWidth: 1,
   } as ViewStyle,
-  privacyLink: {
+  legalLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  legalLink: {
     paddingVertical: Spacing.xs,
   } as ViewStyle,
-  privacyText: {
+  legalText: {
+    fontSize: FontSizes.sm,
+  } as TextStyle,
+  legalSep: {
     fontSize: FontSizes.sm,
   } as TextStyle,
 });
