@@ -68,10 +68,6 @@ export default function TabLayout() {
       <Tabs.Screen name="grocery" options={{ tabBarItemStyle: { display: 'none' } }} />
       <Tabs.Screen name="macros" options={{ tabBarItemStyle: { display: 'none' } }} />
       <Tabs.Screen name="recipes" options={{ tabBarItemStyle: { display: 'none' } }} />
-      <Tabs.Screen name="profile/admin" options={{ tabBarItemStyle: { display: 'none' } }} />
-      <Tabs.Screen name="profile/notifications" options={{ tabBarItemStyle: { display: 'none' } }} />
-      <Tabs.Screen name="profile/food-library" options={{ tabBarItemStyle: { display: 'none' } }} />
-      <Tabs.Screen name="profile/macro-planner" options={{ tabBarItemStyle: { display: 'none' } }} />
       <Tabs.Screen name="grocery/pantry-staples" options={{ tabBarItemStyle: { display: 'none' } }} />
       <Tabs.Screen name="recipes/[id]" options={{ tabBarItemStyle: { display: 'none' } }} />
       <Tabs.Screen name="recipes/create" options={{ tabBarItemStyle: { display: 'none' } }} />

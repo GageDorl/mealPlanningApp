@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useQuery } from '@powersync/react-native';
 import { triggerSync } from '@/utils/trigger-sync';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -35,10 +36,21 @@ function isToday(date: Date): boolean {
 
 export default function MacrosScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const { selectedDate, dailyProgress, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const userId = getCachedUserId();
+
+  const { data: goalRows } = useQuery<{
+    macro_name: string; daily_target: number; unit: string;
+  }>(
+    'SELECT macro_name, daily_target, unit FROM macro_goals WHERE user_id = ? AND is_active = 1 ORDER BY display_order',
+    [userId ?? ''],
+  );
+
+  const caloriesGoal = goalRows.find((r) => r.macro_name === 'calories');
+  const macroGoals = goalRows.filter((r) => r.macro_name !== 'calories');
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -79,6 +91,32 @@ export default function MacrosScreen() {
           <Text style={[styles.navArrow, { color: Colors.accent }]}>›</Text>
         </Pressable>
       </View>
+
+      {/* Macro goals bar */}
+      <Pressable
+        onPress={() => router.push('/(tabs)/profile/macro-planner')}
+        style={[styles.goalsBar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+      >
+        {caloriesGoal ? (
+          <View style={styles.goalsBarInner}>
+            <Text style={[styles.goalsCalories, { color: theme.text }]}>
+              {caloriesGoal.daily_target.toLocaleString()} kcal
+            </Text>
+            <View style={styles.goalsMacros}>
+              {macroGoals.map((g) => (
+                <Text key={g.macro_name} style={[styles.goalsMacroItem, { color: theme.textSecondary }]}>
+                  {g.daily_target}{g.unit} {g.macro_name}
+                </Text>
+              ))}
+            </View>
+            <Text style={[styles.goalsChevron, { color: theme.textSecondary }]}>›</Text>
+          </View>
+        ) : (
+          <View style={styles.goalsBarInner}>
+            <Text style={[styles.goalsEmpty, { color: Colors.accent }]}>Set macro goals →</Text>
+          </View>
+        )}
+      </Pressable>
 
       <WeekSummaryStrip selectedDate={selectedDate} goToDate={goToDate} />
 
@@ -194,5 +232,42 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   statusText: {
     fontSize: FontSizes.md,
+  } as TextStyle,
+  goalsBar: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  } as ViewStyle,
+  goalsBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  goalsCalories: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    flexShrink: 0,
+  } as TextStyle,
+  goalsMacros: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  } as ViewStyle,
+  goalsMacroItem: {
+    fontSize: FontSizes.xs,
+    fontWeight: '500',
+  } as TextStyle,
+  goalsChevron: {
+    fontSize: 18,
+    fontWeight: '300',
+    flexShrink: 0,
+  } as TextStyle,
+  goalsEmpty: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
   } as TextStyle,
 });

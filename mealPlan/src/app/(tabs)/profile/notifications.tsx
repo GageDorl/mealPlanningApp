@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View, type ViewStyle, type TextStyle } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View, type ViewStyle, type TextStyle } from 'react-native';
 import { usePowerSync } from '@powersync/react-native';
 
-import { Colors, FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { updateNotificationSettings } from '@/services/user-service';
+import { Toggle } from '@/components/ui/toggle';
 import {
   register,
   schedulePlanningNudge,
@@ -62,7 +63,7 @@ export default function NotificationsScreen() {
     if (!profile || saving) return;
     setSaving(true);
     try {
-      if (next) {
+      if (next && Platform.OS !== 'web') {
         const granted = await register();
         if (!granted) {
           setSaving(false);
@@ -117,11 +118,10 @@ export default function NotificationsScreen() {
                   <Text style={[styles.rowLabel, { color: theme.text }]}>{label}</Text>
                   <Text style={[styles.rowDescription, { color: theme.textSecondary }]}>{description}</Text>
                 </View>
-                <Switch
+                <Toggle
                   value={notifications[key]}
                   onValueChange={(next) => handleToggle(key, next)}
                   disabled={saving}
-                  trackColor={{ true: Colors.accent }}
                 />
               </View>
             ))}
