@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View, type ViewStyle, type TextStyle } from 'react-native';
-import { useRouter } from 'expo-router';
 import { usePowerSync, useQuery } from '@powersync/react-native';
 
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
@@ -23,7 +22,6 @@ interface Props {
 
 export function MacroAdjustmentBanner({ userId }: Props) {
   const db = usePowerSync();
-  const router = useRouter();
   const theme = useTheme();
   const [applying, setApplying] = useState(false);
 
