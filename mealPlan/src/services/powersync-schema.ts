@@ -27,6 +27,7 @@ const users = new Table({
   notification_meal_reminders: column.integer,
   notification_planning_nudges: column.integer,
   notification_macro_checkins: column.integer,
+  notification_macro_adjustment: column.integer,
   selected_calendar_ids: column.text,
   calendar_export_enabled: column.integer,
   weight_logs: column.text,

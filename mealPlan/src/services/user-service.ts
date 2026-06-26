@@ -22,6 +22,7 @@ export interface UserProfile {
   notification_meal_reminders: boolean;
   notification_planning_nudges: boolean;
   notification_macro_checkins: boolean;
+  notification_macro_adjustment: boolean;
 }
 
 export interface UserProfileData {
@@ -48,8 +49,8 @@ export async function createUserProfile(db: PsDb, user: {
 }): Promise<void> {
   const now = new Date().toISOString();
   await db.execute(
-    'INSERT OR IGNORE INTO users (id, email, display_name, auth_method, theme_preference, onboarding_completed, tutorial_completed, tier, notification_meal_reminders, notification_planning_nudges, notification_macro_checkins, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [user.id, user.email, user.displayName ?? null, user.authMethod ?? 'email', null, 0, 0, 'free', 0, 0, 0, now, now],
+    'INSERT OR IGNORE INTO users (id, email, display_name, auth_method, theme_preference, onboarding_completed, tutorial_completed, tier, notification_meal_reminders, notification_planning_nudges, notification_macro_checkins, notification_macro_adjustment, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [user.id, user.email, user.displayName ?? null, user.authMethod ?? 'email', null, 0, 0, 'free', 0, 0, 0, 0, now, now],
   );
 }
 
@@ -134,13 +135,15 @@ export async function updateNotificationSettings(db: PsDb, userId: string, setti
   notification_meal_reminders: boolean;
   notification_planning_nudges: boolean;
   notification_macro_checkins: boolean;
+  notification_macro_adjustment: boolean;
 }) {
   await db.execute(
-    'UPDATE users SET notification_meal_reminders = ?, notification_planning_nudges = ?, notification_macro_checkins = ?, updated_at = ? WHERE id = ?',
+    'UPDATE users SET notification_meal_reminders = ?, notification_planning_nudges = ?, notification_macro_checkins = ?, notification_macro_adjustment = ?, updated_at = ? WHERE id = ?',
     [
       settings.notification_meal_reminders ? 1 : 0,
       settings.notification_planning_nudges ? 1 : 0,
       settings.notification_macro_checkins ? 1 : 0,
+      settings.notification_macro_adjustment ? 1 : 0,
       new Date().toISOString(),
       userId,
     ],

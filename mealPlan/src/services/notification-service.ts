@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 const PLANNING_NUDGE_ID = 'planning-nudge-weekly';
 const MACRO_CHECKIN_ID = 'macro-checkin-daily';
+const MACRO_ADJUSTMENT_ID = 'macro-adjustment-weekly';
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -98,6 +99,29 @@ export async function scheduleMacroCheckIn(): Promise<void> {
 export async function cancelMacroCheckIn(): Promise<void> {
   if (Platform.OS === 'web') return;
   await Notifications.cancelScheduledNotificationAsync(MACRO_CHECKIN_ID).catch(() => {});
+}
+
+export async function scheduleMacroAdjustmentReminder(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await Notifications.cancelScheduledNotificationAsync(MACRO_ADJUSTMENT_ID).catch(() => {});
+  await Notifications.scheduleNotificationAsync({
+    identifier: MACRO_ADJUSTMENT_ID,
+    content: {
+      title: 'Macro targets may need an update',
+      body: 'Based on your recent weight and calorie data, your macro goals may be ready to recalibrate. Tap to review.',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday: 2, // Monday
+      hour: 8,
+      minute: 0,
+    },
+  });
+}
+
+export async function cancelMacroAdjustmentReminder(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await Notifications.cancelScheduledNotificationAsync(MACRO_ADJUSTMENT_ID).catch(() => {});
 }
 
 export async function cancelAll(): Promise<void> {
