@@ -123,9 +123,10 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="6. Data Retention and Deletion">
           <Body>
-            We retain your data for as long as your account is active. If you wish to delete your
-            account and all associated data, please contact us at the email address below. We will
-            process deletion requests within 30 days.
+            We retain your data for as long as your account is active. You can permanently delete
+            your account and all associated data at any time from the Profile screen under "Danger
+            zone." Deletion is immediate and irreversible. For any other data requests, contact us
+            at the email address below and we will respond within 30 days.
           </Body>
         </Section>
 
