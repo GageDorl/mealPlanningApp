@@ -22,11 +22,12 @@ import {
 } from '@/services/weight-log-service';
 
 function calculateAge(dob: string): number {
-  const birth = new Date(dob);
+  const [y, m, d] = dob.split('-').map(Number);
+  const birth = new Date(y, m - 1, d, 12, 0, 0);
   const now = new Date();
   let age = now.getFullYear() - birth.getFullYear();
-  const m = now.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+  const monthDiff = now.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) age--;
   return Math.max(18, Math.min(100, age));
 }
 
@@ -152,14 +153,14 @@ export default function MacroRecommendationScreen() {
           last_dismissed_at: params.existingDismissedAt || undefined,
         };
         tasks.push(saveWeightGoal(db, profile.user.id, goal));
-      } else if (params.existingBaselineDate === '' && params.goalWeight === '') {
+      } else if (!params.goalWeight && !params.goalDate && params.existingBaselineDate) {
         tasks.push(clearWeightGoal(db, profile.user.id));
       }
 
       await Promise.all(tasks);
 
       Alert.alert('Saved', 'Your macro goals have been updated.', [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: () => router.replace('/(tabs)/macros') },
       ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save macro goals.';

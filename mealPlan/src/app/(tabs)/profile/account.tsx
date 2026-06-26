@@ -103,14 +103,12 @@ export default function AccountScreen() {
     if (!profile) return;
     await updateDisplayName(db, profile.user.id, displayName);
     await updateDietaryPreferences(db, profile.user.id, selectedTags);
-    if (dob || heightFt || sex !== 'other') {
-      await updateBodyProfile(db, profile.user.id, {
-        sex,
-        dob,
-        height_ft: Number(heightFt) || 0,
-        height_in: Number(heightIn) || 0,
-      });
-    }
+    await updateBodyProfile(db, profile.user.id, {
+      sex,
+      dob,
+      height_ft: Number(heightFt) || 0,
+      height_in: Number(heightIn) || 0,
+    });
     reload();
   };
 

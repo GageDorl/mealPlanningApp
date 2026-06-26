@@ -98,7 +98,7 @@ export default function MacrosScreen() {
         >
           {/* Macro goals bar */}
           <Pressable
-            onPress={() => router.push('/(tabs)/profile/macro-planner')}
+            onPress={() => router.push('/(tabs)/macros/macro-planner')}
             style={[styles.goalsBar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
           >
             {caloriesGoal ? (

@@ -154,7 +154,7 @@ export default function MacroPlannerScreen() {
     }
 
     router.push({
-      pathname: '/(tabs)/profile/macro-recommendation' as const,
+      pathname: '/(tabs)/macros/macro-recommendation' as const,
       params: {
         weight,
         goalType: effectiveGoalType,
@@ -353,164 +353,36 @@ export default function MacroPlannerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  } as ViewStyle,
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 48,
-  } as ViewStyle,
-  pageTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 4,
-  } as TextStyle,
-  incompleteBanner: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    padding: 14,
-    marginTop: 12,
-    gap: 4,
-  } as ViewStyle,
-  incompleteBannerTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  } as TextStyle,
-  incompleteBannerBody: {
-    fontSize: 13,
-    lineHeight: 18,
-  } as TextStyle,
-  incompleteBannerLink: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 4,
-  } as TextStyle,
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    marginTop: 20,
-    marginBottom: 8,
-  } as TextStyle,
-  modeToggle: {
-    flexDirection: 'row',
-    borderRadius: BorderRadius.md,
-    padding: 3,
-    gap: 3,
-  } as ViewStyle,
-  modeBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
-  } as ViewStyle,
-  modeBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-  } as TextStyle,
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  } as ViewStyle,
-  chip: {
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  } as ViewStyle,
-  chipText: {
-    fontSize: 13,
-    fontWeight: '600',
-  } as TextStyle,
-  group: {
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-  } as ViewStyle,
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    minHeight: 48,
-  } as ViewStyle,
-  rowLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-  } as TextStyle,
-  rowRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  } as ViewStyle,
-  inlineInput: {
-    fontSize: 15,
-    minWidth: 48,
-    maxWidth: 80,
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-  } as TextStyle,
-  unit: {
-    fontSize: 13,
-    fontWeight: '500',
-    minWidth: 20,
-  } as TextStyle,
-  activityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    minHeight: 56,
-  } as ViewStyle,
-  activityLeft: {
-    flex: 1,
-    gap: 2,
-  } as ViewStyle,
-  activityLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-  } as TextStyle,
-  activityDesc: {
-    fontSize: 12,
-  } as TextStyle,
-  checkDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginLeft: 8,
-  } as ViewStyle,
-  activeBadge: {
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  } as ViewStyle,
-  activeBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-  } as TextStyle,
-  dateValue: {
-    fontSize: 15,
-  } as TextStyle,
-  chevron: {
-    fontSize: 20,
-    fontWeight: '300',
-    marginLeft: 4,
-  } as TextStyle,
-  rateNote: {
-    fontSize: 12,
-    marginTop: 6,
-    lineHeight: 16,
-  } as TextStyle,
-  buttonGroup: {
-    gap: 8,
-  } as ViewStyle,
-  statusText: {
-    flex: 1,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    fontSize: 15,
-    fontWeight: '500',
-  } as TextStyle,
+  container: { flex: 1 } as ViewStyle,
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 48 } as ViewStyle,
+  pageTitle: { fontSize: 22, fontWeight: '700', marginBottom: 4 } as TextStyle,
+  incompleteBanner: { borderRadius: BorderRadius.md, borderWidth: 1, padding: 14, marginTop: 12, gap: 4 } as ViewStyle,
+  incompleteBannerTitle: { fontSize: 14, fontWeight: '700' } as TextStyle,
+  incompleteBannerBody: { fontSize: 13, lineHeight: 18 } as TextStyle,
+  incompleteBannerLink: { fontSize: 13, fontWeight: '600', marginTop: 4 } as TextStyle,
+  sectionHeader: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginTop: 20, marginBottom: 8 } as TextStyle,
+  modeToggle: { flexDirection: 'row', borderRadius: BorderRadius.md, padding: 3, gap: 3 } as ViewStyle,
+  modeBtn: { flex: 1, paddingVertical: 8, borderRadius: BorderRadius.sm, alignItems: 'center' } as ViewStyle,
+  modeBtnText: { fontSize: 13, fontWeight: '600' } as TextStyle,
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 } as ViewStyle,
+  chip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: BorderRadius.full, borderWidth: 1 } as ViewStyle,
+  chipText: { fontSize: 13, fontWeight: '600' } as TextStyle,
+  group: { borderRadius: BorderRadius.md, overflow: 'hidden' } as ViewStyle,
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, minHeight: 48 } as ViewStyle,
+  rowLabel: { flex: 1, fontSize: 15, fontWeight: '500' } as TextStyle,
+  rowRight: { flexDirection: 'row', alignItems: 'center', gap: 4 } as ViewStyle,
+  inlineInput: { fontSize: 15, minWidth: 48, maxWidth: 80, paddingVertical: 2, paddingHorizontal: 2 } as TextStyle,
+  unit: { fontSize: 13, fontWeight: '500', minWidth: 20 } as TextStyle,
+  activityRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, minHeight: 56 } as ViewStyle,
+  activityLeft: { flex: 1, gap: 2 } as ViewStyle,
+  activityLabel: { fontSize: 15, fontWeight: '500' } as TextStyle,
+  activityDesc: { fontSize: 12 } as TextStyle,
+  checkDot: { width: 10, height: 10, borderRadius: 5, marginLeft: 8 } as ViewStyle,
+  activeBadge: { borderRadius: BorderRadius.sm, paddingHorizontal: 12, paddingVertical: 8 } as ViewStyle,
+  activeBadgeText: { fontSize: 13, fontWeight: '600' } as TextStyle,
+  dateValue: { fontSize: 15 } as TextStyle,
+  chevron: { fontSize: 20, fontWeight: '300', marginLeft: 4 } as TextStyle,
+  rateNote: { fontSize: 12, marginTop: 6, lineHeight: 16 } as TextStyle,
+  buttonGroup: { gap: 8 } as ViewStyle,
+  statusText: { flex: 1, textAlign: 'center', textAlignVertical: 'center', fontSize: 15, fontWeight: '500' } as TextStyle,
 });

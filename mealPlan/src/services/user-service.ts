@@ -151,16 +151,27 @@ export async function updateBodyProfile(
   db: PsDb,
   userId: string,
   profile: {
-    sex: string;
-    dob: string;
-    height_ft: number;
-    height_in: number;
+    sex?: string;
+    dob?: string;
+    height_ft?: number;
+    height_in?: number;
   },
 ): Promise<void> {
-  await db.execute(
-    'UPDATE users SET planner_sex = ?, planner_dob = ?, planner_height_ft = ?, planner_height_in = ?, updated_at = ? WHERE id = ?',
-    [profile.sex, profile.dob, profile.height_ft, profile.height_in, new Date().toISOString(), userId],
-  );
+  const sets: string[] = [];
+  const values: unknown[] = [];
+
+  if (profile.sex) { sets.push('planner_sex = ?'); values.push(profile.sex); }
+  if (profile.dob) { sets.push('planner_dob = ?'); values.push(profile.dob); }
+  if (profile.height_ft != null && profile.height_ft > 0) {
+    sets.push('planner_height_ft = ?'); values.push(profile.height_ft);
+    sets.push('planner_height_in = ?'); values.push(profile.height_in ?? 0);
+  }
+
+  if (sets.length === 0) return;
+  sets.push('updated_at = ?'); values.push(new Date().toISOString());
+  values.push(userId);
+
+  await db.execute(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, values);
 }
 
 export async function updatePlannerProfile(

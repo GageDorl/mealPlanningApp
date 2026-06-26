@@ -54,18 +54,6 @@ export function DatePickerModal({ visible, currentDate, onSelect, onClose, allow
     }
   }, [visible, currentDate]);
 
-  // Scroll year list so the selected year is near the top
-  useEffect(() => {
-    if (mode === 'year') {
-      const idx = years.indexOf(viewYear);
-      if (idx >= 0) {
-        setTimeout(() => {
-          yearScrollRef.current?.scrollTo({ y: idx * YEAR_ROW_H, animated: false });
-        }, 50);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
 
   const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
 
@@ -241,6 +229,10 @@ export function DatePickerModal({ visible, currentDate, onSelect, onClose, allow
               ref={yearScrollRef}
               style={styles.yearScroll}
               showsVerticalScrollIndicator={false}
+              onLayout={() => {
+                const idx = years.indexOf(viewYear);
+                if (idx >= 0) yearScrollRef.current?.scrollTo({ y: idx * YEAR_ROW_H, animated: false });
+              }}
             >
               {years.map((y) => {
                 const isSelected = y === viewYear;
