@@ -12,6 +12,7 @@ interface UserRow {
   notification_meal_reminders: number;
   notification_planning_nudges: number;
   notification_macro_checkins: number;
+  notification_macro_adjustment: number;
 }
 
 interface MacroGoalRow {
@@ -62,6 +63,7 @@ export function useUserProfile() {
         notification_meal_reminders: Boolean(userRow.notification_meal_reminders),
         notification_planning_nudges: Boolean(userRow.notification_planning_nudges),
         notification_macro_checkins: Boolean(userRow.notification_macro_checkins),
+        notification_macro_adjustment: Boolean(userRow.notification_macro_adjustment),
       },
       macroGoals: macroGoalRows.map((g) => ({
         macro_name: g.macro_name,

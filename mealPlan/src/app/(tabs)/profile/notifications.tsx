@@ -13,12 +13,15 @@ import {
   cancelPlanningNudge,
   scheduleMacroCheckIn,
   cancelMacroCheckIn,
+  scheduleMacroAdjustmentReminder,
+  cancelMacroAdjustmentReminder,
 } from '@/services/notification-service';
 
 interface NotificationState {
   mealReminders: boolean;
   planningNudges: boolean;
   macroCheckIns: boolean;
+  macroAdjustment: boolean;
 }
 
 const NOTIFICATION_TYPES = [
@@ -37,6 +40,11 @@ const NOTIFICATION_TYPES = [
     label: 'Macro check-ins',
     description: 'Daily summary of your macro progress at 9 PM.',
   },
+  {
+    key: 'macroAdjustment' as const,
+    label: 'Macro adjustment reminders',
+    description: 'Weekly Monday morning reminder when your calorie targets may need recalibration.',
+  },
 ] as const;
 
 export default function NotificationsScreen() {
@@ -47,6 +55,7 @@ export default function NotificationsScreen() {
     mealReminders: false,
     planningNudges: false,
     macroCheckIns: false,
+    macroAdjustment: false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -56,6 +65,7 @@ export default function NotificationsScreen() {
       mealReminders: profile.user.notification_meal_reminders,
       planningNudges: profile.user.notification_planning_nudges,
       macroCheckIns: profile.user.notification_macro_checkins,
+      macroAdjustment: profile.user.notification_macro_adjustment,
     });
   }, [profile]);
 
@@ -78,6 +88,7 @@ export default function NotificationsScreen() {
         notification_meal_reminders: updated.mealReminders,
         notification_planning_nudges: updated.planningNudges,
         notification_macro_checkins: updated.macroCheckIns,
+        notification_macro_adjustment: updated.macroAdjustment,
       });
 
       if (key === 'planningNudges') {
@@ -87,6 +98,10 @@ export default function NotificationsScreen() {
       if (key === 'macroCheckIns') {
         if (next) await scheduleMacroCheckIn();
         else await cancelMacroCheckIn();
+      }
+      if (key === 'macroAdjustment') {
+        if (next) await scheduleMacroAdjustmentReminder();
+        else await cancelMacroAdjustmentReminder();
       }
 
       reload();

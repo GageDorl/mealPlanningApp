@@ -22,6 +22,7 @@ export interface UserProfile {
   notification_meal_reminders: boolean;
   notification_planning_nudges: boolean;
   notification_macro_checkins: boolean;
+  notification_macro_adjustment: boolean;
 }
 
 export interface UserProfileData {
@@ -134,13 +135,15 @@ export async function updateNotificationSettings(db: PsDb, userId: string, setti
   notification_meal_reminders: boolean;
   notification_planning_nudges: boolean;
   notification_macro_checkins: boolean;
+  notification_macro_adjustment: boolean;
 }) {
   await db.execute(
-    'UPDATE users SET notification_meal_reminders = ?, notification_planning_nudges = ?, notification_macro_checkins = ?, updated_at = ? WHERE id = ?',
+    'UPDATE users SET notification_meal_reminders = ?, notification_planning_nudges = ?, notification_macro_checkins = ?, notification_macro_adjustment = ?, updated_at = ? WHERE id = ?',
     [
       settings.notification_meal_reminders ? 1 : 0,
       settings.notification_planning_nudges ? 1 : 0,
       settings.notification_macro_checkins ? 1 : 0,
+      settings.notification_macro_adjustment ? 1 : 0,
       new Date().toISOString(),
       userId,
     ],
