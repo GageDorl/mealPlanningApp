@@ -9,7 +9,7 @@ import { cleanupExpiredCache } from './local-cache-service';
 
 // Increment whenever AppSchema tables or columns change.
 // On first launch after a bump, the local DB is wiped and re-synced automatically.
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 3;
 const SCHEMA_VERSION_KEY = 'powersync:schema_version';
 
 export function PowerSyncProvider({ children }: { children: ReactNode }) {
