@@ -89,6 +89,7 @@ export function useMacros(initialDate?: Date) {
   return {
     selectedDate,
     dailyProgress,
+    goalRows,
     loading: false,
     error: null,
     goToPrevDay,

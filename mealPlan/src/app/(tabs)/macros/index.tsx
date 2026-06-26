@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useQuery } from '@powersync/react-native';
 import { triggerSync } from '@/utils/trigger-sync';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -37,17 +36,10 @@ function isToday(date: Date): boolean {
 export default function MacrosScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { selectedDate, dailyProgress, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
+  const { selectedDate, dailyProgress, goalRows, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const userId = getCachedUserId();
-
-  const { data: goalRows } = useQuery<{
-    macro_name: string; daily_target: number; unit: string;
-  }>(
-    'SELECT macro_name, daily_target, unit FROM macro_goals WHERE user_id = ? AND is_active = 1 ORDER BY display_order',
-    [userId ?? ''],
-  );
 
   const caloriesGoal = goalRows.find((r) => r.macro_name === 'calories');
   const macroGoals = goalRows.filter((r) => r.macro_name !== 'calories');
