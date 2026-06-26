@@ -82,6 +82,7 @@ npx expo start     # Interactive — choose platform at runtime
 - Calendar export for planned meals (Android: native device calendar; Web: Google Calendar)
 
 ### Macro Tracking
+- **Daily Macro Progress** — planned meals and logged food summed into a single daily total with progress rings and per-macro bars
 - **Food Log** — log what you actually ate alongside planned meals
   - Manual entry with full nutrition label fields (calories, protein, carbs, fat, saturated fat, sodium, fiber, sugar, and more)
   - Meal labels (Breakfast / Lunch / Dinner / Snack), time-of-day picker
@@ -98,8 +99,23 @@ npx expo start     # Interactive — choose platform at runtime
   - Manual submissions enter a moderation queue
   - Unified search order: Personal Library → Community → FatSecret, deduplicated by FatSecret ID
   - Source badges on every search result (My Library / Community / FatSecret)
-- **Daily Macro Progress** — planned meals and logged food summed into a single daily total
+- **Macro Trend Chart** — 7 / 30 / 90-day historical view of daily macro intake with pinch-to-zoom and pan
 - **Flag food** — report inaccurate community entries with an optional reason
+
+### Adaptive Macro Goals
+- **Macro Planner** — personalized macro recommendations using the Mifflin-St Jeor BMR formula
+  - Body stats (height, date of birth, biological sex) stored once in Account settings and reused across sessions
+  - Two goal modes: *General* (lose / maintain / gain direction) or *Specific target* (goal weight + deadline — weekly rate calculated and warned if aggressive)
+  - Activity level selector (sedentary / light / moderate / active)
+  - Recommendations screen shows calories, protein, carbs, and fat; all values are editable before applying
+  - Guidance section surfaces diet-specific tips (high-protein for loss, calorie surplus for gain, etc.)
+- **Weight Goal Tracking** — set a target weight and date; the app tracks your baseline and shows progress over time; cleared automatically when goals are updated
+- **Profile completeness check** — if height / DOB / sex aren't set, a banner redirects to Account settings before entering the planner
+
+### Weight Logging
+- Log daily weight readings with timestamps
+- Running history used to pre-populate current weight in the Macro Planner
+- Weight section on the macros screen shows latest entry and goal progress
 
 ### Moderation & Administration
 - **Pending Foods** *(moderator + admin)* — review manually submitted community foods; approve or reject with optional moderator notes
@@ -131,6 +147,9 @@ mealPlanningApp/
 │   │   │       ├── calendar.tsx     # Weekly meal planner + food log
 │   │   │       ├── search.tsx       # Recipe / food search
 │   │   │       ├── macros/          # Daily macro tracking
+│   │   │       │   ├── index.tsx            # Macro dashboard (progress, food log, weight)
+│   │   │       │   ├── macro-planner.tsx    # Goal input (weight, activity, direction/target)
+│   │   │       │   └── macro-recommendation.tsx  # BMR recommendation + editable goals
 │   │   │       ├── grocery/         # Grocery list + pantry staples
 │   │   │       ├── recipes/         # Recipe detail, create, import, saved
 │   │   │       └── profile/
