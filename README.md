@@ -110,6 +110,7 @@ npx expo start     # Interactive — choose platform at runtime
   - Recommendations screen shows calories, protein, carbs, and fat; all values are editable before applying
   - Guidance section surfaces diet-specific tips (high-protein for loss, calorie surplus for gain, etc.)
 - **Weight Goal Tracking** — set a target weight and date; the app tracks your baseline and shows progress over time; cleared automatically when goals are updated
+- **Adaptive Calorie Recalibration** — once at least 7 days of overlapping weight logs and calorie data exist, the app calculates your actual TDEE from week-over-week average weight change vs. average daily intake (using the 3500 kcal/lb rule). It then applies the deficit or surplus needed to reach your goal weight by your deadline and surfaces an adjustment card on the macros screen showing your estimated daily burn, the new calorie target, and updated protein/carbs/fat splits. Suspicious days (under 800 kcal logged, or unexpected weight gain despite low intake) are flagged so you can exclude them before accepting the adjustment. Adjustments can be applied with one tap or dismissed for 7 days. A 1200 kcal floor is enforced.
 - **Profile completeness check** — if height / DOB / sex aren't set, a banner redirects to Account settings before entering the planner
 
 ### Weight Logging
