@@ -292,10 +292,8 @@ export function MacroTrendChart({ userId }: Props) {
   const stepValue = isWeight ? 10 : selectedMacro === 'calories' ? 500 : 25;
   const maxValue = isWeight
     ? Math.max(100, Math.ceil(maxRaw / 100) * 100)
-    : Math.max(stepValue, Math.ceil((maxRaw * 1.1) / stepValue)) * stepValue;
-  const noOfSections = isWeight
-    ? maxValue / stepValue
-    : Math.max(1, Math.ceil((maxRaw * 1.1) / stepValue));
+    : Math.max(stepValue, Math.ceil((maxRaw * 1.1) / stepValue) * stepValue);
+  const noOfSections = maxValue / stepValue;
   const hasData = chartPoints.some((p) => p.value > 0);
 
   // Weight: label only every 50 lbs (every 5th section) so they don't crowd the axis.
