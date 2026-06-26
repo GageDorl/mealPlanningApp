@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
 import {
   Animated,
   View,
@@ -12,8 +11,9 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { BarChart, LineChart, type barDataItem, type lineDataItem, type referenceConfigType } from 'react-native-gifted-charts';
-import { supabase } from '@/services/supabase';
-import { getHistoricalProgress, type DailyMacroProgress } from '@/services/macro-service';
+import { useQuery } from '@powersync/react-native';
+import { DefaultMacros } from '@/constants/macros';
+import { type DailyMacroProgress, type MacroProgress } from '@/services/macro-service';
 import { FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -47,6 +47,17 @@ function startDateForRange(range: Range): string {
   return dateKey(d);
 }
 
+function buildDateRange(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const cursor = new Date(startDate + 'T12:00:00');
+  const end = new Date(endDate + 'T12:00:00');
+  while (cursor <= end) {
+    dates.push(dateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
 function xLabel(dateStr: string, index: number, range: Range, labelStep = 5): string {
   if (range === '7d') {
     const day = new Date(dateStr + 'T12:00:00').getDay();
@@ -61,20 +72,23 @@ function formatTooltipDate(dateStr: string, range: Range): string {
   return `${MONTH_ABBREVS[d.getMonth()]} ${d.getDate()}`;
 }
 
-export function MacroTrendChart() {
+interface Props {
+  userId: string;
+}
+
+export function MacroTrendChart({ userId }: Props) {
   const theme = useTheme();
   const [chartType, setChartType] = useState<ChartType>('bar');
   const [selectedMacro, setSelectedMacro] = useState<MacroKey>('calories');
   const [range, setRange] = useState<Range>('7d');
-  const [histData, setHistData] = useState<DailyMacroProgress[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [focusCount, setFocusCount] = useState(0);
-  useFocusEffect(useCallback(() => { setFocusCount((c) => c + 1); }, []));
   const [containerWidth, setContainerWidth] = useState(0);
   const [tooltip, setTooltip] = useState<{ value: number; date: string } | null>(null);
 
   const rangeRef = useRef(range);
   rangeRef.current = range;
+
+  const startDate = startDateForRange(range);
+  const endDate = dateKey(new Date());
 
   const panOffset = useRef(new Animated.Value(0)).current;
   const panCurrentX = useRef(0);
@@ -95,26 +109,80 @@ export function MacroTrendChart() {
     }
   }, [range]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user.id;
-        if (!userId) return;
-        const data = await getHistoricalProgress(userId, startDateForRange(range), dateKey(new Date())).catch(
-          () => [] as DailyMacroProgress[],
-        );
-        if (!cancelled) setHistData(data);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [range, focusCount]);
-
   useEffect(() => { setTooltip(null); }, [selectedMacro, range]);
+
+  // — PowerSync queries (reactive, local SQLite) —
+  const { data: goalRows } = useQuery<{
+    macro_name: string; daily_target: number; unit: string; display_order: number;
+  }>(
+    'SELECT macro_name, daily_target, unit, display_order FROM macro_goals WHERE user_id = ? AND is_active = 1 ORDER BY display_order',
+    [userId],
+  );
+
+  const { data: foodLogRows } = useQuery<{
+    date: string; calories: number; protein: number; carbs: number; fat: number;
+  }>(
+    `SELECT fl.date,
+       COALESCE(SUM(fli.calories * fli.servings_eaten), 0) as calories,
+       COALESCE(SUM(fli.protein * fli.servings_eaten), 0) as protein,
+       COALESCE(SUM(fli.carbs * fli.servings_eaten), 0) as carbs,
+       COALESCE(SUM(fli.fat * fli.servings_eaten), 0) as fat
+     FROM food_logs fl
+     LEFT JOIN food_log_items fli ON fli.food_log_id = fl.id
+     WHERE fl.user_id = ? AND fl.date >= ? AND fl.date <= ?
+     GROUP BY fl.date`,
+    [userId, startDate, endDate],
+  );
+
+  const { data: slotRows } = useQuery<{
+    date: string; calories: number; protein: number; carbs: number; fat: number;
+  }>(
+    `SELECT ms.date,
+       COALESCE(SUM(COALESCE(r.calories_per_serving, 0) * COALESCE(msr.servings_eaten, r.servings, 1)), 0) as calories,
+       COALESCE(SUM(COALESCE(r.protein_per_serving, 0) * COALESCE(msr.servings_eaten, r.servings, 1)), 0) as protein,
+       COALESCE(SUM(COALESCE(r.carbs_per_serving, 0) * COALESCE(msr.servings_eaten, r.servings, 1)), 0) as carbs,
+       COALESCE(SUM(COALESCE(r.fat_per_serving, 0) * COALESCE(msr.servings_eaten, r.servings, 1)), 0) as fat
+     FROM meal_plans mp
+     JOIN meal_slots ms ON ms.meal_plan_id = mp.id
+     JOIN meal_slot_recipes msr ON msr.meal_slot_id = ms.id
+     JOIN recipes r ON r.id = msr.recipe_id
+     WHERE mp.user_id = ? AND ms.date >= ? AND ms.date <= ?
+     GROUP BY ms.date`,
+    [userId, startDate, endDate],
+  );
+
+  const histData = useMemo<DailyMacroProgress[]>(() => {
+    const foodByDate = new Map(foodLogRows.map((r) => [r.date, r]));
+    const slotByDate = new Map(slotRows.map((r) => [r.date, r]));
+
+    return buildDateRange(startDate, endDate).map((date) => {
+      const food = foodByDate.get(date);
+      const slot = slotByDate.get(date);
+      const totals = {
+        calories: (food?.calories ?? 0) + (slot?.calories ?? 0),
+        protein: (food?.protein ?? 0) + (slot?.protein ?? 0),
+        carbs: (food?.carbs ?? 0) + (slot?.carbs ?? 0),
+        fat: (food?.fat ?? 0) + (slot?.fat ?? 0),
+      };
+
+      const macros: MacroProgress[] = goalRows.map((goal) => {
+        const def = DefaultMacros.find((m) => m.key === goal.macro_name);
+        const current = totals[goal.macro_name as keyof typeof totals] ?? 0;
+        const rounded = Math.round(current * 10) / 10;
+        return {
+          macro_name: goal.macro_name,
+          label: def?.label ?? goal.macro_name,
+          current: rounded,
+          goal: goal.daily_target,
+          unit: goal.unit,
+          percentage: goal.daily_target > 0 ? Math.min(100, Math.round((rounded / goal.daily_target) * 100)) : 0,
+          color: def?.color ?? '#888888',
+        };
+      });
+
+      return { date, macros, meal_breakdown: [] };
+    });
+  }, [foodLogRows, slotRows, goalRows, startDate, endDate]);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     const newWidth = e.nativeEvent.layout.width;
@@ -304,11 +372,7 @@ export function MacroTrendChart() {
       </View>
 
       {/* Chart area */}
-      {loading ? (
-        <View style={styles.placeholder}>
-          <Text style={[styles.placeholderText, { color: theme.textSecondary }]}>Loading…</Text>
-        </View>
-      ) : !hasData ? (
+      {!hasData ? (
         <View style={styles.placeholder}>
           <Text style={[styles.placeholderText, { color: theme.textSecondary }]}>No data for this period</Text>
         </View>

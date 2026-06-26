@@ -12,7 +12,9 @@ import { MacroProgressBar } from '@/components/macros/macro-progress-bar';
 import { MealMacroBreakdown } from '@/components/macros/meal-macro-breakdown';
 import { WeekSummaryStrip } from '@/components/macros/week-summary-strip';
 import { MacroTrendChart } from '@/components/macros/macro-trend-chart';
+import { MacroAdjustmentCard } from '@/components/MacroAdjustmentCard';
 import { DatePickerModal } from '@/components/ui/date-picker-modal';
+import { getCachedUserId } from '@/services/supabase';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -35,6 +37,7 @@ export default function MacrosScreen() {
   const { selectedDate, dailyProgress, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const userId = getCachedUserId();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -128,10 +131,17 @@ export default function MacrosScreen() {
           </View>
 
           {/* Macro trend chart */}
-          <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Trends</Text>
-            <MacroTrendChart />
-          </View>
+          {userId && (
+            <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Trends</Text>
+              <MacroTrendChart userId={userId} />
+            </View>
+          )}
+
+          {/* Adaptive macro adjustment — only visible when 7+ days of data exist */}
+          {userId && (
+            <MacroAdjustmentCard userId={userId} />
+          )}
         </ScrollView>
       )}
 

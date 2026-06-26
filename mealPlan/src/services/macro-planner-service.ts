@@ -10,6 +10,8 @@ export interface MacroPlannerInput {
   goalType: GoalType;
   activityLevel: ActivityLevel;
   dietaryTags: string[];
+  goalWeightLbs?: number;  // when set, uses timeline-based deficit instead of fixed multiplier
+  goalDate?: string;       // 'YYYY-MM-DD'
 }
 
 export interface MacroRecommendation {
@@ -81,6 +83,36 @@ function estimateBmr(weightLbs: number, heightIn: number, age: number, sex: Sex)
   return base - 78;
 }
 
+export function calculateDailyDeficit(
+  currentWeightLbs: number,
+  goalWeightLbs: number,
+  goalDateStr: string,
+): number {
+  const daysRemaining = Math.max(
+    1,
+    Math.round((new Date(goalDateStr + 'T12:00:00').getTime() - Date.now()) / 86_400_000),
+  );
+  const weeksRemaining = daysRemaining / 7;
+  const lbsToChange = currentWeightLbs - goalWeightLbs;
+  const weeklyRate = Math.max(-2, Math.min(2, lbsToChange / weeksRemaining));
+  return -(weeklyRate * 3500) / 7;
+}
+
+export function computeMacrosFromCalories(
+  calories: number,
+  weightLbs: number,
+  goalType: GoalType,
+): { protein: number; carbs: number; fat: number } {
+  const protein = Math.round(weightLbs * proteinPerLb[goalType]);
+  const remaining = calories - protein * 4;
+  const split = carbFatSplit[goalType];
+  return {
+    protein,
+    carbs: Math.round((remaining * split.carbs) / 4),
+    fat: Math.round((remaining * split.fat) / 9),
+  };
+}
+
 export function getGoalLabel(goalType: GoalType): string {
   return goalLabels[goalType];
 }
@@ -94,17 +126,28 @@ export function getSexLabel(sex: Sex): string {
 }
 
 export function recommendMacroPlan(input: MacroPlannerInput): MacroRecommendation {
-  const { weightLbs, heightIn, age, sex, goalType, activityLevel, dietaryTags } = input;
+  const { weightLbs, heightIn, age, sex, goalType, activityLevel, dietaryTags, goalWeightLbs, goalDate } = input;
   const bmr = estimateBmr(weightLbs, heightIn, age, sex);
-  const activityFactor = activityFactors[activityLevel];
-  const goalAdjustment = goalAdjustments[goalType];
-  const targetCalories = Math.round(bmr * activityFactor * goalAdjustment);
+  const tdee = bmr * activityFactors[activityLevel];
 
-  const protein = Math.round(weightLbs * proteinPerLb[goalType]);
+  const proteinRefLbs = goalType === 'lose' ? Math.min(weightLbs, 200) : weightLbs;
+  const protein = Math.round(proteinRefLbs * proteinPerLb[goalType]);
+
+  // Minimum fat: 0.5g per kg body weight (hormonal health floor)
+  // Minimum carbs: 20g/day (brain function floor)
+  const minFatG = Math.round((weightLbs / 2.205) * 0.5);
+  const minCarbsG = 20;
+  const minCaloriesForMacros = protein * 4 + minCarbsG * 4 + minFatG * 9;
+
+  const rawTargetCalories = goalWeightLbs !== undefined && goalDate !== undefined
+    ? Math.max(1200, Math.round(tdee + calculateDailyDeficit(weightLbs, goalWeightLbs, goalDate)))
+    : Math.round(tdee * goalAdjustments[goalType]);
+  const targetCalories = Math.max(rawTargetCalories, minCaloriesForMacros);
+
   const remainingCalories = targetCalories - protein * 4;
   const split = carbFatSplit[goalType];
-  const carbs = Math.round((remainingCalories * split.carbs) / 4);
-  const fat = Math.round((remainingCalories * split.fat) / 9);
+  const carbs = Math.max(minCarbsG, Math.round((remainingCalories * split.carbs) / 4));
+  const fat = Math.max(minFatG, Math.round((remainingCalories * split.fat) / 9));
 
   const proteinCalories = protein * 4;
   const carbsCalories = carbs * 4;

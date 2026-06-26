@@ -5,7 +5,7 @@ import { db } from './powersync-database.web';
 import { SupabasePowerSyncConnector } from './powersync-connector.web';
 import { supabase } from './supabase';
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 3;
 const SCHEMA_VERSION_KEY = 'powersync:schema_version';
 
 export function PowerSyncProvider({ children }: { children: ReactNode }) {
