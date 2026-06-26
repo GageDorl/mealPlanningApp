@@ -12,6 +12,7 @@ import { MacroProgressBar } from '@/components/macros/macro-progress-bar';
 import { MealMacroBreakdown } from '@/components/macros/meal-macro-breakdown';
 import { WeekSummaryStrip } from '@/components/macros/week-summary-strip';
 import { MacroTrendChart } from '@/components/macros/macro-trend-chart';
+import { WeightSection } from '@/components/macros/weight-section';
 import { MacroAdjustmentCard } from '@/components/MacroAdjustmentCard';
 import { DatePickerModal } from '@/components/ui/date-picker-modal';
 import { getCachedUserId } from '@/services/supabase';
@@ -129,6 +130,11 @@ export default function MacrosScreen() {
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Meal Breakdown</Text>
             <MealMacroBreakdown entries={dailyProgress?.meal_breakdown ?? []} onDeletePlannedMeal={deleteMealSlot} />
           </View>
+
+          {/* Weight logging */}
+          {userId && (
+            <WeightSection userId={userId} selectedDate={selectedDate} />
+          )}
 
           {/* Macro trend chart */}
           {userId && (
