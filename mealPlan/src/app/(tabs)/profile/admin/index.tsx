@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Colors, FontSizes, Spacing, BorderRadius, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useUserRole } from '@/hooks/use-user-role';
 
 interface NavRowProps {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -39,6 +40,8 @@ function NavRow({ icon, label, description, onPress, last }: NavRowProps) {
 export default function AdminScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { role } = useUserRole();
+  const isFullAdmin = role === 'admin';
 
   return (
     <ScrollView
@@ -62,11 +65,19 @@ export default function AdminScreen() {
             description="Review flagged community foods"
             onPress={() => router.push('/(tabs)/profile/admin/flagged-foods')}
           />
+          {isFullAdmin && (
+            <NavRow
+              icon="people-outline"
+              label="User Roles"
+              description="Manage moderator and admin roles"
+              onPress={() => router.push('/(tabs)/profile/admin/user-roles')}
+            />
+          )}
           <NavRow
-            icon="people-outline"
-            label="User Roles"
-            description="Manage moderator and admin roles"
-            onPress={() => router.push('/(tabs)/profile/admin/user-roles')}
+            icon="star-outline"
+            label="Popular Recipes"
+            description="Curate the popular recipes list"
+            onPress={() => router.push('/(tabs)/profile/admin/popular-recipes')}
             last
           />
         </View>
