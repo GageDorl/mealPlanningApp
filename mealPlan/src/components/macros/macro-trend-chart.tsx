@@ -287,24 +287,23 @@ export function MacroTrendChart({ userId }: Props) {
 
   const goalValue = chartPoints.find((p) => p.goal > 0)?.goal ?? 0;
   const maxRaw = Math.max(...chartPoints.map((p) => p.value), goalValue, 0);
-  const stepValue = isWeight ? 5 : selectedMacro === 'calories' ? 500 : 25;
 
-  // For weight, anchor the Y-axis near the actual weight range instead of starting at 0
-  const yOffset = (() => {
-    if (!isWeight) return 0;
-    const vals = chartPoints.filter((p) => p.value > 0).map((p) => p.value);
-    if (vals.length === 0) return 0;
-    const floorVal = Math.min(...vals, goalValue > 0 ? goalValue : Infinity);
-    return Math.max(0, Math.floor((floorVal - 10) / 5) * 5);
-  })();
-
-  const noOfSections = Math.max(4, Math.ceil(((maxRaw - yOffset) * 1.15) / stepValue));
-  const maxValue = yOffset + noOfSections * stepValue;
+  // Weight: 0 → next 100 above max, grid lines every 10 lbs
+  const stepValue = isWeight ? 10 : selectedMacro === 'calories' ? 500 : 25;
+  const maxValue = isWeight
+    ? Math.max(100, Math.ceil(maxRaw / 100) * 100)
+    : Math.max(stepValue, Math.ceil((maxRaw * 1.1) / stepValue)) * stepValue;
+  const noOfSections = isWeight
+    ? maxValue / stepValue
+    : Math.max(1, Math.ceil((maxRaw * 1.1) / stepValue));
   const hasData = chartPoints.some((p) => p.value > 0);
 
-  const yAxisLabels = Array.from({ length: noOfSections + 1 }, (_, i) =>
-    yOffset + (noOfSections - i) * stepValue,
-  );
+  // Weight: label only every 50 lbs (every 5th section) so they don't crowd the axis.
+  // noOfSections is always maxValue/10 and maxValue is always a multiple of 100,
+  // so noOfSections/5 is always a whole number and the labels land on exact grid lines.
+  const yAxisLabels = isWeight
+    ? Array.from({ length: noOfSections / 5 + 1 }, (_, i) => (noOfSections / 5 - i) * 50)
+    : Array.from({ length: noOfSections + 1 }, (_, i) => (noOfSections - i) * stepValue);
 
   const labelStyle = { color: theme.textSecondary, fontSize: 10 };
 
@@ -350,7 +349,6 @@ export function MacroTrendChart({ userId }: Props) {
     xAxisColor: theme.border,
     rulesColor: theme.border,
     backgroundColor: 'transparent' as const,
-    ...(isWeight && yOffset > 0 ? { yAxisOffset: yOffset } : {}),
   };
 
   const toggleBg = theme.backgroundSelected;
