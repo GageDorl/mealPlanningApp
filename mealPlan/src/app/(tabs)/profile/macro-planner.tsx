@@ -527,7 +527,7 @@ export default function MacroPlannerScreen() {
 
         <View style={[styles.buttonGroup, { marginTop: 8 }]}>
           <Button label={saving ? 'Saving…' : 'Save macro goals'} onPress={handleSave} disabled={saving} />
-          <Button label="Back to Profile" variant="secondary" onPress={() => router.back()} />
+          <Button label="Back" variant="secondary" onPress={() => router.back()} />
         </View>
       </ScrollView>
 
