@@ -147,20 +147,32 @@ export async function updateNotificationSettings(db: PsDb, userId: string, setti
   );
 }
 
-export async function updatePlannerProfile(
+export async function updateBodyProfile(
   db: PsDb,
   userId: string,
   profile: {
     sex: string;
-    age: number;
+    dob: string;
     height_ft: number;
     height_in: number;
+  },
+): Promise<void> {
+  await db.execute(
+    'UPDATE users SET planner_sex = ?, planner_dob = ?, planner_height_ft = ?, planner_height_in = ?, updated_at = ? WHERE id = ?',
+    [profile.sex, profile.dob, profile.height_ft, profile.height_in, new Date().toISOString(), userId],
+  );
+}
+
+export async function updatePlannerProfile(
+  db: PsDb,
+  userId: string,
+  profile: {
     activity_level: string;
   },
 ): Promise<void> {
   await db.execute(
-    'UPDATE users SET planner_sex = ?, planner_age = ?, planner_height_ft = ?, planner_height_in = ?, planner_activity_level = ?, updated_at = ? WHERE id = ?',
-    [profile.sex, profile.age, profile.height_ft, profile.height_in, profile.activity_level, new Date().toISOString(), userId],
+    'UPDATE users SET planner_activity_level = ?, updated_at = ? WHERE id = ?',
+    [profile.activity_level, new Date().toISOString(), userId],
   );
 }
 
