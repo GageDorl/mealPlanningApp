@@ -1,6 +1,9 @@
-import { View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
-import { FontSizes, Spacing } from '@/constants/theme';
+import { View, Image, Pressable, StyleSheet, Linking, type ViewStyle } from 'react-native';
+import { Spacing, Colors } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+const BADGE_DARK_INK = 'https://platform.fatsecret.com/api/static/images/powered_by_fatsecret_horizontal_dark.svg';
+const BADGE_WHITE_INK = 'https://platform.fatsecret.com/api/static/images/powered_by_fatsecret_horizontal_white.svg';
 
 interface FatSecretAttributionProps {
   style?: ViewStyle;
@@ -8,9 +11,19 @@ interface FatSecretAttributionProps {
 
 export function FatSecretAttribution({ style }: FatSecretAttributionProps) {
   const theme = useTheme();
+  const isDark = theme.background === Colors.dark.background;
+  const badgeUri = isDark ? BADGE_WHITE_INK : BADGE_DARK_INK;
+
   return (
     <View style={[styles.container, style]}>
-      <Text style={[styles.text, { color: theme.textSecondary }]}>Powered by FatSecret</Text>
+      <Pressable onPress={() => Linking.openURL('https://platform.fatsecret.com')}>
+        <Image
+          source={{ uri: badgeUri }}
+          style={styles.badge}
+          resizeMode="contain"
+          accessibilityLabel="Nutrition information provided by fatsecret Platform API"
+        />
+      </Pressable>
     </View>
   );
 }
@@ -20,8 +33,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xs,
   } as ViewStyle,
-  text: {
-    fontSize: FontSizes.xs,
-    fontStyle: 'italic',
-  } as TextStyle,
+  badge: {
+    width: 140,
+    height: 30,
+  },
 });

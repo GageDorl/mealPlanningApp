@@ -199,6 +199,18 @@ export async function getCalendarPrefs(userId: string): Promise<{
   };
 }
 
+export async function deleteAccount(): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not authenticated')
+
+  const { error } = await supabase.functions.invoke('delete-account', {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  })
+  if (error) throw error
+
+  await supabase.auth.signOut()
+}
+
 export async function setCalendarPrefs(
   db: PsDb,
   userId: string,

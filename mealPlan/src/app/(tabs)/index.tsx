@@ -47,7 +47,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!profile && !getCachedUserId()) {
-      router.replace('/sign-in');
+      router.replace('/about');
     }
   }, [profile, router]);
 
