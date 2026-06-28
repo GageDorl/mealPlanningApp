@@ -45,6 +45,7 @@ const styles = StyleSheet.create({
   wrapper: {
     marginTop: 4,
     marginBottom: 4,
+    marginHorizontal: Spacing.md,
   } as ViewStyle,
   arrow: {
     width: 0,

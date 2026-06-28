@@ -77,9 +77,10 @@ export function TutorialSlideView({ slide }: Props) {
     ? illustrationLayout.y + activeTooltip.relativeY
     : 0;
 
-  // Arrow left = illustration's left-X offset + element center-X within preview, minus half arrow width
+  // Arrow left = illustration's left-X offset + element center-X within preview, minus half arrow width,
+  // minus TooltipCard's marginHorizontal (Spacing.md) since arrowLeft is relative to the wrapper's content edge
   const arrowLeft = activeTooltip
-    ? illustrationLayout.x + activeTooltip.centerX - 8
+    ? illustrationLayout.x + activeTooltip.centerX - 8 - Spacing.md
     : undefined;
 
   return (

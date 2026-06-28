@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { DatePickerModal } from '@/components/ui/date-picker-modal';
-import { TooltipCard } from '@/components/tutorial/TooltipCard';
 import { DefaultMacros, type MacroDefinition } from '@/constants/macros';
 import { Colors, BorderRadius, FontSizes, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { recommendMacroPlan, type ActivityLevel, type GoalType } from '@/services/macro-planner-service';
+import type { TooltipData } from '@/types/tutorial';
 
 // Demo-only: no DB reads or writes. Uses hardcoded example body stats for recommendation.
 const DEMO_BODY = { heightIn: 70, age: 30, sex: 'male' as const };
@@ -25,6 +25,7 @@ function defaultGoalDate(): Date {
 
 interface Props {
   onComplete: () => void;
+  onTooltipChange?: (data: TooltipData | null) => void;
 }
 
 type Step = 'form' | 'recommendation';
@@ -59,7 +60,7 @@ const TOOLTIP_STEPS: Array<{ title: string; body: string }> = [
 ];
 
 
-export function MacroGoalsSetup({ onComplete }: Props) {
+export function MacroGoalsSetup({ onComplete, onTooltipChange }: Props) {
   const theme = useTheme();
   const [step, setStep] = useState<Step>('form');
 
@@ -69,6 +70,7 @@ export function MacroGoalsSetup({ onComplete }: Props) {
   const [weightBottom, setWeightBottom] = useState(0);
   const [goalBottom, setGoalBottom] = useState(0);
   const [activityBottom, setActivityBottom] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
   const tooltipY = tooltipStep === 0 ? weightBottom : tooltipStep === 1 ? goalBottom : activityBottom;
 
   // Form state — example defaults, no DB pre-fill
@@ -102,16 +104,33 @@ export function MacroGoalsSetup({ onComplete }: Props) {
     return null;
   }, [weeklyRate]);
 
-  const advanceTooltip = () => {
-    if (tooltipStep === null) return;
-    if (tooltipStep < TOOLTIP_STEPS.length - 1) {
-      setTooltipStep(tooltipStep + 1);
-    } else {
-      setTooltipStep(null);
-    }
-  };
+  const advanceTooltip = useCallback(() => {
+    setTooltipStep((prev) => {
+      if (prev === null) return null;
+      return prev < TOOLTIP_STEPS.length - 1 ? prev + 1 : null;
+    });
+  }, []);
 
-  const dismissTooltip = () => setTooltipStep(null);
+  const dismissTooltip = useCallback(() => setTooltipStep(null), []);
+
+  useEffect(() => {
+    if (!onTooltipChange) return;
+    if (tooltipStep !== null && tooltipY > 0) {
+      onTooltipChange({
+        step: tooltipStep,
+        total: TOOLTIP_STEPS.length,
+        title: TOOLTIP_STEPS[tooltipStep].title,
+        body: TOOLTIP_STEPS[tooltipStep].body,
+        relativeY: tooltipY - scrollY,
+        centerX: 0,
+        onNext: advanceTooltip,
+        onDismiss: dismissTooltip,
+      });
+    } else {
+      onTooltipChange(null);
+    }
+    return () => onTooltipChange(null);
+  }, [tooltipStep, tooltipY, scrollY, onTooltipChange, advanceTooltip, dismissTooltip]);
 
   const handleGetRecommendation = () => {
     const wn = Number(weight);
@@ -249,6 +268,8 @@ export function MacroGoalsSetup({ onComplete }: Props) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
       >
         {/* Weight field */}
         <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>CURRENT WEIGHT (EXAMPLE)</Text>
@@ -393,19 +414,6 @@ export function MacroGoalsSetup({ onComplete }: Props) {
           <Button label="See example recommendation →" onPress={handleGetRecommendation} />
         </View>
 
-        {/* Rendered last → always on top; position absolute → no layout impact */}
-        {tooltipStep !== null && tooltipY > 0 && (
-          <View style={{ position: 'absolute', top: tooltipY, left: 0, right: 0 }}>
-            <TooltipCard
-              step={tooltipStep}
-              total={TOOLTIP_STEPS.length}
-              title={TOOLTIP_STEPS[tooltipStep].title}
-              body={TOOLTIP_STEPS[tooltipStep].body}
-              onNext={advanceTooltip}
-              onDismiss={dismissTooltip}
-            />
-          </View>
-        )}
       </ScrollView>
 
       <DatePickerModal

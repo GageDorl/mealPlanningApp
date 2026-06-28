@@ -48,7 +48,7 @@ export default function TutorialChapterScreen() {
       <TutorialChapterLayout
         chapter={chapter}
         onChapterComplete={handleChapterComplete}
-        onSkipTutorial={skipTutorial}
+        onSkipTutorial={isRevisit ? undefined : skipTutorial}
       />
     </View>
   );

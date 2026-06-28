@@ -3,10 +3,11 @@ import { View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } fro
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { TutorialSlideView } from './TutorialSlideView';
+import { TooltipCard } from './TooltipCard';
 import { MacroGoalsSetup } from './setup/MacroGoalsSetup';
 import { DietaryPreferencesSetup } from './setup/DietaryPreferencesSetup';
 import { CalendarConnectSetup } from './setup/CalendarConnectSetup';
-import type { TutorialChapter } from '@/types/tutorial';
+import type { TutorialChapter, TooltipData } from '@/types/tutorial';
 
 interface Props {
   chapter: TutorialChapter;
@@ -18,6 +19,8 @@ interface Props {
 export function TutorialChapterLayout({ chapter, onChapterComplete, onSkipTutorial, renderAction }: Props) {
   const theme = useTheme();
   const [slideIndex, setSlideIndex] = useState(0);
+  const [slideAreaY, setSlideAreaY] = useState(0);
+  const [actionTooltip, setActionTooltip] = useState<TooltipData | null>(null);
 
   const slide = chapter.slides[slideIndex];
   const isFirst = slideIndex === 0;
@@ -38,7 +41,7 @@ export function TutorialChapterLayout({ chapter, onChapterComplete, onSkipTutori
   const resolveAction = (key: string, onComplete: () => void, onSkip?: () => void) => {
     if (renderAction) return renderAction(key, onComplete, onSkip);
     switch (key) {
-      case 'macro-goals': return <MacroGoalsSetup onComplete={onComplete} />;
+      case 'macro-goals': return <MacroGoalsSetup onComplete={onComplete} onTooltipChange={setActionTooltip} />;
       case 'dietary-prefs': return <DietaryPreferencesSetup onComplete={onComplete} />;
       case 'calendar-connect': return <CalendarConnectSetup onComplete={onComplete} onSkip={onSkip} />;
       default: return null;
@@ -68,7 +71,7 @@ export function TutorialChapterLayout({ chapter, onChapterComplete, onSkipTutori
       )}
 
       {/* Main slide content */}
-      <View style={styles.slideArea}>
+      <View style={styles.slideArea} onLayout={(e) => setSlideAreaY(e.nativeEvent.layout.y)}>
         {slide.type === 'action'
           ? resolveAction(slide.componentKey, advance, slide.skippable ? advance : undefined)
           : <TutorialSlideView slide={slide} key={slide.illustrationKey ?? slide.title} />}
@@ -116,6 +119,19 @@ export function TutorialChapterLayout({ chapter, onChapterComplete, onSkipTutori
           <Text style={styles.nextButtonText}>{isLast ? 'Finish' : 'Next'}</Text>
         </Pressable>
       </View>
+      {/* Rendered last → above skip/dots/nav regardless of JSX order */}
+      {actionTooltip && (
+        <View style={{ position: 'absolute', top: slideAreaY + actionTooltip.relativeY, left: 0, right: 0 }}>
+          <TooltipCard
+            step={actionTooltip.step}
+            total={actionTooltip.total}
+            title={actionTooltip.title}
+            body={actionTooltip.body}
+            onNext={actionTooltip.onNext}
+            onDismiss={actionTooltip.onDismiss}
+          />
+        </View>
+      )}
     </View>
   );
 }

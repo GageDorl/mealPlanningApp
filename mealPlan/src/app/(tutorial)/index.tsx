@@ -1,5 +1,6 @@
-import { ScrollView, View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useCallback } from 'react';
+import { ScrollView, View, Text, Pressable, StyleSheet, BackHandler, type ViewStyle, type TextStyle } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, FontSizes, Spacing, BorderRadius, MaxContentWidth } from '@/constants/theme';
 import { useTutorial } from '@/hooks/use-tutorial';
@@ -13,6 +14,21 @@ export default function TutorialIndexScreen() {
   const revisit = tutorialCompleted;
   const anyStarted = TUTORIAL_CHAPTERS.some((c) => isChapterComplete(c.id));
   const nextChapterId = nextIncompleteChapter() ?? TUTORIAL_CHAPTERS[0].id;
+
+  const goToProfile = useCallback(() => {
+    router.push('/(tabs)/profile');
+  }, [router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!revisit) return;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        goToProfile();
+        return true;
+      });
+      return () => sub.remove();
+    }, [revisit, goToProfile])
+  );
 
   return (
     <ScrollView
@@ -83,7 +99,11 @@ export default function TutorialIndexScreen() {
           </Text>
         </Pressable>
 
-        {!revisit && (
+        {revisit ? (
+          <Pressable onPress={goToProfile} style={styles.skipLink} hitSlop={8}>
+            <Text style={[styles.skipText, { color: theme.textSecondary }]}>← Back to Profile</Text>
+          </Pressable>
+        ) : (
           <Pressable onPress={skipTutorial} style={styles.skipLink} hitSlop={8}>
             <Text style={[styles.skipText, { color: theme.textSecondary }]}>Skip Tutorial</Text>
           </Pressable>
