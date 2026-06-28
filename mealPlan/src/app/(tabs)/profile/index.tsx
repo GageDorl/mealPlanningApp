@@ -78,6 +78,11 @@ export default function ProfileScreen() {
             onPress={() => router.push('/(tabs)/profile/notifications')}
           />
           <NavRow
+            icon="book-outline"
+            label="App Tutorial"
+            onPress={() => router.push('/(tutorial)')}
+          />
+          <NavRow
             icon="color-palette-outline"
             label="Appearance"
             onPress={() => router.push('/(tabs)/profile/appearance')}

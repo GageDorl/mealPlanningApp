@@ -809,11 +809,10 @@ function MacroInput({ label, unit, value, onChangeText }: { label: string; unit:
 
 const styles = StyleSheet.create({
   scroll: {
-    maxHeight: 520,
+    padding: Spacing.md,
   } as ViewStyle,
   scrollContent: {
     gap: Spacing.sm,
-    paddingBottom: Spacing.md,
   } as ViewStyle,
   sectionLabel: {
     fontSize: FontSizes.xs,
@@ -966,6 +965,7 @@ const styles = StyleSheet.create({
   } as TextStyle,
   macroGrid: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: Spacing.sm,
   } as ViewStyle,
