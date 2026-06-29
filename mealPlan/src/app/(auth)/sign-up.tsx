@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useRouter } from 'expo-router';
-import { Pressable, Text, View, StyleSheet, type TextStyle, type ViewStyle } from 'react-native';
+import { Pressable, View, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { usePowerSync } from '@powersync/react-native';
 
 import { Button } from '@/components/ui/button';
@@ -160,10 +161,13 @@ export default function SignUpScreen() {
           onChangeText={setPassword}
           placeholder="Password"
           secureTextEntry={!showPassword}
-          style={[authStyles.input, styles.passwordInput]}
+          style={authStyles.input}
+          containerStyle={{ flex: 1 }}
         />
         <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeButton} hitSlop={8}>
-          <Text style={[styles.eyeText, { color: theme.textSecondary }]}>{showPassword ? '🙈' : '👁'}</Text>
+          {showPassword
+            ? <EyeOff size={20} color={theme.textSecondary} />
+            : <Eye size={20} color={theme.textSecondary} />}
         </Pressable>
       </View>
       {error ? <ThemedText type="default" style={authStyles.error}>{error}</ThemedText> : null}
@@ -182,23 +186,13 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   passwordRow: {
     width: '100%',
-    position: 'relative',
-  } as ViewStyle,
-  passwordInput: {
-    paddingRight: 44,
-  } as TextStyle,
-  eyeButton: {
-    position: 'absolute',
-    right: Spacing.sm,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.xs,
+    gap: Spacing.xs,
   } as ViewStyle,
-  eyeText: {
-    fontSize: FontSizes.md,
-  } as TextStyle,
+  eyeButton: {
+    padding: Spacing.xs,
+  } as ViewStyle,
   confirmText: {
     textAlign: 'center',
     fontSize: FontSizes.md,
