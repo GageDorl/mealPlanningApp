@@ -52,9 +52,10 @@ export default function ProfileDetailsScreen() {
         height_ft: heightFt ? parseInt(heightFt, 10) : undefined,
         height_in: heightIn ? parseInt(heightIn, 10) : undefined,
       });
-        router.replace('/(tutorial)' as any);
+      router.replace('/(tutorial)' as any);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
+    } finally {
       setLoading(false);
     }
   };

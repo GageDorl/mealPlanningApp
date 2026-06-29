@@ -39,11 +39,17 @@ export default function SignUpScreen() {
 
     // Session present means email confirmation is disabled — go straight to profile setup.
     if (data.session && data.user) {
-      await createUserProfile(db, {
-        id: data.user.id,
-        email: data.user.email ?? email,
-        displayName: name.trim(),
-      });
+      try {
+        await createUserProfile(db, {
+          id: data.user.id,
+          email: data.user.email ?? email,
+          displayName: name.trim(),
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to create profile. Please try again.');
+        setLoading(false);
+        return;
+      }
       setLoading(false);
       router.replace('/auth/profile-details');
       return;
@@ -82,34 +88,38 @@ export default function SignUpScreen() {
       return;
     }
 
-    const existingProfile = await getProfile(session.user.id);
+    try {
+      const existingProfile = await getProfile(session.user.id);
 
-    if (!existingProfile) {
-      const displayName =
-        typeof session.user.user_metadata?.full_name === 'string'
-          ? session.user.user_metadata.full_name
-          : typeof session.user.user_metadata?.name === 'string'
-            ? session.user.user_metadata.name
-            : null;
+      if (!existingProfile) {
+        const displayName =
+          typeof session.user.user_metadata?.full_name === 'string'
+            ? session.user.user_metadata.full_name
+            : typeof session.user.user_metadata?.name === 'string'
+              ? session.user.user_metadata.name
+              : null;
 
-      const rawProvider = session.user.app_metadata?.provider;
-      const authMethod =
-        rawProvider === 'google' || rawProvider === 'apple' ? rawProvider : 'email';
+        const rawProvider = session.user.app_metadata?.provider;
+        const authMethod =
+          rawProvider === 'google' || rawProvider === 'apple' ? rawProvider : 'email';
 
-      await createUserProfile(db, {
-        id: session.user.id,
-        email: session.user.email ?? '',
-        displayName,
-        authMethod,
-      });
+        await createUserProfile(db, {
+          id: session.user.id,
+          email: session.user.email ?? '',
+          displayName,
+          authMethod,
+        });
 
+        router.replace('/auth/profile-details');
+        return;
+      }
+
+      router.replace((existingProfile.user.onboarding_completed ? '/' : '/(tutorial)') as any);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+    } finally {
       setLoading(false);
-      router.replace('/auth/profile-details');
-      return;
     }
-
-    setLoading(false);
-    router.replace((existingProfile.user.onboarding_completed ? '/' : '/(tutorial)') as any);
   };
 
   if (awaitingConfirmation) {
