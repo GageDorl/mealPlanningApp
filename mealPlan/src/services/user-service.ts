@@ -68,8 +68,15 @@ export async function getProfile(userId: string): Promise<UserProfileData | null
     return null;
   }
 
+  const raw = userData.tutorial_chapters_completed;
+  const tutorial_chapters_completed: string[] = (() => {
+    if (!raw) return [];
+    if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return []; } }
+    return raw as string[];
+  })();
+
   return {
-    user: userData as UserProfile,
+    user: { ...(userData as UserProfile), tutorial_chapters_completed },
     macroGoals: (macroData ?? []) as MacroGoalInput[],
     dietaryPreferences: ((dietData ?? []) as Array<{ tag: string }>).map((item) => item.tag),
   };

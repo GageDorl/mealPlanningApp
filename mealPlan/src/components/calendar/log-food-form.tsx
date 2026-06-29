@@ -808,10 +808,9 @@ function MacroInput({ label, unit, value, onChangeText }: { label: string; unit:
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    padding: Spacing.md,
-  } as ViewStyle,
+  scroll: {} as ViewStyle,
   scrollContent: {
+    padding: Spacing.md,
     gap: Spacing.sm,
   } as ViewStyle,
   sectionLabel: {

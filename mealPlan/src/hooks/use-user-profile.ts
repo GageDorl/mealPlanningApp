@@ -63,7 +63,7 @@ export function useUserProfile() {
         theme_preference: (userRow.theme_preference as 'light' | 'dark' | null) ?? null,
         onboarding_completed: Boolean(userRow.onboarding_completed),
         tutorial_completed: Boolean(userRow.tutorial_completed),
-        tutorial_chapters_completed: JSON.parse(userRow.tutorial_chapters_completed || '[]') as string[],
+        tutorial_chapters_completed: (() => { try { return JSON.parse(userRow.tutorial_chapters_completed || '[]') as string[]; } catch { return []; } })(),
         notification_meal_reminders: Boolean(userRow.notification_meal_reminders),
         notification_planning_nudges: Boolean(userRow.notification_planning_nudges),
         notification_macro_checkins: Boolean(userRow.notification_macro_checkins),

@@ -10,7 +10,7 @@ export function useTutorial() {
   const db = usePowerSync();
   const router = useRouter();
   const { profile } = useUserProfile();
-  const userId = getCachedUserId() ?? '';
+  const userId = getCachedUserId() ?? profile?.user.id ?? '';
 
   const completedChapters = profile?.user.tutorial_chapters_completed ?? [];
   const tutorialCompleted = profile?.user.tutorial_completed ?? false;
