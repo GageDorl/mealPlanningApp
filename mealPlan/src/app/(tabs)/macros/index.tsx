@@ -39,6 +39,7 @@ export default function MacrosScreen() {
   const { selectedDate, dailyProgress, goalRows, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showRemaining, setShowRemaining] = useState(false);
   const userId = getCachedUserId();
 
   const caloriesGoal = goalRows.find((r) => r.macro_name === 'calories');
@@ -125,6 +126,17 @@ export default function MacrosScreen() {
           {/* Calories ring */}
           {caloriesMacro && (
             <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
+              <View style={styles.cardHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>Calories</Text>
+                <Pressable
+                  onPress={() => setShowRemaining((v) => !v)}
+                  style={[styles.viewToggle, { borderColor: theme.border }, showRemaining ? { backgroundColor: theme.backgroundSelected } : { backgroundColor: theme.backgroundElement, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 2, elevation: 2 }]}
+                >
+                  <Text style={[styles.viewToggleText, { color: theme.textSecondary }]}>
+                    {showRemaining ? 'Remaining' : 'Consumed'}
+                  </Text>
+                </Pressable>
+              </View>
               <ProgressRing
                 current={caloriesMacro.current}
                 goal={caloriesMacro.goal}
@@ -132,6 +144,7 @@ export default function MacrosScreen() {
                 label="Calories"
                 color={caloriesMacro.color}
                 size={120}
+                showRemaining={showRemaining}
               />
             </View>
           )}
@@ -149,6 +162,7 @@ export default function MacrosScreen() {
                     goal={macro.goal}
                     unit={macro.unit}
                     color={macro.color}
+                    showRemaining={showRemaining}
                   />
                 ))}
               </View>
@@ -212,6 +226,23 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     alignItems: 'center',
   } as ViewStyle,
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: Spacing.md,
+  } as ViewStyle,
+  viewToggle: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingVertical: 4,
+    paddingHorizontal: Spacing.sm,
+  } as ViewStyle,
+  viewToggleText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+  } as TextStyle,
   sectionTitle: {
     fontSize: FontSizes.md,
     fontWeight: '700',

@@ -9,6 +9,7 @@ interface ProgressRingProps {
   label?: string;
   color?: string;
   size?: number;
+  showRemaining?: boolean;
 }
 
 const STROKE = 10;
@@ -22,12 +23,14 @@ export function ProgressRing({
   label,
   color = Colors.accent,
   size = 96,
+  showRemaining = false,
 }: ProgressRingProps) {
   const theme = useTheme();
   const maskOverscan = Platform.OS === 'web' ? MASK_OVERSCAN : 0;
   const percentage = goal > 0 ? Math.min(100, (current / goal) * 100) : 0;
   const isOver = current > goal;
   const fillColor = isOver ? theme.error : color;
+  const remaining = Math.max(0, goal - current);
 
   const filledSegments = Math.round((percentage / 100) * SEGMENTS);
   const centerSize = size - STROKE * 2;
@@ -101,13 +104,13 @@ export function ProgressRing({
           ]}
         >
           <Text style={[styles.percentage, { color: isOver ? theme.error : theme.text }]}>
-            {Math.round(percentage)}%
+            {showRemaining ? Math.round(remaining) : `${Math.round(percentage)}%`}
           </Text>
         </View>
       </View>
 
       <Text style={[styles.values, { color: theme.textSecondary }]} numberOfLines={1}>
-        {Math.round(current)} / {Math.round(goal)} {unit}
+        {showRemaining ? `${Math.round(remaining)} ${unit} left` : `${Math.round(current)} / ${Math.round(goal)} ${unit}`}
       </Text>
       {label ? <Text style={[styles.label, { color: theme.text }]}>{label}</Text> : null}
     </View>

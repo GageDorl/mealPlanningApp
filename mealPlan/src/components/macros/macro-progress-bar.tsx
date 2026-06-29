@@ -9,20 +9,24 @@ interface MacroProgressBarProps {
   goal: number;
   unit: string;
   color?: string;
+  showRemaining?: boolean;
 }
 
-export function MacroProgressBar({ label, current, goal, unit, color = Colors.accent }: MacroProgressBarProps) {
+export function MacroProgressBar({ label, current, goal, unit, color = Colors.accent, showRemaining = false }: MacroProgressBarProps) {
   const theme = useTheme();
   const progress = goal > 0 ? Math.min(100, (current / goal) * 100) : 0;
   const isOver = current > goal;
   const barColor = isOver ? theme.error : color;
+  const remaining = Math.max(0, goal - current);
 
   return (
     <View style={styles.container}>
       <View style={styles.row}>
         <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
-        <Text style={[styles.values, { color: isOver ? theme.error : theme.textSecondary }]}>
-          {Math.round(current * 10) / 10} / {goal} {unit}
+        <Text style={[styles.values, { color: isOver && !showRemaining ? theme.error : theme.textSecondary }]}>
+          {showRemaining
+            ? `${Math.round(remaining * 10) / 10} ${unit} left`
+            : `${Math.round(current * 10) / 10} / ${goal} ${unit}`}
         </Text>
       </View>
       <View style={[styles.track, { backgroundColor: theme.backgroundSelected }]}>

@@ -80,10 +80,14 @@ export default function SignInScreen() {
         displayName,
         authMethod,
       });
+
+      setLoading(false);
+      router.replace('/auth/profile-details');
+      return;
     }
 
     setLoading(false);
-    router.replace(existingProfile?.user.onboarding_completed ? '/' : '/macro-goals');
+    router.replace((existingProfile.user.onboarding_completed ? '/' : '/(tutorial)') as any);
   };
 
   return (
