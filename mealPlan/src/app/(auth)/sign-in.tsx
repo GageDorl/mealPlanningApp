@@ -20,17 +20,22 @@ export default function SignInScreen() {
   const handleSignIn = async () => {
     setLoading(true);
     setError(null);
-    const { data, error } = await signInWithEmail(email, password);
-    setLoading(false);
+    try {
+      const { data, error } = await signInWithEmail(email, password);
 
-    if (error) {
-      setError(error.message);
-      return;
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      const userId = data.user?.id;
+      const existingProfile = userId ? await getProfile(userId) : null;
+      router.replace((existingProfile?.user.onboarding_completed ? '/' : '/(tutorial)') as any);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    const userId = data.user?.id;
-    const existingProfile = userId ? await getProfile(userId) : null;
-    router.replace(existingProfile?.user.onboarding_completed ? '/' : '/macro-goals');
   };
 
   const handleProviderSignIn = async (provider: 'google' | 'apple') => {
@@ -60,30 +65,38 @@ export default function SignInScreen() {
       return;
     }
 
-    const existingProfile = await getProfile(session.user.id);
+    try {
+      const existingProfile = await getProfile(session.user.id);
 
-    if (!existingProfile) {
-      const displayName =
-        typeof session.user.user_metadata?.full_name === 'string'
-          ? session.user.user_metadata.full_name
-          : typeof session.user.user_metadata?.name === 'string'
-            ? session.user.user_metadata.name
-            : null;
+      if (!existingProfile) {
+        const displayName =
+          typeof session.user.user_metadata?.full_name === 'string'
+            ? session.user.user_metadata.full_name
+            : typeof session.user.user_metadata?.name === 'string'
+              ? session.user.user_metadata.name
+              : null;
 
-      const rawProvider = session.user.app_metadata?.provider;
-      const authMethod =
-        rawProvider === 'google' || rawProvider === 'apple' ? rawProvider : 'email';
+        const rawProvider = session.user.app_metadata?.provider;
+        const authMethod =
+          rawProvider === 'google' || rawProvider === 'apple' ? rawProvider : 'email';
 
-      await createUserProfile(db, {
-        id: session.user.id,
-        email: session.user.email ?? email,
-        displayName,
-        authMethod,
-      });
+        await createUserProfile(db, {
+          id: session.user.id,
+          email: session.user.email ?? email,
+          displayName,
+          authMethod,
+        });
+
+        router.replace('/auth/profile-details');
+        return;
+      }
+
+      router.replace((existingProfile.user.onboarding_completed ? '/' : '/(tutorial)') as any);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-    router.replace(existingProfile?.user.onboarding_completed ? '/' : '/macro-goals');
   };
 
   return (

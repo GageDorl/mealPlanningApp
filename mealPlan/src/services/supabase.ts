@@ -89,13 +89,20 @@ export async function signInWithEmail(email: string, password: string) {
   return supabase.auth.signInWithPassword({ email, password });
 }
 
-export async function signUpWithEmail(email: string, password: string) {
+export async function signUpWithEmail(email: string, password: string, displayName?: string) {
   const emailRedirectTo = isNative
     ? redirectTo
     : typeof window !== 'undefined'
       ? `${window.location.origin}/auth/callback`
       : undefined;
-  return supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
+  return supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo,
+      ...(displayName ? { data: { display_name: displayName } } : {}),
+    },
+  });
 }
 
 export async function createSessionFromUrl(url: string) {

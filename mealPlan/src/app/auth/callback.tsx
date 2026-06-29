@@ -99,11 +99,13 @@ export default function AuthCallbackScreen() {
 
         if (!existingProfile) {
           const displayName =
-            typeof user.user_metadata?.full_name === 'string'
-              ? user.user_metadata.full_name
-              : typeof user.user_metadata?.name === 'string'
-                ? user.user_metadata.name
-                : null;
+            typeof user.user_metadata?.display_name === 'string'
+              ? user.user_metadata.display_name
+              : typeof user.user_metadata?.full_name === 'string'
+                ? user.user_metadata.full_name
+                : typeof user.user_metadata?.name === 'string'
+                  ? user.user_metadata.name
+                  : null;
 
           const rawProvider = user.app_metadata?.provider;
           const authMethod =
@@ -115,10 +117,15 @@ export default function AuthCallbackScreen() {
             displayName,
             authMethod,
           });
+
+          if (!cancelled) {
+            router.replace('/auth/profile-details');
+          }
+          return;
         }
 
         if (!cancelled) {
-          router.replace(existingProfile?.user.onboarding_completed ? '/' : '/(tutorial)');
+          router.replace((existingProfile.user.onboarding_completed ? '/' : '/(tutorial)') as any);
         }
       } catch (callbackError) {
         if (!cancelled) {

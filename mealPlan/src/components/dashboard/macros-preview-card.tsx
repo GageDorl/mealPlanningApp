@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Pressable, View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
-import { Colors, FontSizes, Spacing } from '@/constants/theme';
+import { Pressable, View, Text, StyleSheet, Platform, type ViewStyle, type TextStyle } from 'react-native';
+import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { layout } from '@/styles/layout';
 import { surfaces } from '@/styles/surfaces';
@@ -27,6 +27,7 @@ const MACRO_COLORS: Record<string, string> = {
 export function MacrosPreviewCard({ dailyProgress, onPress }: MacrosPreviewCardProps) {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
+  const [showRemaining, setShowRemaining] = useState(false);
 
   const calorieMacro = dailyProgress?.macros.find((m) => m.macro_name === 'calories');
   const otherMacros = dailyProgress?.macros.filter((m) => m.macro_name !== 'calories') ?? [];
@@ -35,14 +36,29 @@ export function MacrosPreviewCard({ dailyProgress, onPress }: MacrosPreviewCardP
 
   return (
     <View style={[surfaces.card, styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-      <Pressable style={layout.rowSpaceBetween} onPress={onPress}>
-        <Text style={[typography.label, { color: theme.textSecondary }]}>Macros</Text>
-        <Pressable onPress={handleExpandToggle} hitSlop={12}>
-          <Text style={[styles.chevron, { color: theme.textSecondary }]}>
-            {expanded ? '▲' : '▼'}
-          </Text>
+      <View style={layout.rowSpaceBetween}>
+        <Pressable onPress={onPress}>
+          <Text style={[typography.label, { color: theme.textSecondary }]}>Macros</Text>
         </Pressable>
-      </Pressable>
+        <View style={styles.headerRight}>
+          <Pressable
+            onPress={() => setShowRemaining((v) => !v)}
+            style={[styles.viewToggle, { borderColor: theme.border }, showRemaining
+              ? { backgroundColor: theme.backgroundSelected }
+              : { backgroundColor: theme.backgroundElement, ...(Platform.OS !== 'web' && { elevation: 2 }), shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 2 }
+            ]}
+          >
+            <Text style={[styles.viewToggleText, { color: theme.textSecondary }]}>
+              {showRemaining ? 'Remaining' : 'Consumed'}
+            </Text>
+          </Pressable>
+          <Pressable onPress={handleExpandToggle} hitSlop={12}>
+            <Text style={[styles.chevron, { color: theme.textSecondary }]}>
+              {expanded ? '▲' : '▼'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
 
       {!expanded ? (
         <Pressable style={styles.compactContent} onPress={onPress}>
@@ -54,6 +70,7 @@ export function MacrosPreviewCard({ dailyProgress, onPress }: MacrosPreviewCardP
               label="Calories"
               color={Colors.accent}
               size={88}
+              showRemaining={showRemaining}
             />
           ) : (
             <View style={styles.noGoalsState}>
@@ -74,6 +91,7 @@ export function MacrosPreviewCard({ dailyProgress, onPress }: MacrosPreviewCardP
                 goal={macro.goal}
                 unit={macro.unit}
                 color={MACRO_COLORS[macro.macro_name] ?? Colors.accent}
+                showRemaining={showRemaining}
               />
             ))
           ) : (
@@ -98,6 +116,21 @@ const styles = StyleSheet.create({
   card: {
     gap: Spacing.sm,
   } as ViewStyle,
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  viewToggle: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingVertical: 3,
+    paddingHorizontal: Spacing.sm,
+  } as ViewStyle,
+  viewToggleText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+  } as TextStyle,
   chevron: {
     fontSize: 10,
     fontWeight: '600',
