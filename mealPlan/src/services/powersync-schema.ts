@@ -23,6 +23,7 @@ const users = new Table({
   theme_preference: column.text,
   onboarding_completed: column.integer,
   tutorial_completed: column.integer,
+  tutorial_chapters_completed: column.text,
   tier: column.text,
   notification_meal_reminders: column.integer,
   notification_planning_nudges: column.integer,

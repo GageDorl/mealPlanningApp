@@ -118,7 +118,7 @@ export default function AuthCallbackScreen() {
         }
 
         if (!cancelled) {
-          router.replace(existingProfile?.user.onboarding_completed ? '/' : '/macro-goals');
+          router.replace(existingProfile?.user.onboarding_completed ? '/' : '/(tutorial)');
         }
       } catch (callbackError) {
         if (!cancelled) {

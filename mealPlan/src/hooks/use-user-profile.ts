@@ -9,6 +9,8 @@ interface UserRow {
   display_name: string | null;
   theme_preference: string | null;
   onboarding_completed: number;
+  tutorial_completed: number;
+  tutorial_chapters_completed: string;
   notification_meal_reminders: number;
   notification_planning_nudges: number;
   notification_macro_checkins: number;
@@ -60,6 +62,8 @@ export function useUserProfile() {
         display_name: userRow.display_name,
         theme_preference: (userRow.theme_preference as 'light' | 'dark' | null) ?? null,
         onboarding_completed: Boolean(userRow.onboarding_completed),
+        tutorial_completed: Boolean(userRow.tutorial_completed),
+        tutorial_chapters_completed: (() => { try { return JSON.parse(userRow.tutorial_chapters_completed || '[]') as string[]; } catch { return []; } })(),
         notification_meal_reminders: Boolean(userRow.notification_meal_reminders),
         notification_planning_nudges: Boolean(userRow.notification_planning_nudges),
         notification_macro_checkins: Boolean(userRow.notification_macro_checkins),

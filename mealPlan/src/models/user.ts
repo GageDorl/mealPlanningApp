@@ -12,5 +12,7 @@ export interface User {
     macroCheckIns: boolean;
   };
   onboardingCompleted: boolean;
+  tutorialCompleted: boolean;
+  tutorialChaptersCompleted: string[];
 }
 

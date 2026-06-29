@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Slot, useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { supabase } from '@/services/supabase';
 
-export default function OnboardingLayout() {
+export default function TutorialLayout() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
 
@@ -15,9 +15,12 @@ export default function OnboardingLayout() {
         setAuthorized(true);
       }
     };
-
     verify();
   }, [router]);
 
-  return authorized ? <Slot /> : null;
+  if (!authorized) return null;
+
+  return (
+    <Stack screenOptions={{ headerShown: false }} />
+  );
 }

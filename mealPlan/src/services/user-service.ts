@@ -19,6 +19,8 @@ export interface UserProfile {
   display_name: string | null;
   theme_preference: 'light' | 'dark' | null;
   onboarding_completed: boolean;
+  tutorial_completed: boolean;
+  tutorial_chapters_completed: string[];
   notification_meal_reminders: boolean;
   notification_planning_nudges: boolean;
   notification_macro_checkins: boolean;
@@ -49,8 +51,8 @@ export async function createUserProfile(db: PsDb, user: {
 }): Promise<void> {
   const now = new Date().toISOString();
   await db.execute(
-    'INSERT OR IGNORE INTO users (id, email, display_name, auth_method, theme_preference, onboarding_completed, tutorial_completed, tier, notification_meal_reminders, notification_planning_nudges, notification_macro_checkins, notification_macro_adjustment, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [user.id, user.email, user.displayName ?? null, user.authMethod ?? 'email', null, 0, 0, 'free', 0, 0, 0, 0, now, now],
+    'INSERT OR IGNORE INTO users (id, email, display_name, auth_method, theme_preference, onboarding_completed, tutorial_completed, tutorial_chapters_completed, tier, notification_meal_reminders, notification_planning_nudges, notification_macro_checkins, notification_macro_adjustment, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [user.id, user.email, user.displayName ?? null, user.authMethod ?? 'email', null, 0, 0, '[]', 'free', 0, 0, 0, 0, now, now],
   );
 }
 
@@ -66,8 +68,15 @@ export async function getProfile(userId: string): Promise<UserProfileData | null
     return null;
   }
 
+  const raw = userData.tutorial_chapters_completed;
+  const tutorial_chapters_completed: string[] = (() => {
+    if (!raw) return [];
+    if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return []; } }
+    return raw as string[];
+  })();
+
   return {
-    user: userData as UserProfile,
+    user: { ...(userData as UserProfile), tutorial_chapters_completed },
     macroGoals: (macroData ?? []) as MacroGoalInput[],
     dietaryPreferences: ((dietData ?? []) as Array<{ tag: string }>).map((item) => item.tag),
   };
@@ -235,6 +244,20 @@ export async function deleteAccount(): Promise<void> {
   if (error) throw error
 
   await supabase.auth.signOut()
+}
+
+export async function updateTutorialChapters(db: PsDb, userId: string, chapters: string[]): Promise<void> {
+  await db.execute(
+    'UPDATE users SET tutorial_chapters_completed = ?, updated_at = ? WHERE id = ?',
+    [JSON.stringify(chapters), new Date().toISOString(), userId],
+  );
+}
+
+export async function completeTutorialProgress(db: PsDb, userId: string): Promise<void> {
+  await db.execute(
+    'UPDATE users SET tutorial_completed = 1, onboarding_completed = 1, updated_at = ? WHERE id = ?',
+    [new Date().toISOString(), userId],
+  );
 }
 
 export async function setCalendarPrefs(
