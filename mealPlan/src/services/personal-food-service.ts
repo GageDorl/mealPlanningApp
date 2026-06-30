@@ -28,6 +28,13 @@ export async function saveToLibrary(db: PsDb, userId: string, item: FoodLogItem)
     ],
   );
 
+  // Link the food log item back to the newly-created library entry so the
+  // "saved" indicator persists across sessions.
+  await db.execute(
+    'UPDATE food_log_items SET source = ?, source_id = ?, updated_at = ? WHERE id = ?',
+    ['library', id, now, item.id],
+  );
+
   return {
     id,
     user_id: userId,

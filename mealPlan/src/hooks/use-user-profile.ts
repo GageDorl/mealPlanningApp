@@ -27,10 +27,13 @@ interface MacroGoalRow {
 
 export function useUserProfile() {
   const [userId, setUserId] = useState<string | null>(getCachedUserId() ?? null);
+  // True until the first onAuthStateChange fires — prevents premature "no session" conclusions on cold start
+  const [authLoading, setAuthLoading] = useState(!getCachedUserId());
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.user?.id ?? null);
+      setAuthLoading(false);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -82,6 +85,7 @@ export function useUserProfile() {
 
   return {
     profile,
+    authLoading,
     loading: false,
     reload: useCallback(() => {}, []),
   };

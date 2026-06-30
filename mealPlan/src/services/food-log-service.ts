@@ -59,12 +59,19 @@ export async function createFoodLog(
   if (manualItems.length > 0) {
     void Promise.all(
       manualItems.map(async (item) => {
-        const rows = await db.getAll<{ cnt: number }>(
-          'SELECT COUNT(*) as cnt FROM personal_foods WHERE user_id = ? AND LOWER(food_name) = LOWER(?)',
+        const existing = await db.getAll<{ id: string }>(
+          'SELECT id FROM personal_foods WHERE user_id = ? AND LOWER(food_name) = LOWER(?) LIMIT 1',
           [userId, item.food_name.trim()],
         );
-        if ((rows[0]?.cnt ?? 0) === 0) {
+        if (existing.length === 0) {
+          // saveToLibrary also writes source='library' + source_id back to the food_log_item
           await saveToLibrary(db, userId, item);
+        } else {
+          // Food already in library — just link this log item to the existing entry
+          await db.execute(
+            'UPDATE food_log_items SET source = ?, source_id = ?, updated_at = ? WHERE id = ?',
+            ['library', existing[0].id, new Date().toISOString(), item.id],
+          );
         }
       }),
     ).catch(() => {});

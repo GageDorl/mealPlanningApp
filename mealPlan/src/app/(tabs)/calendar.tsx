@@ -28,7 +28,6 @@ import { CalendarPickerModal } from '@/components/calendar/calendar-picker-modal
 import { EventDetailModal } from '@/components/calendar/event-detail-modal';
 import { MealSlotDetailModal } from '@/components/calendar/meal-slot-detail-modal';
 import { FoodLogDetailModal } from '@/components/calendar/food-log-detail-modal';
-import { saveToLibrary } from '@/services/personal-food-service';
 import { updateExternalEventId } from '@/services/meal-plan-service';
 import { deleteMealEvent } from '@/services/calendar';
 import { WeekPickerModal } from '@/components/calendar/week-picker-modal';
@@ -788,7 +787,6 @@ export default function WeeklyPlannerScreen() {
         onAddItems={handleAddItemsToLog}
         onUpdateTime={handleUpdateFoodLogTime}
         onUpdateLog={handleUpdateFoodLog}
-        onSaveToLibrary={currentUserId ? async (item) => { await saveToLibrary(db, currentUserId, item); } : undefined}
       />
 
       <EventDetailModal

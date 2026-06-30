@@ -29,7 +29,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
 
-  const { profile } = useUserProfile();
+  const { profile, authLoading } = useUserProfile();
   const { recipes: topRecipes } = useTopRecipes();
   const { dailyProgress, refresh: refreshMacros } = useMacros(TODAY_DATE);
   const { state: grocery, refresh: refreshGrocery } = useGrocery();
@@ -37,8 +37,9 @@ export default function HomeScreen() {
 
   const { isRefreshing, triggerRefresh } = useRefresh();
 
-  // Initial load + navigation-focus reload
-  useFocusEffect(useCallback(() => { refreshMacros(); refreshGrocery(); }, [refreshMacros, refreshGrocery]));
+  // Initial load + navigation-focus reload; triggerSync covers the cold-start race where
+  // PowerSync hasn't populated the local DB before the first render.
+  useFocusEffect(useCallback(() => { void triggerSync(); refreshMacros(); refreshGrocery(); }, [refreshMacros, refreshGrocery]));
 
   // Register combined refresh for pull-to-refresh
   useSetPageRefresh(useCallback(async () => {
@@ -47,10 +48,11 @@ export default function HomeScreen() {
   }, [refreshMacros, refreshGrocery]));
 
   useEffect(() => {
-    if (!profile && !getCachedUserId()) {
+    if (authLoading) return;
+    if (!getCachedUserId()) {
       router.replace('/about');
     }
-  }, [profile, router]);
+  }, [authLoading, router]);
 
   const handleNudgePress = useCallback(() => {
     if (!calendarConnected) {
@@ -63,7 +65,7 @@ export default function HomeScreen() {
   }, [calendarConnected, profile, router]);
 
   const greeting = getGreeting();
-  const displayName = profile?.user?.display_name ?? '';
+  const displayName = profile?.user?.display_name ?? (authLoading ? '...' : '');
 
   return (
     <ScrollView

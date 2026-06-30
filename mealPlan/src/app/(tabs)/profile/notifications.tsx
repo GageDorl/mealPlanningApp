@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View, type ViewStyle, type TextStyle } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { usePowerSync } from '@powersync/react-native';
+import { usePowerSync, useQuery } from '@powersync/react-native';
 
 import { FontSizes, MaxContentWidth, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -44,9 +44,19 @@ const NOTIFICATION_TYPES = [
   {
     key: 'macroAdjustment' as const,
     label: 'Macro adjustment reminders',
-    description: 'Weekly Monday morning reminder when your calorie targets may need recalibration.',
+    description: 'Notified on your check-in day (7 days after setting goals) when your macros are ready to review.',
   },
 ] as const;
+
+function nextCheckInDate(macroGoalSetAt: string | null): Date | null {
+  if (!macroGoalSetAt) return null;
+  const setAt = new Date(macroGoalSetAt);
+  if (isNaN(setAt.getTime())) return null;
+  const next = new Date(setAt);
+  next.setDate(next.getDate() + 7);
+  next.setHours(8, 0, 0, 0);
+  return next;
+}
 
 export default function NotificationsScreen() {
   const db = usePowerSync();
@@ -59,6 +69,11 @@ export default function NotificationsScreen() {
     macroCheckIns: false,
     macroAdjustment: false,
   });
+
+  const { data: macroGoalDateRows } = useQuery<{ latest: string | null }>(
+    'SELECT MAX(created_at) as latest FROM macro_goals WHERE user_id = ? AND is_active = 1',
+    [profile?.user.id ?? ''],
+  );
 
   // Always-current ref for the blur save so the cleanup captures latest state
   const notificationsRef = useRef(notifications);
@@ -103,9 +118,20 @@ export default function NotificationsScreen() {
     setNotifications((prev) => ({ ...prev, [key]: next }));
 
     // Schedule / cancel immediately so notification fires even before the user leaves
-    if (key === 'planningNudges') { next ? schedulePlanningNudge() : cancelPlanningNudge(); }
-    if (key === 'macroCheckIns') { next ? scheduleMacroCheckIn() : cancelMacroCheckIn(); }
-    if (key === 'macroAdjustment') { next ? scheduleMacroAdjustmentReminder() : cancelMacroAdjustmentReminder(); }
+    if (key === 'planningNudges') { void (next ? schedulePlanningNudge() : cancelPlanningNudge()); }
+    if (key === 'macroCheckIns') { void (next ? scheduleMacroCheckIn() : cancelMacroCheckIn()); }
+    if (key === 'macroAdjustment') {
+      if (next) {
+        const checkIn = nextCheckInDate(macroGoalDateRows[0]?.latest ?? null);
+        if (!checkIn) {
+          setNotifications((prev) => ({ ...prev, macroAdjustment: false }));
+          return;
+        }
+        void scheduleMacroAdjustmentReminder(checkIn);
+      } else {
+        void cancelMacroAdjustmentReminder();
+      }
+    }
   };
 
   return (

@@ -14,6 +14,7 @@ import {
   type DailyCalories,
 } from '@/services/adaptive-macro-service';
 import { updateMacroGoals } from '@/services/user-service';
+import { scheduleMacroAdjustmentReminder, cancelMacroAdjustmentReminder } from '@/services/notification-service';
 import type { GoalType } from '@/services/macro-planner-service';
 
 interface Props {
@@ -25,8 +26,8 @@ export function MacroAdjustmentBanner({ userId }: Props) {
   const theme = useTheme();
   const [applying, setApplying] = useState(false);
 
-  const { data: userRows } = useQuery<{ weight_logs: string | null; weight_goal: string | null }>(
-    'SELECT weight_logs, weight_goal FROM users WHERE id = ?',
+  const { data: userRows } = useQuery<{ weight_logs: string | null; weight_goal: string | null; notification_macro_adjustment: number }>(
+    'SELECT weight_logs, weight_goal, notification_macro_adjustment FROM users WHERE id = ?',
     [userId],
   );
 
@@ -92,6 +93,14 @@ export function MacroAdjustmentBanner({ userId }: Props) {
     return null;
   }
 
+  const rescheduleNotification = () => {
+    if (!row?.notification_macro_adjustment) return;
+    const next = new Date();
+    next.setDate(next.getDate() + 7);
+    next.setHours(8, 0, 0, 0);
+    scheduleMacroAdjustmentReminder(next).catch(() => {});
+  };
+
   const handleAccept = async () => {
     if (!adjustment) return;
     setApplying(true);
@@ -110,6 +119,7 @@ export function MacroAdjustmentBanner({ userId }: Props) {
       }));
       await updateMacroGoals(db, userId, updatedGoals);
       await dismissAdjustment(db, userId, weightGoal);
+      rescheduleNotification();
     } catch {
       Alert.alert('Error', 'Failed to apply adjustment. Please try again.');
     } finally {
@@ -120,6 +130,7 @@ export function MacroAdjustmentBanner({ userId }: Props) {
   const handleDismiss = async () => {
     try {
       await dismissAdjustment(db, userId, weightGoal);
+      rescheduleNotification();
     } catch {
       Alert.alert('Error', 'Failed to dismiss. Please try again.');
     }

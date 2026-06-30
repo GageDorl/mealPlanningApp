@@ -101,20 +101,19 @@ export async function cancelMacroCheckIn(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(MACRO_CHECKIN_ID).catch(() => {});
 }
 
-export async function scheduleMacroAdjustmentReminder(): Promise<void> {
+export async function scheduleMacroAdjustmentReminder(nextCheckInDate: Date): Promise<void> {
   if (Platform.OS === 'web') return;
   await Notifications.cancelScheduledNotificationAsync(MACRO_ADJUSTMENT_ID).catch(() => {});
+  if (nextCheckInDate <= new Date()) return;
   await Notifications.scheduleNotificationAsync({
     identifier: MACRO_ADJUSTMENT_ID,
     content: {
-      title: 'Macro targets may need an update',
-      body: 'Based on your recent weight and calorie data, your macro goals may be ready to recalibrate. Tap to review.',
+      title: 'Weekly check-in ready',
+      body: "Your macro goals are ready for review based on this week's data. Tap to recalibrate.",
     },
     trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-      weekday: 2, // Monday
-      hour: 8,
-      minute: 0,
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: nextCheckInDate,
     },
   });
 }

@@ -85,7 +85,6 @@ const recipe_ingredients = new Table({
 });
 
 const ingredients = new Table({
-  usda_fdc_id: column.text,
   name: column.text,
   category: column.text,
   calories_per_100g: column.real,

@@ -19,7 +19,6 @@ interface FoodLogDetailModalProps {
   onAddItems?: (logId: string, items: FoodLogItemInput[]) => Promise<void>;
   onUpdateTime?: (logId: string, newTime: string | null) => void;
   onUpdateLog?: (logId: string, patch: { label?: string | null; icon?: string | null }) => void;
-  onSaveToLibrary?: (item: FoodLogItem) => Promise<void>;
 }
 
 function formatTime12(time24: string): string {
@@ -46,18 +45,14 @@ function ItemRow({
   item,
   onDelete,
   onUpdate,
-  onSaveToLibrary,
 }: {
   logId: string;
   item: FoodLogItem;
   onDelete: (logId: string, itemId: string) => void;
   onUpdate: (logId: string, itemId: string, patch: Partial<FoodLogItem>) => void;
-  onSaveToLibrary?: (item: FoodLogItem) => Promise<void>;
 }) {
   const theme = useTheme();
   const [servingsText, setServingsText] = useState(String(item.servings_eaten));
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [shareEnabled, setShareEnabled] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [flagging, setFlagging] = useState(false);
@@ -73,17 +68,6 @@ function ItemRow({
     }
     if (parsed !== item.servings_eaten) {
       onUpdate(logId, item.id, { servings_eaten: parsed });
-    }
-  }
-
-  async function handleSave() {
-    if (!onSaveToLibrary || saving || saved) return;
-    setSaving(true);
-    try {
-      await onSaveToLibrary(item);
-      setSaved(true);
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -149,7 +133,7 @@ function ItemRow({
         <Text style={[styles.macros, { color: theme.textSecondary }]}>{macroLine(item, displayServings)}</Text>
         {item.source === 'fatsecret' ? <FatSecretAttribution style={styles.attribution} /> : null}
 
-        {saved ? (
+        {item.source === 'library' ? (
           <View style={styles.shareRow}>
             <Text style={[styles.shareLabel, { color: theme.textSecondary }]}>
               {sharing ? 'Sharing…' : 'Share with community?'}
@@ -179,13 +163,6 @@ function ItemRow({
       </View>
 
       <View style={styles.itemRight}>
-        {onSaveToLibrary ? (
-          <Pressable onPress={handleSave} hitSlop={8} style={styles.bookmarkButton} disabled={saving || saved}>
-            <Text style={[styles.bookmarkIcon, { color: saved ? Colors.accent : theme.textSecondary }]}>
-              {saved ? '★' : '☆'}
-            </Text>
-          </Pressable>
-        ) : null}
         <View style={styles.servingsRow}>
           <TextInput
             style={[styles.servingsInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.backgroundElement }]}
@@ -240,7 +217,7 @@ function ItemRow({
   );
 }
 
-export function FoodLogDetailModal({ log, userId, onClose, onDeleteLog, onDeleteItem, onUpdateItem, onAddItems, onUpdateTime, onUpdateLog, onSaveToLibrary }: FoodLogDetailModalProps) {
+export function FoodLogDetailModal({ log, userId, onClose, onDeleteLog, onDeleteItem, onUpdateItem, onAddItems, onUpdateTime, onUpdateLog }: FoodLogDetailModalProps) {
   const theme = useTheme();
   const [addingItems, setAddingItems] = useState(false);
   const [editingLog, setEditingLog] = useState(false);
@@ -445,7 +422,6 @@ export function FoodLogDetailModal({ log, userId, onClose, onDeleteLog, onDelete
                       item={item}
                       onDelete={onDeleteItem}
                       onUpdate={onUpdateItem}
-                      onSaveToLibrary={onSaveToLibrary}
                     />
                   ))
                 )}

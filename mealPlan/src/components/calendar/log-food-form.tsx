@@ -24,6 +24,25 @@ const QUICK_LABELS = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Post-workout'];
 
 const SERVING_UNITS = ['g', 'oz', 'cup', 'piece', 'slice', 'tbsp', 'tsp', 'ml'];
 
+const GRAMS_PER_OZ = 28.3495;
+
+function calcServingsFromWeight(
+  inputAmount: string,
+  inputUnit: 'g' | 'oz',
+  serving: FatSecretServing,
+): string | null {
+  const amt = parseFloat(inputAmount);
+  if (!amt || !serving.metric_serving_amount) return null;
+  const metricUnit = serving.metric_serving_unit ?? 'g';
+  if (metricUnit !== 'g' && metricUnit !== 'oz') return null;
+  const servingGrams = metricUnit === 'oz'
+    ? serving.metric_serving_amount * GRAMS_PER_OZ
+    : serving.metric_serving_amount;
+  const inputGrams = inputUnit === 'oz' ? amt * GRAMS_PER_OZ : amt;
+  const servings = inputGrams / servingGrams;
+  return String(Math.round(servings * 100) / 100);
+}
+
 function parse24to12(time24: string): { hour: string; minute: string; period: 'AM' | 'PM' } {
   const [hStr, mStr] = time24.split(':');
   let h = parseInt(hStr, 10) || 0;
@@ -168,6 +187,8 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
   const [fsLoadingId, setFsLoadingId] = useState<string | null>(null);
   const [fsSelectedFood, setFsSelectedFood] = useState<FoodDetails | null>(null);
   const [fsServingIdx, setFsServingIdx] = useState(0);
+  const [convertAmount, setConvertAmount] = useState('');
+  const [convertUnit, setConvertUnit] = useState<'g' | 'oz'>('g');
 
   const runUnifiedSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -339,7 +360,23 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
   function changeFsServing(idx: number) {
     if (!fsSelectedFood) return;
     setFsServingIdx(idx);
+    setConvertAmount('');
     setDraft(prev => ({ ...prev, servings_eaten: '1', ...servingToFields(fsSelectedFood.servings[idx]) }));
+  }
+
+  function handleConvertAmount(v: string) {
+    const cleaned = v.replace(/[^0-9.]/g, '');
+    setConvertAmount(cleaned);
+    if (!fsSelectedFood) return;
+    const result = calcServingsFromWeight(cleaned, convertUnit, fsSelectedFood.servings[fsServingIdx]);
+    if (result) updateDraft({ servings_eaten: result });
+  }
+
+  function handleConvertUnit(u: 'g' | 'oz') {
+    setConvertUnit(u);
+    if (!fsSelectedFood || !convertAmount) return;
+    const result = calcServingsFromWeight(convertAmount, u, fsSelectedFood!.servings[fsServingIdx]);
+    if (result) updateDraft({ servings_eaten: result });
   }
 
   const [scannerVisible, setScannerVisible] = useState(false);
@@ -715,6 +752,34 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
                   {fsSelectedFood.servings[fsServingIdx].metric_serving_amount}{fsSelectedFood.servings[fsServingIdx].metric_serving_unit ?? 'g'}
                 </Text>
               ) : null}
+              {(() => {
+                const srv = fsSelectedFood.servings[fsServingIdx];
+                const unit = srv?.metric_serving_unit ?? 'g';
+                if (!srv?.metric_serving_amount || (unit !== 'g' && unit !== 'oz')) return null;
+                return (
+                  <View style={styles.convertRow}>
+                    <Text style={[styles.convertLabel, { color: theme.textSecondary }]}>My amount:</Text>
+                    <Input
+                      placeholder="e.g. 150"
+                      value={convertAmount}
+                      onChangeText={handleConvertAmount}
+                      keyboardType="decimal-pad"
+                      containerStyle={styles.convertInput}
+                    />
+                    <View style={styles.convertUnits}>
+                      {(['g', 'oz'] as const).map((u) => (
+                        <Pressable
+                          key={u}
+                          style={[styles.unitChip, { borderColor: theme.border }, convertUnit === u ? styles.chipActive : null]}
+                          onPress={() => handleConvertUnit(u)}
+                        >
+                          <Text style={[styles.chipText, { color: theme.text }, convertUnit === u ? styles.chipTextActive : null]}>{u}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
             </View>
           ) : (
             <View style={styles.servingRow}>
@@ -1135,4 +1200,20 @@ const styles = StyleSheet.create({
   cameraBtnIcon: {
     fontSize: 20,
   } as TextStyle,
+  convertRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  } as ViewStyle,
+  convertLabel: {
+    fontSize: 13,
+  } as TextStyle,
+  convertInput: {
+    flex: 1,
+  } as ViewStyle,
+  convertUnits: {
+    flexDirection: 'row',
+    gap: 6,
+  } as ViewStyle,
 });
