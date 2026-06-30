@@ -1,0 +1,38 @@
+name: Deploy — Production
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    name: EAS deploy (production)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mealPlan
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mealPlan/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # TODO: wire up App Store / Play Store submission once production is ready
+      # eas build --platform android --profile production --non-interactive
+      # eas submit --platform android --non-interactive
+      # eas deploy --alias production --non-interactive
+
+      - name: Production deploy placeholder
+        run: echo "Production deployment not yet configured — add eas build + submit steps here."

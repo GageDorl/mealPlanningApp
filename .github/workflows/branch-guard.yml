@@ -1,0 +1,30 @@
+name: Branch Flow Guard
+
+on:
+  pull_request:
+    branches:
+      - beta
+      - master
+
+jobs:
+  enforce-branch-flow:
+    name: Enforce branch flow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch for PRs into beta
+        if: github.base_ref == 'beta'
+        run: |
+          if [ "${{ github.head_ref }}" != "alpha" ]; then
+            echo "❌ PRs into beta must come from the alpha branch (got '${{ github.head_ref }}')."
+            exit 1
+          fi
+          echo "✅ Source branch is alpha — allowed."
+
+      - name: Check source branch for PRs into master
+        if: github.base_ref == 'master'
+        run: |
+          if [ "${{ github.head_ref }}" != "beta" ]; then
+            echo "❌ PRs into master must come from the beta branch (got '${{ github.head_ref }}')."
+            exit 1
+          fi
+          echo "✅ Source branch is beta — allowed."

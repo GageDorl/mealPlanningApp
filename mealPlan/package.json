@@ -2,6 +2,9 @@
   "name": "mealplan",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=20.1"
+  },
   "dependencies": {
     "@azure/core-asynciterator-polyfill": "^1.0.2",
     "@expo/metro-runtime": "~56.0.11",
@@ -52,6 +55,7 @@
   "devDependencies": {
     "@babel/plugin-transform-async-generator-functions": "^7.29.0",
     "@types/react": "~19.2.2",
+    "cypress": "^15.18.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~56.0.4",
     "typescript": "~6.0.3"
@@ -63,7 +67,9 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "export:web": "expo export --platform web --clear && node scripts/patch-web-dist.js"
+    "export:web": "expo export --platform web --clear && node scripts/patch-web-dist.js",
+    "cy:open": "cypress open",
+    "cy:run": "cypress run"
   },
   "private": true,
   "overrides": {
