@@ -1,10 +1,4 @@
-declare global {
-  namespace Cypress {
-    interface Chainable {
-      login(): Chainable<void>;
-    }
-  }
-}
+/// <reference path="./index.d.ts" />
 
 // Logs in via the UI and caches the session so subsequent specs skip the flow
 Cypress.Commands.add('login', () => {
@@ -12,11 +6,13 @@ Cypress.Commands.add('login', () => {
     'testUser',
     () => {
       cy.visit('/sign-in');
-      cy.get('input[placeholder="Email"]').type(Cypress.env('TEST_USER_EMAIL'));
-      cy.get('input[placeholder="Password"]').type(Cypress.env('TEST_USER_PASSWORD'));
-      cy.contains('Sign in').click();
-      // Wait until we've left the sign-in screen
-      cy.url().should('not.include', 'sign-in');
+      cy.env(['TEST_USER_EMAIL', 'TEST_USER_PASSWORD']).then(({ TEST_USER_EMAIL, TEST_USER_PASSWORD }) => {
+        cy.get('input[placeholder="Email"]').type(TEST_USER_EMAIL as string);
+        cy.get('input[placeholder="Password"]').type(TEST_USER_PASSWORD as string, { log: false });
+        cy.contains('Sign in').click();
+        // Wait until we've left the sign-in screen
+        cy.url().should('not.include', 'sign-in');
+      });
     },
     {
       validate() {

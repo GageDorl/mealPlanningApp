@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 function adminClient() {
   const url = process.env.CYPRESS_SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
   const key = process.env.CYPRESS_SUPABASE_SERVICE_ROLE_KEY ?? '';
+  if (!url) throw new Error('CYPRESS_SUPABASE_URL (or EXPO_PUBLIC_SUPABASE_URL) is not set');
   if (!key) throw new Error('CYPRESS_SUPABASE_SERVICE_ROLE_KEY is not set');
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
@@ -11,9 +12,12 @@ export async function seedTestData(): Promise<null> {
   const supabase = adminClient();
   const email = process.env.CYPRESS_TEST_USER_EMAIL ?? '';
   const password = process.env.CYPRESS_TEST_USER_PASSWORD ?? '';
+  if (!email) throw new Error('CYPRESS_TEST_USER_EMAIL is not set');
+  if (!password) throw new Error('CYPRESS_TEST_USER_PASSWORD is not set');
 
   // Ensure the test user exists in auth
-  const { data: listData } = await supabase.auth.admin.listUsers();
+  const { data: listData, error: listError } = await supabase.auth.admin.listUsers();
+  if (listError) throw listError;
   let user = listData?.users.find((u) => u.email === email);
 
   if (!user) {
@@ -30,7 +34,7 @@ export async function seedTestData(): Promise<null> {
   const userId = user.id;
 
   // Upsert user profile
-  await supabase.from('users').upsert({
+  const { error: profileError } = await supabase.from('users').upsert({
     id: userId,
     email,
     display_name: 'Cypress Tester',
@@ -42,6 +46,7 @@ export async function seedTestData(): Promise<null> {
     notification_macro_checkins: false,
     notification_macro_adjustment: false,
   }, { onConflict: 'id' });
+  if (profileError) throw profileError;
 
   // Upsert macro goals
   const goals = [
@@ -52,7 +57,8 @@ export async function seedTestData(): Promise<null> {
   ];
 
   for (const goal of goals) {
-    await supabase.from('macro_goals').upsert(goal, { onConflict: 'user_id,macro_name' });
+    const { error: goalError } = await supabase.from('macro_goals').upsert(goal, { onConflict: 'user_id,macro_name' });
+    if (goalError) throw goalError;
   }
 
   return null;
@@ -62,12 +68,14 @@ export async function cleanFoodLogs(): Promise<null> {
   const supabase = adminClient();
   const email = process.env.CYPRESS_TEST_USER_EMAIL ?? '';
 
-  const { data: listData } = await supabase.auth.admin.listUsers();
+  const { data: listData, error: listError } = await supabase.auth.admin.listUsers();
+  if (listError) throw listError;
   const user = listData?.users.find((u) => u.email === email);
   if (!user) return null;
 
   // Delete all food logs for the test user (cascades to food_log_items)
-  await supabase.from('food_logs').delete().eq('user_id', user.id);
+  const { error: deleteError } = await supabase.from('food_logs').delete().eq('user_id', user.id);
+  if (deleteError) throw deleteError;
 
   return null;
 }

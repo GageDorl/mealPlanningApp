@@ -2,6 +2,9 @@
   "name": "mealplan",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=20.1"
+  },
   "dependencies": {
     "@azure/core-asynciterator-polyfill": "^1.0.2",
     "@expo/metro-runtime": "~56.0.11",
