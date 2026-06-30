@@ -1,0 +1,36 @@
+name: Deploy — Beta
+
+on:
+  push:
+    branches:
+      - beta
+
+jobs:
+  deploy:
+    name: EAS update (beta)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mealPlan
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mealPlan/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish OTA update → beta-testing channel (Android)
+        run: eas update --channel beta-testing --platform android --message "${{ github.event.head_commit.message }}" --non-interactive
+
+      - name: Deploy web → preview alias
+        run: eas deploy --alias preview --non-interactive
