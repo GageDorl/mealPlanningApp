@@ -37,8 +37,9 @@ export default function HomeScreen() {
 
   const { isRefreshing, triggerRefresh } = useRefresh();
 
-  // Initial load + navigation-focus reload
-  useFocusEffect(useCallback(() => { refreshMacros(); refreshGrocery(); }, [refreshMacros, refreshGrocery]));
+  // Initial load + navigation-focus reload; triggerSync covers the cold-start race where
+  // PowerSync hasn't populated the local DB before the first render.
+  useFocusEffect(useCallback(() => { void triggerSync(); refreshMacros(); refreshGrocery(); }, [refreshMacros, refreshGrocery]));
 
   // Register combined refresh for pull-to-refresh
   useSetPageRefresh(useCallback(async () => {
@@ -64,7 +65,7 @@ export default function HomeScreen() {
   }, [calendarConnected, profile, router]);
 
   const greeting = getGreeting();
-  const displayName = profile?.user?.display_name ?? '';
+  const displayName = profile?.user?.display_name ?? (authLoading ? '...' : '');
 
   return (
     <ScrollView

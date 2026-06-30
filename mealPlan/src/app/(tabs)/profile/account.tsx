@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePowerSync, useQuery } from '@powersync/react-native';
@@ -57,6 +57,7 @@ export default function AccountScreen() {
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
   const [saveMessage, setSaveMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
+  const saveStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearFieldError = (field: string) => {
     setFieldErrors((prev) => {
@@ -118,13 +119,16 @@ export default function AccountScreen() {
 
   const showSaveStatus = (status: 'success' | 'error', message: string) => {
     if (Platform.OS === 'web') {
+      if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
       setSaveStatus(status);
       setSaveMessage(message);
-      setTimeout(() => setSaveStatus(null), 3500);
+      saveStatusTimer.current = setTimeout(() => setSaveStatus(null), 3500);
     } else {
       Alert.alert(status === 'success' ? 'Saved' : 'Save failed', message);
     }
   };
+
+  useEffect(() => () => { if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current); }, []);
 
   const handleSave = async () => {
     if (!profile) return;

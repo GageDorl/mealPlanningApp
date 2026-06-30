@@ -374,7 +374,7 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
 
   function handleConvertUnit(u: 'g' | 'oz') {
     setConvertUnit(u);
-    if (!fsSelectedFood && !convertAmount) return;
+    if (!fsSelectedFood || !convertAmount) return;
     const result = calcServingsFromWeight(convertAmount, u, fsSelectedFood!.servings[fsServingIdx]);
     if (result) updateDraft({ servings_eaten: result });
   }

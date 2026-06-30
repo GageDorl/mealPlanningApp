@@ -118,14 +118,18 @@ export default function NotificationsScreen() {
     setNotifications((prev) => ({ ...prev, [key]: next }));
 
     // Schedule / cancel immediately so notification fires even before the user leaves
-    if (key === 'planningNudges') { next ? schedulePlanningNudge() : cancelPlanningNudge(); }
-    if (key === 'macroCheckIns') { next ? scheduleMacroCheckIn() : cancelMacroCheckIn(); }
+    if (key === 'planningNudges') { void (next ? schedulePlanningNudge() : cancelPlanningNudge()); }
+    if (key === 'macroCheckIns') { void (next ? scheduleMacroCheckIn() : cancelMacroCheckIn()); }
     if (key === 'macroAdjustment') {
       if (next) {
         const checkIn = nextCheckInDate(macroGoalDateRows[0]?.latest ?? null);
-        if (checkIn) scheduleMacroAdjustmentReminder(checkIn);
+        if (!checkIn) {
+          setNotifications((prev) => ({ ...prev, macroAdjustment: false }));
+          return;
+        }
+        void scheduleMacroAdjustmentReminder(checkIn);
       } else {
-        cancelMacroAdjustmentReminder();
+        void cancelMacroAdjustmentReminder();
       }
     }
   };
