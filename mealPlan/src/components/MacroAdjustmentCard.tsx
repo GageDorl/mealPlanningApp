@@ -18,6 +18,7 @@ import {
   type SuspiciousDay,
 } from '@/services/adaptive-macro-service';
 import { updateMacroGoals } from '@/services/user-service';
+import { scheduleMacroAdjustmentReminder } from '@/services/notification-service';
 import type { GoalType } from '@/services/macro-planner-service';
 
 interface Props {
@@ -48,8 +49,8 @@ export function MacroAdjustmentCard({ userId }: Props) {
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set());
   const [applying, setApplying] = useState(false);
 
-  const { data: userRows } = useQuery<{ weight_logs: string | null; weight_goal: string | null }>(
-    'SELECT weight_logs, weight_goal FROM users WHERE id = ?',
+  const { data: userRows } = useQuery<{ weight_logs: string | null; weight_goal: string | null; notification_macro_adjustment: number }>(
+    'SELECT weight_logs, weight_goal, notification_macro_adjustment FROM users WHERE id = ?',
     [userId],
   );
 
@@ -130,6 +131,14 @@ export function MacroAdjustmentCard({ userId }: Props) {
     });
   };
 
+  const rescheduleNotification = () => {
+    if (!row?.notification_macro_adjustment) return;
+    const next = new Date();
+    next.setDate(next.getDate() + 7);
+    next.setHours(8, 0, 0, 0);
+    scheduleMacroAdjustmentReminder(next).catch(() => {});
+  };
+
   const handleApply = async () => {
     if (!adjustment) return;
     setApplying(true);
@@ -148,6 +157,7 @@ export function MacroAdjustmentCard({ userId }: Props) {
       }));
       await updateMacroGoals(db, userId, updatedGoals);
       await dismissAdjustment(db, userId, weightGoal);
+      rescheduleNotification();
     } catch {
       Alert.alert('Error', 'Failed to apply macro adjustment.');
     } finally {
@@ -158,6 +168,7 @@ export function MacroAdjustmentCard({ userId }: Props) {
   const handleDismiss = async () => {
     try {
       await dismissAdjustment(db, userId, weightGoal);
+      rescheduleNotification();
     } catch {
       Alert.alert('Error', 'Failed to dismiss. Please try again.');
     }

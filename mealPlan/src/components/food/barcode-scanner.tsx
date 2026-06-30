@@ -110,8 +110,11 @@ export function BarcodeScanner({ onFoodFound, onNotFound, onDismiss }: BarcodeSc
           ) : notFoundMessage ? (
             <View style={styles.notFoundBox}>
               <Text style={styles.notFoundText}>{notFoundMessage}</Text>
-              <Pressable style={styles.manualBtn} onPress={onNotFound}>
-                <Text style={styles.manualBtnText}>Enter manually</Text>
+              <Pressable style={styles.retryBtn} onPress={() => setNotFoundMessage(null)}>
+                <Text style={styles.retryBtnText}>Scan again</Text>
+              </Pressable>
+              <Pressable onPress={onNotFound}>
+                <Text style={styles.manualLink}>Enter manually instead</Text>
               </Pressable>
             </View>
           ) : (
@@ -241,16 +244,21 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
     textAlign: 'center',
   } as TextStyle,
-  manualBtn: {
+  retryBtn: {
     backgroundColor: Colors.accent,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
   } as ViewStyle,
-  manualBtnText: {
+  retryBtnText: {
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: FontSizes.sm,
+  } as TextStyle,
+  manualLink: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: FontSizes.sm,
+    textDecorationLine: 'underline',
   } as TextStyle,
   instructionText: {
     color: 'rgba(255,255,255,0.8)',

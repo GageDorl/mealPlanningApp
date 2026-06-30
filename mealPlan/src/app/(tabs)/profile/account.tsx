@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePowerSync, useQuery } from '@powersync/react-native';
 
@@ -54,6 +54,18 @@ export default function AccountScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
+
+  const clearFieldError = (field: string) => {
+    setFieldErrors((prev) => {
+      if (!prev.has(field)) return prev;
+      const next = new Set(prev);
+      next.delete(field);
+      return next;
+    });
+  };
 
   // Body stats
   const [sex, setSex] = useState<Sex>('other');
@@ -94,6 +106,7 @@ export default function AccountScreen() {
   const handleDobSelect = (date: Date) => {
     setDobDate(date);
     setDob(dateToDob(date));
+    clearFieldError('dob');
     setShowDobPicker(false);
   };
 
@@ -103,8 +116,35 @@ export default function AccountScreen() {
     );
   }, []);
 
+  const showSaveStatus = (status: 'success' | 'error', message: string) => {
+    if (Platform.OS === 'web') {
+      setSaveStatus(status);
+      setSaveMessage(message);
+      setTimeout(() => setSaveStatus(null), 3500);
+    } else {
+      Alert.alert(status === 'success' ? 'Saved' : 'Save failed', message);
+    }
+  };
+
   const handleSave = async () => {
     if (!profile) return;
+
+    const errors = new Set<string>();
+    if (!displayName.trim()) errors.add('displayName');
+    if (!heightFt || Number(heightFt) <= 0 || Number.isNaN(Number(heightFt))) errors.add('height');
+    if (!dob) errors.add('dob');
+
+    if (errors.size > 0) {
+      setFieldErrors(errors);
+      const missing: string[] = [];
+      if (errors.has('displayName')) missing.push('display name');
+      if (errors.has('height')) missing.push('height');
+      if (errors.has('dob')) missing.push('birthday');
+      showSaveStatus('error', `Please fill in: ${missing.join(', ')}.`);
+      return;
+    }
+
+    setFieldErrors(new Set());
     setSaving(true);
     try {
       await updateDisplayName(db, profile.user.id, displayName);
@@ -116,9 +156,9 @@ export default function AccountScreen() {
         height_in: Number(heightIn) || 0,
       });
       reload();
-      Alert.alert('Saved', 'Your account settings have been updated.');
+      showSaveStatus('success', 'Your account settings have been updated.');
     } catch (err) {
-      Alert.alert('Save failed', err instanceof Error ? err.message : 'Something went wrong.');
+      showSaveStatus('error', err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setSaving(false);
     }
@@ -162,7 +202,12 @@ export default function AccountScreen() {
           {/* Display name */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Display name</Text>
-            <Input value={displayName} onChangeText={setDisplayName} placeholder="Your name" />
+            <Input
+              value={displayName}
+              onChangeText={(v) => { setDisplayName(v); clearFieldError('displayName'); }}
+              placeholder="Your name"
+              style={fieldErrors.has('displayName') ? { borderColor: theme.error } : undefined}
+            />
           </View>
 
           {/* Body stats */}
@@ -179,21 +224,21 @@ export default function AccountScreen() {
                   <TextInput
                     style={[styles.inlineInput, { color: theme.text }]}
                     value={heightFt}
-                    onChangeText={setHeightFt}
+                    onChangeText={(v) => { setHeightFt(v); clearFieldError('height'); }}
                     keyboardType="number-pad"
                     textAlign="right"
-                    placeholderTextColor={theme.textSecondary}
-                    placeholder="5"
+                    placeholderTextColor={fieldErrors.has('height') ? theme.error : theme.textSecondary}
+                    placeholder="—"
                   />
                   <Text style={[styles.unit, { color: theme.textSecondary }]}>ft</Text>
                   <TextInput
                     style={[styles.inlineInput, { color: theme.text }]}
                     value={heightIn}
-                    onChangeText={setHeightIn}
+                    onChangeText={(v) => { setHeightIn(v); clearFieldError('height'); }}
                     keyboardType="number-pad"
                     textAlign="right"
-                    placeholderTextColor={theme.textSecondary}
-                    placeholder="10"
+                    placeholderTextColor={fieldErrors.has('height') ? theme.error : theme.textSecondary}
+                    placeholder="—"
                   />
                   <Text style={[styles.unit, { color: theme.textSecondary }]}>in</Text>
                 </View>
@@ -205,8 +250,8 @@ export default function AccountScreen() {
               >
                 <Text style={[styles.rowLabel, { color: theme.text }]}>Birthday</Text>
                 <View style={styles.rowRight}>
-                  <Text style={[styles.rowValue, { color: dob ? theme.text : theme.textSecondary }]}>
-                    {dob ? formatDob(dob) : 'Not set'}
+                  <Text style={[styles.rowValue, { color: dob ? theme.text : (fieldErrors.has('dob') ? theme.error : theme.textSecondary) }]}>
+                    {dob ? formatDob(dob) : (fieldErrors.has('dob') ? 'Required' : 'Not set')}
                   </Text>
                   <Text style={[styles.chevron, { color: Colors.accent }]}>›</Text>
                 </View>
@@ -266,6 +311,11 @@ export default function AccountScreen() {
           {/* Actions */}
           <View style={styles.actions}>
             <Button label={saving ? 'Saving…' : 'Save'} onPress={handleSave} disabled={saving} />
+            {saveStatus && (
+              <View style={[styles.saveStatusBanner, saveStatus === 'success' ? styles.saveStatusSuccess : styles.saveStatusError]}>
+                <Text style={styles.saveStatusText}>{saveMessage}</Text>
+              </View>
+            )}
             <Button label="Sign out" onPress={handleSignOut} variant="secondary" />
           </View>
 
@@ -447,6 +497,23 @@ const styles = StyleSheet.create({
   actions: {
     gap: Spacing.sm,
   } as ViewStyle,
+  saveStatusBanner: {
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    alignItems: 'center',
+  } as ViewStyle,
+  saveStatusSuccess: {
+    backgroundColor: '#D1FAE5',
+  } as ViewStyle,
+  saveStatusError: {
+    backgroundColor: '#FEE2E2',
+  } as ViewStyle,
+  saveStatusText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '500',
+    color: '#1F2937',
+  } as TextStyle,
   dangerZone: {
     borderWidth: 1,
     borderRadius: BorderRadius.md,

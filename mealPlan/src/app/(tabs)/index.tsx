@@ -29,7 +29,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
 
-  const { profile } = useUserProfile();
+  const { profile, authLoading } = useUserProfile();
   const { recipes: topRecipes } = useTopRecipes();
   const { dailyProgress, refresh: refreshMacros } = useMacros(TODAY_DATE);
   const { state: grocery, refresh: refreshGrocery } = useGrocery();
@@ -47,10 +47,11 @@ export default function HomeScreen() {
   }, [refreshMacros, refreshGrocery]));
 
   useEffect(() => {
-    if (!profile && !getCachedUserId()) {
+    if (authLoading) return;
+    if (!getCachedUserId()) {
       router.replace('/about');
     }
-  }, [profile, router]);
+  }, [authLoading, router]);
 
   const handleNudgePress = useCallback(() => {
     if (!calendarConnected) {

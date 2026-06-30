@@ -94,8 +94,8 @@ export async function updateMacroGoals(db: PsDb, userId: string, macroGoals: Mac
     const existingId = existingMap.get(goal.macro_name);
     if (existingId) {
       await db.execute(
-        'UPDATE macro_goals SET daily_target = ?, unit = ?, display_order = ?, is_active = ? WHERE id = ?',
-        [goal.daily_target, goal.unit, goal.display_order, goal.is_active ? 1 : 0, existingId],
+        'UPDATE macro_goals SET daily_target = ?, unit = ?, display_order = ?, is_active = ?, created_at = ? WHERE id = ?',
+        [goal.daily_target, goal.unit, goal.display_order, goal.is_active ? 1 : 0, now, existingId],
       );
     } else {
       await db.execute(
