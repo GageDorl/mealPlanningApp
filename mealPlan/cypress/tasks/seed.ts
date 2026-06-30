@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 
 function adminClient() {
   const url = process.env.CYPRESS_SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
@@ -32,33 +33,69 @@ export async function seedTestData(): Promise<null> {
 
   if (!user) throw new Error('Could not find or create test user');
   const userId = user.id;
+  const now = new Date().toISOString();
 
-  // Upsert user profile
-  const { error: profileError } = await supabase.from('users').upsert({
-    id: userId,
-    email,
-    display_name: 'Cypress Tester',
-    onboarding_completed: true,
-    tutorial_completed: true,
-    tutorial_chapters_completed: '[]',
-    notification_meal_reminders: false,
-    notification_planning_nudges: false,
-    notification_macro_checkins: false,
-    notification_macro_adjustment: false,
-  }, { onConflict: 'id' });
-  if (profileError) throw profileError;
+  // users table: id and created_at have no DEFAULT — must be supplied.
+  // auth_method is an enum: 'email' | 'google' | 'apple'.
+  const { data: existingUser } = await supabase.from('users').select('id').eq('id', userId).maybeSingle();
+  if (existingUser) {
+    const { error } = await supabase.from('users').update({
+      display_name: 'Cypress Tester',
+      onboarding_completed: true,
+      tutorial_completed: true,
+      updated_at: now,
+    }).eq('id', userId);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('users').insert({
+      id: userId,
+      email,
+      display_name: 'Cypress Tester',
+      auth_method: 'email',
+      onboarding_completed: true,
+      tutorial_completed: true,
+      created_at: now,
+      updated_at: now,
+    });
+    if (error) throw error;
+  }
 
-  // Upsert macro goals
+  // macro_goals: id and created_at have no DEFAULT — must be supplied.
   const goals = [
-    { user_id: userId, macro_name: 'Calories', daily_target: 2000, unit: 'kcal', display_order: 0, is_active: true },
-    { user_id: userId, macro_name: 'Protein', daily_target: 150, unit: 'g', display_order: 1, is_active: true },
-    { user_id: userId, macro_name: 'Carbs', daily_target: 200, unit: 'g', display_order: 2, is_active: true },
-    { user_id: userId, macro_name: 'Fat', daily_target: 65, unit: 'g', display_order: 3, is_active: true },
+    { macro_name: 'Calories', daily_target: 2000, unit: 'kcal', display_order: 0 },
+    { macro_name: 'Protein',  daily_target: 150,  unit: 'g',    display_order: 1 },
+    { macro_name: 'Carbs',    daily_target: 200,  unit: 'g',    display_order: 2 },
+    { macro_name: 'Fat',      daily_target: 65,   unit: 'g',    display_order: 3 },
   ];
 
   for (const goal of goals) {
-    const { error: goalError } = await supabase.from('macro_goals').upsert(goal, { onConflict: 'user_id,macro_name' });
-    if (goalError) throw goalError;
+    const { data: existing } = await supabase
+      .from('macro_goals')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('macro_name', goal.macro_name)
+      .maybeSingle();
+    if (existing) {
+      const { error } = await supabase.from('macro_goals').update({
+        daily_target: goal.daily_target,
+        unit: goal.unit,
+        display_order: goal.display_order,
+        is_active: true,
+      }).eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from('macro_goals').insert({
+        id: randomUUID(),
+        user_id: userId,
+        macro_name: goal.macro_name,
+        daily_target: goal.daily_target,
+        unit: goal.unit,
+        display_order: goal.display_order,
+        is_active: true,
+        created_at: now,
+      });
+      if (error) throw error;
+    }
   }
 
   return null;
@@ -73,7 +110,6 @@ export async function cleanFoodLogs(): Promise<null> {
   const user = listData?.users.find((u) => u.email === email);
   if (!user) return null;
 
-  // Delete all food logs for the test user (cascades to food_log_items)
   const { error: deleteError } = await supabase.from('food_logs').delete().eq('user_id', user.id);
   if (deleteError) throw deleteError;
 
