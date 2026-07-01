@@ -9,19 +9,20 @@ export function useUserRole() {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setRole(null); setLoading(false); return; }
+        const { data } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        setRole((data?.role as UserRole) ?? 'user');
+      } catch {
         setRole(null);
+      } finally {
         setLoading(false);
-        return;
       }
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      setRole((data?.role as UserRole) ?? 'user');
-      setLoading(false);
     })();
   }, []);
 

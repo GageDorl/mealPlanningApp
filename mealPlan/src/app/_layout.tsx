@@ -20,6 +20,7 @@ if (__DEV__ && Platform.OS === 'web') {
 
 import { PowerSyncProvider } from '@/services/powersync';
 import { supabase, getCachedUserId } from '@/services/supabase';
+import { initNotificationHandler } from '@/services/notification-service';
 import { store } from '@/store';
 import { setThemeMode } from '@/store/slices/preferences-slice';
 import type { RootState } from '@/store';
@@ -76,6 +77,10 @@ function LayoutContent() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    initNotificationHandler();
+  }, []);
+
   useEffect(() => {
     // Catch unhandled promise rejections so they're always visible in beta
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
