@@ -33,4 +33,6 @@ jobs:
         run: eas update --channel beta-testing --platform android --message "${{ github.event.head_commit.message }}" --non-interactive
 
       - name: Deploy web → preview alias
-        run: eas deploy --alias preview --non-interactive
+        run: eas deploy --alias preview
+        env:
+          CI: '1'
