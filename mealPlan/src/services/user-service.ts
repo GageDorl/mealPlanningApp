@@ -64,8 +64,9 @@ export async function getProfile(userId: string): Promise<UserProfileData | null
       supabase.from('dietary_preferences').select('tag').eq('user_id', userId),
     ]);
 
-  if (userError || macrosError || dietError) {
-    throw new Error(userError?.message ?? macrosError?.message ?? dietError?.message ?? 'Failed to load profile');
+  const err = userError ?? macrosError ?? dietError;
+  if (err) {
+    throw new Error(`Failed to load profile: ${err.message || 'Unknown error'}`);
   }
 
   if (!userData) return null;
