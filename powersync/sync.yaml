@@ -22,6 +22,7 @@ streams:
     auto_subscribe: true
     queries:
       - SELECT * FROM users WHERE id = auth.user_id()
+      - SELECT * FROM profiles WHERE user_id = auth.user_id()
       - SELECT * FROM recipes WHERE user_id = auth.user_id()
       - SELECT * FROM macro_goals WHERE user_id = auth.user_id()
       - SELECT * FROM dietary_preferences WHERE user_id = auth.user_id()
