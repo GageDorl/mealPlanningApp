@@ -87,9 +87,8 @@ export function useUserProfile() {
 
   return {
     profile,
-    authLoading,
     profileLoading,
-    loading: false,
+    loading: authLoading || profileLoading,
     reload: useCallback(() => {}, []),
   };
 }
