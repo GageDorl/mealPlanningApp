@@ -86,7 +86,7 @@ export function MacroAdjustmentBanner({ userId, onPress }: Props) {
     [actualTdee, weightGoal, currentWeightLbs, goalType, currentCalories],
   );
 
-  if (!weightGoal || isDismissed(weightGoal) || !hasEnoughData(weightLogs, dailyCalories) || !adjustment) {
+  if (!weightGoal || isDismissed(weightGoal) || !hasEnoughData(weightLogs, dailyCalories) || !adjustment || currentCalories === 0) {
     return null;
   }
 
@@ -97,6 +97,8 @@ export function MacroAdjustmentBanner({ userId, onPress }: Props) {
     <Pressable
       style={[styles.banner, { backgroundColor: theme.backgroundElement, borderColor: Colors.accent }]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Macro adjustment ready. Tap to review."
     >
       <View style={[surfaces.dot, { flexShrink: 0, backgroundColor: Colors.accent }]} />
       <View style={styles.textBlock}>

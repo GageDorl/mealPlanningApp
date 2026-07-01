@@ -146,6 +146,10 @@ export function MacroAdjustmentCard({ userId, onDismiss, forceShow = false }: Pr
 
   const handleApply = async () => {
     if (!adjustment) return;
+    if (macroGoalRows.length === 0) {
+      Alert.alert('No macro goals set', 'Set up your macro goals first, then come back to apply this adjustment.');
+      return;
+    }
     setApplying(true);
     try {
       const updatedGoals = macroGoalRows.map((g) => ({

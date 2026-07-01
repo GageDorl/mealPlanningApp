@@ -169,7 +169,7 @@ export default function HomeScreen() {
         onRequestClose={() => setShowAdjustmentModal(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowAdjustmentModal(false)}>
-          <Pressable style={[styles.modalContent, { backgroundColor: theme.background }]} onPress={() => {}}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
             <MacroAdjustmentCard
               userId={profile.user.id}
               onDismiss={() => setShowAdjustmentModal(false)}
