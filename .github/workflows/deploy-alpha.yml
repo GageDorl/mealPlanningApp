@@ -33,4 +33,6 @@ jobs:
         run: eas update --channel alpha --platform android --message "${{ github.event.head_commit.message }}" --non-interactive
 
       - name: Deploy web → alpha alias
-        run: eas deploy --alias alpha --non-interactive
+        run: eas deploy --alias alpha
+        env:
+          CI: '1'
