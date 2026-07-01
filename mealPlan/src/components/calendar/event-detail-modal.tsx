@@ -1,4 +1,4 @@
-import { Modal, View, Text, Pressable, ScrollView, StyleSheet, Platform, type ViewStyle, type TextStyle } from 'react-native';
+﻿import { Modal, View, Text, Pressable, ScrollView, StyleSheet, Platform, type ViewStyle, type TextStyle } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import type { CalendarEvent } from '@/services/calendar.types';
@@ -40,9 +40,9 @@ export function EventDetailModal({ event, onClose }: EventDetailModalProps) {
           <View style={styles.strip} />
 
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            {event.isPrepd && (
-              <View style={styles.prepdBadge}>
-                <Text style={styles.prepdBadgeText}>Prepd meal</Text>
+            {event.isBento && (
+              <View style={styles.bentoBadge}>
+                <Text style={styles.bentoBadgeText}>Bento meal</Text>
               </View>
             )}
             <Text style={[styles.title, { color: theme.text }]}>{event.title}</Text>
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing.sm,
   } as ViewStyle,
-  prepdBadge: {
+  bentoBadge: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.accent,
     borderRadius: BorderRadius.sm,
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     marginBottom: Spacing.sm,
   } as ViewStyle,
-  prepdBadgeText: {
+  bentoBadgeText: {
     color: '#FFFFFF',
     fontSize: FontSizes.xs,
     fontWeight: '700',

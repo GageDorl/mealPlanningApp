@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, StyleSheet, Pressable, Linking, type ViewStyle, type TextStyle } from 'react-native';
+﻿import { ScrollView, View, Text, StyleSheet, Pressable, Linking, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -57,13 +57,13 @@ export default function PrivacyPolicyScreen() {
         </Text>
 
         <Body>
-          Prepd ("we", "our", or "us") is committed to protecting your personal information. This
+          Bento ("we", "our", or "us") is committed to protecting your personal information. This
           Privacy Policy explains what data we collect, how we use it, and your rights regarding
           that data.
         </Body>
 
         <Section title="1. Information We Collect">
-          <Body>When you create an account and use Prepd, we collect:</Body>
+          <Body>When you create an account and use Bento, we collect:</Body>
           <Bullet>Account information: your email address and display name</Bullet>
           <Bullet>Meal plans: recipes and meals you schedule on the calendar</Bullet>
           <Bullet>Food logs: foods, quantities, and times you log each day</Bullet>
@@ -75,7 +75,7 @@ export default function PrivacyPolicyScreen() {
         </Section>
 
         <Section title="2. How We Use Your Information">
-          <Body>We use your data solely to provide and improve Prepd:</Body>
+          <Body>We use your data solely to provide and improve Bento:</Body>
           <Bullet>Syncing your meal plans and food logs across devices</Bullet>
           <Bullet>Calculating and displaying your daily macro and calorie totals</Bullet>
           <Bullet>Generating grocery lists from your planned meals</Bullet>
@@ -88,7 +88,7 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="3. Google Calendar API">
           <Body>
-            If you choose to connect your Google Calendar, Prepd requests permission to create and
+            If you choose to connect your Google Calendar, Bento requests permission to create and
             manage calendar events on your behalf. Specifically:
           </Body>
           <Bullet>We only access the Google Calendar scopes you explicitly authorize</Bullet>
@@ -96,13 +96,13 @@ export default function PrivacyPolicyScreen() {
           <Bullet>We do not read, store, or analyze your existing calendar events</Bullet>
           <Bullet>You can disconnect Google Calendar at any time from the Profile screen</Bullet>
           <Body>
-            Prepd's use and transfer of information received from Google APIs adheres to the Google
+            Bento's use and transfer of information received from Google APIs adheres to the Google
             API Services User Data Policy, including the Limited Use requirements.
           </Body>
         </Section>
 
         <Section title="4. Third-Party Services">
-          <Body>Prepd uses the following third-party services to operate:</Body>
+          <Body>Bento uses the following third-party services to operate:</Body>
           <Bullet>Supabase — cloud database and authentication (data stored in the United States)</Bullet>
           <Bullet>PowerSync — offline sync layer that caches your data on-device</Bullet>
           <Bullet>FatSecret Platform API — nutrition data for food search results</Bullet>
@@ -132,7 +132,7 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="7. Children's Privacy">
           <Body>
-            Prepd is not directed at children under the age of 13. We do not knowingly collect
+            Bento is not directed at children under the age of 13. We do not knowingly collect
             personal information from children. If you believe a child has provided us with their
             information, please contact us and we will delete it promptly.
           </Body>
@@ -152,7 +152,7 @@ export default function PrivacyPolicyScreen() {
             please contact:
           </Body>
           <View style={[styles.contactCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <Text style={[styles.contactName, { color: theme.text }]}>Prepd</Text>
+            <Text style={[styles.contactName, { color: theme.text }]}>Bento</Text>
             <Pressable onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)}>
               <Text style={[styles.contactEmail, { color: Colors.accent }]}>{CONTACT_EMAIL}</Text>
             </Pressable>

@@ -1,6 +1,6 @@
 -- Tables created directly in Supabase that were missing from the initial schema migration.
 
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
   role TEXT NOT NULL DEFAULT 'user',
@@ -9,9 +9,10 @@ CREATE TABLE profiles (
 );
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "dev_allow_all" ON profiles;
 CREATE POLICY "dev_allow_all" ON profiles FOR ALL USING (true) WITH CHECK (true);
 
-CREATE TABLE food_logs (
+CREATE TABLE IF NOT EXISTS food_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   date DATE NOT NULL,
@@ -21,7 +22,7 @@ CREATE TABLE food_logs (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE food_log_items (
+CREATE TABLE IF NOT EXISTS food_log_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   food_log_id UUID NOT NULL REFERENCES food_logs(id) ON DELETE CASCADE,
   food_name TEXT NOT NULL,
@@ -47,7 +48,7 @@ CREATE TABLE food_log_items (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE meal_slot_recipes (
+CREATE TABLE IF NOT EXISTS meal_slot_recipes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   meal_slot_id UUID NOT NULL REFERENCES meal_slots(id),
   recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
@@ -57,7 +58,7 @@ CREATE TABLE meal_slot_recipes (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE personal_foods (
+CREATE TABLE IF NOT EXISTS personal_foods (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   food_name TEXT NOT NULL,

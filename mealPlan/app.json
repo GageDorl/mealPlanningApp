@@ -1,21 +1,21 @@
 {
   "expo": {
-    "name": "Prepd",
+    "name": "Bento",
     "slug": "mealPlan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "prepd",
+    "scheme": "bento",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.prepd.app",
+      "bundleIdentifier": "com.bento.app",
       "icon": "./assets/expo.icon",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.prepd.app",
+      "package": "com.bento.app",
       "icon": "./assets/images/icon-dark.png",
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -43,7 +43,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Prepd to access the camera to scan barcodes."
+          "cameraPermission": "Allow Bento to access the camera to scan barcodes."
         }
       ]
     ],

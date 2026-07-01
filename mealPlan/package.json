@@ -3,7 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "engines": {
-    "node": ">=20.1"
+    "node": ">=22"
   },
   "dependencies": {
     "@azure/core-asynciterator-polyfill": "^1.0.2",

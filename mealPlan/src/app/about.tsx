@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, StyleSheet, Pressable, type ViewStyle, type TextStyle } from 'react-native';
+﻿import { ScrollView, View, Text, StyleSheet, Pressable, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -42,7 +42,7 @@ export default function AboutScreen() {
     >
       {/* Hero */}
       <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Prepd</Text>
+        <Text style={styles.heroTitle}>Bento</Text>
         <Text style={styles.heroTagline}>Plan smarter. Eat better.</Text>
         <Text style={styles.heroDesc}>
           Your all-in-one meal planner, food logger, and grocery list — built for real life.

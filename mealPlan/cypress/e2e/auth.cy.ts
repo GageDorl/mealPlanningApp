@@ -1,4 +1,4 @@
-// Pressable renders as <div role="button"> in React Native Web.
+﻿// Pressable renders as <div role="button"> in React Native Web.
 // Use cy.contains('[role="button"]', text) to avoid matching page title text.
 describe('Authentication', () => {
   before(() => {
@@ -7,7 +7,7 @@ describe('Authentication', () => {
 
   it('shows the marketing page for unauthenticated users', () => {
     cy.visit('/');
-    cy.contains('Prepd').should('be.visible');
+    cy.contains('Bento').should('be.visible');
     cy.contains('[role="button"]', 'Sign In').should('be.visible');
     cy.contains('[role="button"]', 'Get Started').should('be.visible');
   });

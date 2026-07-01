@@ -37,7 +37,8 @@ export async function seedTestData(): Promise<null> {
 
   // users table: id and created_at have no DEFAULT — must be supplied.
   // auth_method is an enum: 'email' | 'google' | 'apple'.
-  const { data: existingUser } = await supabase.from('users').select('id').eq('id', userId).maybeSingle();
+  const { data: existingUser, error: existingUserError } = await supabase.from('users').select('id').eq('id', userId).maybeSingle();
+  if (existingUserError) throw existingUserError;
   if (existingUser) {
     const { error } = await supabase.from('users').update({
       display_name: 'Cypress Tester',
@@ -69,12 +70,13 @@ export async function seedTestData(): Promise<null> {
   ];
 
   for (const goal of goals) {
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('macro_goals')
       .select('id')
       .eq('user_id', userId)
       .eq('macro_name', goal.macro_name)
       .maybeSingle();
+    if (existingError) throw existingError;
     if (existing) {
       const { error } = await supabase.from('macro_goals').update({
         daily_target: goal.daily_target,

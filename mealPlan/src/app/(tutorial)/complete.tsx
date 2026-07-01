@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+﻿import { ScrollView, View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Stack } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, FontSizes, Spacing, BorderRadius, MaxContentWidth } from '@/constants/theme';
@@ -23,7 +23,7 @@ export default function TutorialCompleteScreen() {
             <Text style={styles.emoji}>🎉</Text>
             <Text style={[styles.title, { color: theme.text }]}>{"You're all set!"}</Text>
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              {"You've completed all five chapters. Prepd is ready when you are."}
+              {"You've completed all five chapters. Bento is ready when you are."}
             </Text>
           </View>
 

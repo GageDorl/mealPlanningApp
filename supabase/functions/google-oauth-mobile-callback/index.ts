@@ -1,7 +1,7 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+﻿import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { verifyState } from '../_shared/oauth-state.ts'
 
-const APP_SCHEME = 'prepd://auth/calendar-callback'
+const APP_SCHEME = 'Bento://auth/calendar-callback'
 
 Deno.serve(async (req) => {
   const url = new URL(req.url)

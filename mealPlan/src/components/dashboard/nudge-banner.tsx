@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Pressable, View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -31,7 +31,7 @@ function getNudge(profile: UserProfileData, calendarConnected: boolean): NudgeCo
   }
   if (!profile.user.onboarding_completed) {
     return {
-      message: 'Finish setting up your profile to get the most out of Prepd.',
+      message: 'Finish setting up your profile to get the most out of Bento.',
       cta: 'Continue',
     };
   }
