@@ -1,23 +1,23 @@
-import type { TutorialChapter } from '@/types/tutorial';
+﻿import type { TutorialChapter } from '@/types/tutorial';
 
 export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
   {
     id: 'welcome',
-    title: 'Welcome to Prepd',
+    title: 'Welcome to Bento',
     icon: '👋',
     estimatedMinutes: 1,
     slides: [
       {
         type: 'info',
         illustrationKey: 'welcome-splash',
-        title: 'Welcome to Prepd',
-        body: 'Prepd helps you plan meals, track macros, and build a grocery list — all in one place.',
+        title: 'Welcome to Bento',
+        body: 'Bento helps you plan meals, track macros, and build a grocery list — all in one place.',
       },
       {
         type: 'info',
         illustrationKey: 'feature-grid',
         title: 'Everything in one place',
-        body: 'From meal planning and recipes to nutrition tracking and shopping, Prepd connects every part of your food routine.',
+        body: 'From meal planning and recipes to nutrition tracking and shopping, Bento connects every part of your food routine.',
       },
       {
         type: 'info',
@@ -43,20 +43,20 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
         type: 'info',
         illustrationKey: 'macro-dashboard',
         title: 'Your daily dashboard',
-        body: 'Prepd shows your calorie ring and macro bars each day so you can see exactly how your meals stack up against your goals.',
+        body: 'Bento shows your calorie ring and macro bars each day so you can see exactly how your meals stack up against your goals.',
       },
       {
         type: 'action',
         componentKey: 'macro-goals',
         title: 'Set your macro goals',
-        body: 'Tell Prepd about your body and goals — it will calculate your daily calorie and macro targets automatically.',
+        body: 'Tell Bento about your body and goals — it will calculate your daily calorie and macro targets automatically.',
         skippable: true,
       },
       {
         type: 'action',
         componentKey: 'dietary-prefs',
         title: 'Your food preferences',
-        body: 'Select any dietary styles you follow. Prepd uses these to filter recipes and give better suggestions.',
+        body: 'Select any dietary styles you follow. Bento uses these to filter recipes and give better suggestions.',
         skippable: true,
       },
       {
@@ -69,7 +69,7 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
         type: 'info',
         illustrationKey: 'recalibration',
         title: 'Adaptive recalibration',
-        body: 'After 7 days of data, Prepd can suggest adjustments to your targets based on your actual eating patterns.',
+        body: 'After 7 days of data, Bento can suggest adjustments to your targets based on your actual eating patterns.',
       },
     ],
   },
@@ -95,7 +95,7 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
         type: 'info',
         illustrationKey: 'assign-recipe',
         title: 'Assign a recipe',
-        body: 'Tap a meal slot to assign a recipe from your library. Prepd pulls the macros automatically so your daily totals stay accurate.',
+        body: 'Tap a meal slot to assign a recipe from your library. Bento pulls the macros automatically so your daily totals stay accurate.',
       },
       {
         type: 'info',
@@ -114,7 +114,7 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
         type: 'info',
         illustrationKey: 'calendar-sync',
         title: 'How sync works',
-        body: 'Meal slots create calendar events automatically. Events from your calendar show up on the Prepd grid so nothing overlaps.',
+        body: 'Meal slots create calendar events automatically. Events from your calendar show up on the Bento grid so nothing overlaps.',
       },
     ],
   },
@@ -140,13 +140,13 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
         type: 'info',
         illustrationKey: 'recipe-import',
         title: 'Import from any website',
-        body: 'Found a recipe online? Paste the URL and Prepd uses AI to extract the full ingredient list, steps, and nutrition info.',
+        body: 'Found a recipe online? Paste the URL and Bento uses AI to extract the full ingredient list, steps, and nutrition info.',
       },
       {
         type: 'info',
         illustrationKey: 'recipe-builder',
         title: 'Create your own',
-        body: 'Build a recipe from scratch. Add ingredients one by one — Prepd looks up the macros per ingredient and totals them for each serving.',
+        body: 'Build a recipe from scratch. Add ingredients one by one — Bento looks up the macros per ingredient and totals them for each serving.',
       },
     ],
   },
@@ -160,13 +160,13 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
         type: 'info',
         illustrationKey: 'grocery-generated',
         title: 'Auto-built from your meal plan',
-        body: 'Prepd reads your planned meals for the week and builds a shopping list automatically — no manual entry needed.',
+        body: 'Bento reads your planned meals for the week and builds a shopping list automatically — no manual entry needed.',
       },
       {
         type: 'info',
         illustrationKey: 'grocery-pantry',
         title: 'Pantry staples',
-        body: 'Mark ingredients you always keep at home. Prepd skips those when generating your list so you only buy what you actually need.',
+        body: 'Mark ingredients you always keep at home. Bento skips those when generating your list so you only buy what you actually need.',
       },
       {
         type: 'info',

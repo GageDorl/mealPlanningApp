@@ -1,61 +1,203 @@
-import { useEffect } from 'react';
-import { View, StyleSheet, type ViewStyle } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+﻿import { useCallback } from 'react';
+import { ScrollView, View, Text, Pressable, StyleSheet, BackHandler, type ViewStyle, type TextStyle } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
+import { Colors, FontSizes, Spacing, BorderRadius, MaxContentWidth } from '@/constants/theme';
 import { useTutorial } from '@/hooks/use-tutorial';
-import { getChapterById, getChapterIndex, getNextChapterId, CHAPTER_COUNT } from '@/constants/tutorial-chapters';
-import { TutorialProgressHeader } from '@/components/tutorial/TutorialProgressHeader';
-import { TutorialChapterLayout } from '@/components/tutorial/TutorialChapterLayout';
+import { TUTORIAL_CHAPTERS } from '@/constants/tutorial-chapters';
 
-export default function TutorialChapterScreen() {
-  const { chapter: chapterId, revisit } = useLocalSearchParams<{ chapter: string; revisit?: string }>();
-  const isRevisit = revisit === '1';
+export default function TutorialIndexScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { markChapterComplete, skipTutorial } = useTutorial();
+  const { tutorialCompleted, isChapterComplete, nextIncompleteChapter, skipTutorial } = useTutorial();
 
-  const chapter = getChapterById(chapterId);
-  const chapterIndex = getChapterIndex(chapterId);
+  const revisit = tutorialCompleted;
+  const anyStarted = TUTORIAL_CHAPTERS.some((c) => isChapterComplete(c.id));
+  const nextChapterId = nextIncompleteChapter() ?? TUTORIAL_CHAPTERS[0].id;
 
-  useEffect(() => {
-    if (!chapter) router.replace('/(tutorial)' as any);
-  }, [chapter, router]);
+  const goToProfile = useCallback(() => {
+    router.push('/(tabs)/profile');
+  }, [router]);
 
-  if (!chapter) return null;
-
-  const handleChapterComplete = async () => {
-    if (isRevisit) {
-      router.back();
-      return;
-    }
-    await markChapterComplete(chapterId);
-    const nextId = getNextChapterId(chapterId);
-    if (nextId) {
-      router.push({ pathname: '/(tutorial)/[chapter]', params: { chapter: nextId } });
-    } else {
-      router.replace('/(tutorial)/complete');
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      if (!revisit) return;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        goToProfile();
+        return true;
+      });
+      return () => sub.remove();
+    }, [revisit, goToProfile])
+  );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {!isRevisit && <Stack.Screen options={{ headerLeft: () => null }} />}
-      <TutorialProgressHeader
-        chapterTitle={chapter.title}
-        current={chapterIndex + 1}
-        total={CHAPTER_COUNT}
-      />
-      <TutorialChapterLayout
-        chapter={chapter}
-        onChapterComplete={handleChapterComplete}
-        onSkipTutorial={isRevisit ? undefined : skipTutorial}
-      />
-    </View>
+    <ScrollView
+      style={{ backgroundColor: theme.background }}
+      contentContainerStyle={styles.scroll}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={[styles.content, { maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' }]}>
+
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: theme.text }]}>
+            {revisit ? 'Review the tutorial' : 'Get started with Bento'}
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            {revisit
+              ? 'Tap any chapter to revisit it.'
+              : 'Five short chapters to help you make the most of the app.'}
+          </Text>
+        </View>
+
+        <View style={[styles.chapterList, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+          {TUTORIAL_CHAPTERS.map((chapter, index) => {
+            const complete = isChapterComplete(chapter.id);
+            const last = index === TUTORIAL_CHAPTERS.length - 1;
+            return (
+              <Pressable
+                key={chapter.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(tutorial)/[chapter]',
+                    params: { chapter: chapter.id, ...(revisit && { revisit: '1' }) },
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.chapterRow,
+                  !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: theme.border },
+                  pressed && { backgroundColor: theme.backgroundSelected },
+                ]}
+              >
+                <Text style={styles.chapterIcon}>{chapter.icon}</Text>
+                <View style={styles.chapterBody}>
+                  <Text style={[styles.chapterTitle, { color: theme.text }]}>{chapter.title}</Text>
+                  <Text style={[styles.chapterMeta, { color: theme.textSecondary }]}>
+                    {chapter.estimatedMinutes} min
+                  </Text>
+                </View>
+                {complete ? (
+                  <Text style={[styles.checkmark, { color: Colors.accent }]}>✓</Text>
+                ) : (
+                  <Text style={[styles.chapterNum, { color: theme.textSecondary }]}>{index + 1}</Text>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: '/(tutorial)/[chapter]',
+              params: { chapter: nextChapterId, ...(revisit && { revisit: '1' }) },
+            })
+          }
+          style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}
+        >
+          <Text style={styles.startButtonText}>
+            {revisit ? 'Review Tutorial' : anyStarted ? 'Resume Tutorial' : 'Start Tutorial'}
+          </Text>
+        </Pressable>
+
+        {revisit ? (
+          <Pressable onPress={goToProfile} style={styles.skipLink} hitSlop={8}>
+            <Text style={[styles.skipText, { color: theme.textSecondary }]}>← Back to Profile</Text>
+          </Pressable>
+        ) : (
+          <Pressable onPress={skipTutorial} style={styles.skipLink} hitSlop={8}>
+            <Text style={[styles.skipText, { color: theme.textSecondary }]}>Skip Tutorial</Text>
+          </Pressable>
+        )}
+
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  scroll: {
+    flexGrow: 1,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
   } as ViewStyle,
+  content: {
+    gap: Spacing.xl,
+  } as ViewStyle,
+  header: {
+    gap: Spacing.sm,
+  } as ViewStyle,
+  title: {
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+  } as TextStyle,
+  subtitle: {
+    fontSize: FontSizes.md,
+    lineHeight: 22,
+  } as TextStyle,
+  chapterList: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+  } as ViewStyle,
+  chapterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
+    minHeight: 60,
+  } as ViewStyle,
+  chapterIcon: {
+    fontSize: 22,
+    width: 32,
+    textAlign: 'center',
+  } as TextStyle,
+  chapterBody: {
+    flex: 1,
+    gap: 2,
+  } as ViewStyle,
+  chapterTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: '600',
+  } as TextStyle,
+  chapterMeta: {
+    fontSize: FontSizes.sm,
+  } as TextStyle,
+  checkmark: {
+    fontSize: FontSizes.lg,
+    fontWeight: '700',
+    width: 24,
+    textAlign: 'center',
+  } as TextStyle,
+  chapterNum: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    width: 24,
+    textAlign: 'center',
+  } as TextStyle,
+  startButton: {
+    backgroundColor: Colors.accent,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    minHeight: 52,
+  } as ViewStyle,
+  startButtonPressed: {
+    opacity: 0.85,
+  } as ViewStyle,
+  startButtonText: {
+    color: '#FFFFFF',
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+  } as TextStyle,
+  skipLink: {
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+  } as ViewStyle,
+  skipText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  } as TextStyle,
 });

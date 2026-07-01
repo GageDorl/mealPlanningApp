@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { View, Pressable, StyleSheet, Platform, Text, type ViewStyle, type TextStyle } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { Colors } from '@/constants/theme';
@@ -13,7 +13,7 @@ import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
 import type { FoodLogWithItems } from '@/services/food-log-service';
 import type { CalendarEvent } from '@/services/calendar.types';
 
-// Pixels that Prepd cards shift down when a Google event is behind them,
+// Pixels that Bento cards shift down when a Google event is behind them,
 // exposing enough of the Google event header to be readable and tappable.
 const CARD_FAN_OFFSET = 10;
 
@@ -206,7 +206,7 @@ function DayEventsColumn({
     [day.timedEvents],
   );
 
-  // Google event IDs whose time range overlaps at least one Prepd item
+  // Google event IDs whose time range overlaps at least one Bento item
   const gcalConflictSet = useMemo(() => {
     const prependRanges = [
       ...day.timedSlots.map(s => {
@@ -225,7 +225,7 @@ function DayEventsColumn({
     );
   }, [gcalRanges, day.timedSlots, day.timedFoodLogs]);
 
-  // Prepd item IDs (slots + food logs) whose time range overlaps at least one Google event
+  // Bento item IDs (slots + food logs) whose time range overlaps at least one Google event
   const prependConflictSet = useMemo(() => {
     const ids = new Set<string>();
     const check = (id: string, time_of_day: string | null | undefined) => {
@@ -284,7 +284,7 @@ function DayEventsColumn({
         const height = ((ce - cs) / 60) * hourHeight;
         const hasConflict = gcalConflictSet.has(event.id);
         const isElevated = elevatedEventId === event.id;
-        // Conflicted events start behind Prepd items (z:1); tapping brings them to z:5
+        // Conflicted events start behind Bento items (z:1); tapping brings them to z:5
         const zIndex = hasConflict ? (isElevated ? 5 : 1) : 2;
         return (
           <View key={event.id} style={[styles.absoluteItem, { top, height, left: 30, right: 2, zIndex }]}>

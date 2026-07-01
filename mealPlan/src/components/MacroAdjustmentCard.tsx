@@ -23,6 +23,9 @@ import type { GoalType } from '@/services/macro-planner-service';
 
 interface Props {
   userId: string;
+  onDismiss?: () => void;
+  /** Admin only: skip dismissal and minimum-data guards to allow test previews. */
+  forceShow?: boolean;
 }
 
 function formatDisplayDate(dateStr: string): string {
@@ -43,7 +46,7 @@ function suspiciousReason(day: SuspiciousDay): string {
   return parts.join(' · ');
 }
 
-export function MacroAdjustmentCard({ userId }: Props) {
+export function MacroAdjustmentCard({ userId, onDismiss, forceShow = false }: Props) {
   const db = usePowerSync();
   const theme = useTheme();
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set());
@@ -110,14 +113,16 @@ export function MacroAdjustmentCard({ userId }: Props) {
     [weightLogs, dailyCalories, excludedDates],
   );
 
+  const currentCalories = macroGoalRows.find((g) => g.macro_name === 'calories')?.daily_target ?? 0;
+
   const adjustment = useMemo(
     () => weightGoal && actualTdee > 0
-      ? buildMacroAdjustment(actualTdee, weightGoal, currentWeightLbs, goalType)
+      ? buildMacroAdjustment(actualTdee, weightGoal, currentWeightLbs, goalType, currentCalories)
       : null,
-    [actualTdee, weightGoal, currentWeightLbs, goalType],
+    [actualTdee, weightGoal, currentWeightLbs, goalType, currentCalories],
   );
 
-  if (!weightGoal || isDismissed(weightGoal) || !hasEnoughData(weightLogs, dailyCalories)) {
+  if (!weightGoal || (!forceShow && (isDismissed(weightGoal) || !hasEnoughData(weightLogs, dailyCalories)))) {
     return null;
   }
 
@@ -141,6 +146,10 @@ export function MacroAdjustmentCard({ userId }: Props) {
 
   const handleApply = async () => {
     if (!adjustment) return;
+    if (macroGoalRows.length === 0) {
+      Alert.alert('No macro goals set', 'Set up your macro goals first, then come back to apply this adjustment.');
+      return;
+    }
     setApplying(true);
     try {
       const updatedGoals = macroGoalRows.map((g) => ({
@@ -158,6 +167,7 @@ export function MacroAdjustmentCard({ userId }: Props) {
       await updateMacroGoals(db, userId, updatedGoals);
       await dismissAdjustment(db, userId, weightGoal);
       rescheduleNotification();
+      onDismiss?.();
     } catch {
       Alert.alert('Error', 'Failed to apply macro adjustment.');
     } finally {
@@ -169,6 +179,7 @@ export function MacroAdjustmentCard({ userId }: Props) {
     try {
       await dismissAdjustment(db, userId, weightGoal);
       rescheduleNotification();
+      onDismiss?.();
     } catch {
       Alert.alert('Error', 'Failed to dismiss. Please try again.');
     }

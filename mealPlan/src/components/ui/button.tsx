@@ -18,6 +18,7 @@ export function Button({ label, onPress, variant = 'primary', disabled = false, 
       style={[styles.button, variant === 'secondary' ? { backgroundColor: theme.backgroundElement, borderWidth: 1, borderColor: theme.border } : styles.primary, disabled && styles.disabled, style]}
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
     >
       <Text style={[styles.label, variant === 'secondary' ? { color: theme.text } : styles.primaryLabel]}>{label}</Text>
     </Pressable>
