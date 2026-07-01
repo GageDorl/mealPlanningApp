@@ -1,11 +1,11 @@
-export interface CalendarEvent {
+﻿export interface CalendarEvent {
   id: string;
   title: string;
   startDate: Date;
   endDate: Date;
   calendarId: string;
   isAllDay: boolean;
-  isPrepd?: boolean;
+  isBento?: boolean;
 }
 
 export interface MealEventInput {

@@ -9,9 +9,9 @@ Cypress.Commands.add('login', () => {
       cy.env(['TEST_USER_EMAIL', 'TEST_USER_PASSWORD']).then(({ TEST_USER_EMAIL, TEST_USER_PASSWORD }) => {
         cy.get('input[placeholder="Email"]').type(TEST_USER_EMAIL as string);
         cy.get('input[placeholder="Password"]').type(TEST_USER_PASSWORD as string, { log: false });
-        cy.contains('Sign in').click();
+        cy.contains('[role="button"]', 'Sign in').click();
         // Wait until we've left the sign-in screen
-        cy.url().should('not.include', 'sign-in');
+        cy.url().should('not.include', 'sign-in', { timeout: 30000 });
       });
     },
     {

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+﻿import { useCallback } from 'react';
 import { ScrollView, View, Text, Pressable, StyleSheet, BackHandler, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
@@ -40,7 +40,7 @@ export default function TutorialIndexScreen() {
 
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.text }]}>
-            {revisit ? 'Review the tutorial' : 'Get started with Prepd'}
+            {revisit ? 'Review the tutorial' : 'Get started with Bento'}
           </Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             {revisit

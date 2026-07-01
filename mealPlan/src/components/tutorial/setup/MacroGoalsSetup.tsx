@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { DatePickerModal } from '@/components/ui/date-picker-modal';
@@ -51,7 +51,7 @@ const TOOLTIP_STEPS: Array<{ title: string; body: string }> = [
   },
   {
     title: 'Goal Type',
-    body: '"General" lets you pick a direction — lose, maintain, or gain. "Specific target" lets you set an exact goal weight and date so Prepd can calculate the weekly pace.',
+    body: '"General" lets you pick a direction — lose, maintain, or gain. "Specific target" lets you set an exact goal weight and date so Bento can calculate the weekly pace.',
   },
   {
     title: 'Activity Level',

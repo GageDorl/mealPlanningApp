@@ -1,4 +1,4 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+﻿import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 const GCAL = 'https://www.googleapis.com/calendar/v3'
 
@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
             endDate: parseEventDate(e.end),
             calendarId: id,
             isAllDay: !!e.start?.date && !e.start?.dateTime,
-            isPrepd: !!e.extendedProperties?.private?.prepd_slot_id,
+            isBento: !!e.extendedProperties?.private?.bento_slot_id,
           }))
         } catch {
           return []
@@ -209,11 +209,11 @@ Deno.serve(async (req) => {
 
     if (body.action === 'ensurePrepCalendar') {
       const calList = await gcal(accessToken, '/users/me/calendarList')
-      const existing = (calList?.items ?? []).find((c: any) => c.summary === 'Prepd')
+      const existing = (calList?.items ?? []).find((c: any) => c.summary === 'Bento')
       if (existing) return json({ calendarId: existing.id })
       const created = await gcal(accessToken, '/calendars', {
         method: 'POST',
-        body: JSON.stringify({ summary: 'Prepd' }),
+        body: JSON.stringify({ summary: 'Bento' }),
       })
       return json({ calendarId: created.id })
     }
@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
             start: { dateTime: start },
             end: { dateTime: end },
             extendedProperties: {
-              private: { prepd_slot_id: slotId },
+              private: { bento_slot_id: slotId },
             },
           }),
         },

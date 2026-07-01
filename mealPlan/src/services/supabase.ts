@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+﻿import AsyncStorage from '@react-native-async-storage/async-storage';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
@@ -9,7 +9,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 const isNative = Platform.OS !== 'web';
 const redirectTo = makeRedirectUri({
-  scheme: 'prepd',
+  scheme: 'bento',
   path: 'auth/callback',
 });
 

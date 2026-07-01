@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, useRouter } from 'expo-router';
 import { usePowerSync } from '@powersync/react-native';
 
@@ -101,7 +101,7 @@ export default function SignInScreen() {
 
   return (
     <AuthScreen
-      title="Sign in to Prepd"
+      title="Sign in to Bento"
       footer={
         <>
           <ThemedText type="default">Need an account?</ThemedText>

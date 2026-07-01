@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+﻿import { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, type ViewStyle } from 'react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { CalendarPreviewCard } from '@/components/dashboard/calendar-preview-card';
@@ -43,7 +43,7 @@ const TOOLTIP_STEPS = [
   },
   {
     title: 'Macros',
-    body: 'Track your daily calories and macro targets. Prepd shows your progress and can suggest adjustments based on real data over time.',
+    body: 'Track your daily calories and macro targets. Bento shows your progress and can suggest adjustments based on real data over time.',
   },
 ];
 

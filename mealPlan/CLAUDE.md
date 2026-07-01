@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# Prepd — Developer Guide
+# Bento — Developer Guide
 
 ## Current state
 

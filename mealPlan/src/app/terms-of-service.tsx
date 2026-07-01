@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, StyleSheet, Pressable, Linking, type ViewStyle, type TextStyle } from 'react-native';
+﻿import { ScrollView, View, Text, StyleSheet, Pressable, Linking, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -57,14 +57,14 @@ export default function TermsOfServiceScreen() {
         </Text>
 
         <Body>
-          These Terms of Service ("Terms") govern your use of Prepd, a meal planning and nutrition
-          tracking application operated by Prepd ("we", "our", or "us"). By creating an account or
+          These Terms of Service ("Terms") govern your use of Bento, a meal planning and nutrition
+          tracking application operated by Bento ("we", "our", or "us"). By creating an account or
           using the app, you agree to these Terms.
         </Body>
 
         <Section title="1. Eligibility">
           <Body>
-            You must be at least 13 years old to use Prepd. By using the app, you represent that
+            You must be at least 13 years old to use Bento. By using the app, you represent that
             you meet this requirement. If you are under 18, you must have permission from a parent
             or guardian.
           </Body>
@@ -85,7 +85,7 @@ export default function TermsOfServiceScreen() {
         </Section>
 
         <Section title="3. Acceptable Use">
-          <Body>You agree to use Prepd only for its intended purpose. You may not:</Body>
+          <Body>You agree to use Bento only for its intended purpose. You may not:</Body>
           <Bullet>Use the app for any unlawful purpose or in violation of any applicable laws</Bullet>
           <Bullet>Attempt to gain unauthorized access to our systems or another user's account</Bullet>
           <Bullet>Reverse-engineer, decompile, or otherwise attempt to extract the source code</Bullet>
@@ -95,15 +95,15 @@ export default function TermsOfServiceScreen() {
 
         <Section title="4. Google API Services">
           <Body>
-            Prepd offers optional integration with Google Calendar. When you connect your Google
-            account, you authorize Prepd to create and manage calendar events on your behalf using
+            Bento offers optional integration with Google Calendar. When you connect your Google
+            account, you authorize Bento to create and manage calendar events on your behalf using
             the Google Calendar API. By using this integration:
           </Body>
           <Bullet>You agree to Google's Terms of Service (https://policies.google.com/terms)</Bullet>
-          <Bullet>You grant Prepd permission to access only the Google Calendar scopes you authorize</Bullet>
+          <Bullet>You grant Bento permission to access only the Google Calendar scopes you authorize</Bullet>
           <Bullet>You can revoke this access at any time from the Profile screen or from your Google account settings</Bullet>
           <Body>
-            Prepd's use of data received from Google APIs adheres to the Google API Services User
+            Bento's use of data received from Google APIs adheres to the Google API Services User
             Data Policy, including the Limited Use requirements. We do not use Google user data for
             advertising, profiling, or any purpose beyond operating the calendar integration feature.
           </Body>
@@ -111,7 +111,7 @@ export default function TermsOfServiceScreen() {
 
         <Section title="5. Content You Provide">
           <Body>
-            You retain ownership of any content you create in Prepd — including meal plans, custom
+            You retain ownership of any content you create in Bento — including meal plans, custom
             recipes, and food logs. By using the app, you grant us a limited license to store and
             process this content solely to provide the service to you.
           </Body>
@@ -124,7 +124,7 @@ export default function TermsOfServiceScreen() {
 
         <Section title="6. Third-Party Services">
           <Body>
-            Prepd integrates with third-party services including Supabase (database and
+            Bento integrates with third-party services including Supabase (database and
             authentication), PowerSync (offline sync), and the FatSecret Platform API (nutrition
             data). Your use of these services is subject to their respective terms and privacy
             policies. We are not responsible for the practices or content of third-party services.
@@ -133,7 +133,7 @@ export default function TermsOfServiceScreen() {
 
         <Section title="7. Disclaimer of Warranties">
           <Body>
-            Prepd is provided "as is" and "as available" without warranties of any kind, either
+            Bento is provided "as is" and "as available" without warranties of any kind, either
             express or implied. We do not warrant that the service will be uninterrupted, error-free,
             or free of harmful components. Nutrition data provided through the FatSecret Platform API
             is informational only and should not be used as a substitute for professional medical or
@@ -143,7 +143,7 @@ export default function TermsOfServiceScreen() {
 
         <Section title="8. Limitation of Liability">
           <Body>
-            To the maximum extent permitted by applicable law, Prepd and its operators shall not be
+            To the maximum extent permitted by applicable law, Bento and its operators shall not be
             liable for any indirect, incidental, special, or consequential damages arising from your
             use of or inability to use the service, even if we have been advised of the possibility
             of such damages.
@@ -152,7 +152,7 @@ export default function TermsOfServiceScreen() {
 
         <Section title="9. Termination">
           <Body>
-            You may stop using Prepd and delete your account at any time from the Profile screen
+            You may stop using Bento and delete your account at any time from the Profile screen
             under "Danger zone." Account deletion is immediate and irreversible and removes all
             your data from our systems.
           </Body>
@@ -165,7 +165,7 @@ export default function TermsOfServiceScreen() {
         <Section title="10. Changes to These Terms">
           <Body>
             We may update these Terms from time to time. When we do, we will update the effective
-            date above. Your continued use of Prepd after changes are posted constitutes your
+            date above. Your continued use of Bento after changes are posted constitutes your
             acceptance of the revised Terms.
           </Body>
         </Section>
@@ -175,7 +175,7 @@ export default function TermsOfServiceScreen() {
             If you have any questions about these Terms, please contact:
           </Body>
           <View style={[styles.contactCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <Text style={[styles.contactName, { color: theme.text }]}>Prepd</Text>
+            <Text style={[styles.contactName, { color: theme.text }]}>Bento</Text>
             <Pressable onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)}>
               <Text style={[styles.contactEmail, { color: Colors.accent }]}>{CONTACT_EMAIL}</Text>
             </Pressable>

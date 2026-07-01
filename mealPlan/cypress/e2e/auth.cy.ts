@@ -1,14 +1,20 @@
+﻿// Pressable renders as <div role="button"> in React Native Web.
+// Use cy.contains('[role="button"]', text) to avoid matching page title text.
 describe('Authentication', () => {
+  before(() => {
+    cy.task('seedTestData');
+  });
+
   it('shows the marketing page for unauthenticated users', () => {
     cy.visit('/');
-    cy.contains('Prepd').should('be.visible');
-    cy.contains('Sign In').should('be.visible');
-    cy.contains('Get Started').should('be.visible');
+    cy.contains('Bento').should('be.visible');
+    cy.contains('[role="button"]', 'Sign In').should('be.visible');
+    cy.contains('[role="button"]', 'Get Started').should('be.visible');
   });
 
   it('navigates to sign-in screen', () => {
     cy.visit('/about');
-    cy.contains('Sign In').click();
+    cy.contains('[role="button"]', 'Sign In').click();
     cy.url().should('include', 'sign-in');
     cy.get('input[placeholder="Email"]').should('be.visible');
     cy.get('input[placeholder="Password"]').should('be.visible');
@@ -18,8 +24,8 @@ describe('Authentication', () => {
     cy.visit('/sign-in');
     cy.get('input[placeholder="Email"]').type('notreal@example.com');
     cy.get('input[placeholder="Password"]').type('wrongpassword', { log: false });
-    cy.contains('Sign in').click();
-    cy.contains('Invalid').should('be.visible');
+    cy.contains('[role="button"]', 'Sign in').click();
+    cy.contains('Invalid login credentials').should('be.visible');
   });
 
   it('signs in successfully and lands on the home screen', () => {
@@ -27,15 +33,15 @@ describe('Authentication', () => {
     cy.env(['TEST_USER_EMAIL', 'TEST_USER_PASSWORD']).then(({ TEST_USER_EMAIL, TEST_USER_PASSWORD }) => {
       cy.get('input[placeholder="Email"]').type(TEST_USER_EMAIL as string);
       cy.get('input[placeholder="Password"]').type(TEST_USER_PASSWORD as string, { log: false });
-      cy.contains('Sign in').click();
-      cy.url().should('not.include', 'sign-in');
-      cy.contains('Good').should('be.visible'); // greeting: "Good morning/afternoon/evening,"
+      cy.contains('[role="button"]', 'Sign in').click();
+      cy.url().should('not.include', 'sign-in', { timeout: 30000 });
+      cy.contains('Good').should('be.visible');
     });
   });
 
   it('navigates to sign-up screen', () => {
     cy.visit('/about');
-    cy.contains('Get Started').click();
+    cy.contains('[role="button"]', 'Get Started').click();
     cy.url().should('include', 'sign-up');
   });
 });

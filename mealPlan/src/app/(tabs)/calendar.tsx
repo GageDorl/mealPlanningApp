@@ -737,7 +737,7 @@ export default function WeeklyPlannerScreen() {
         )}
       </View>
 
-      <Pressable style={styles.addButton} onPress={() => handleAddSlot(dateToString(today))}>
+      <Pressable style={styles.addButton} onPress={() => handleAddSlot(dateToString(today))} testID="calendar-add-fab">
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </Pressable>
 
