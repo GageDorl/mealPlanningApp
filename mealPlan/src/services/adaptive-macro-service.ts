@@ -112,36 +112,44 @@ export function calculateActualTdee(
   if (weightInWindow.length < 2) return 0;
 
   const mean = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / arr.length;
+  const calMap = new Map(dailyCalories.map((d) => [d.date, d.calories]));
+
   const weekOf = (date: string) =>
     Math.floor((new Date(`${date}T12:00:00`).getTime() - new Date(`${windowStart}T12:00:00`).getTime()) / (7 * 86400000));
 
-  // Average weight per calendar week, then compare the two most recent weeks.
-  // Week-over-week change automatically adapts as metabolism shifts.
   const weightByWeek = new Map<number, number[]>();
   for (const w of weightInWindow) {
     const wk = weekOf(w.date);
     if (!weightByWeek.has(wk)) weightByWeek.set(wk, []);
     weightByWeek.get(wk)!.push(w.weight_lbs);
   }
-  const weekAvgWeights = [...weightByWeek.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([, ws]) => mean(ws));
-  if (weekAvgWeights.length < 2) return 0;
+  const weekEntries = [...weightByWeek.entries()].sort(([a], [b]) => a - b);
+  const mostRecentWeekCount = weekEntries[weekEntries.length - 1]?.[1].length ?? 0;
 
-  const weightChangeLbs =
-    weekAvgWeights[weekAvgWeights.length - 1] - weekAvgWeights[weekAvgWeights.length - 2];
+  let weightChangeLbs: number;
+  let avgDailyCals: number;
 
-  // Average daily calories per week, then average those to treat all weeks equally.
-  const calMap = new Map(dailyCalories.map((d) => [d.date, d.calories]));
-  const calByWeek = new Map<number, number[]>();
-  for (const date of calDates) {
-    const wk = weekOf(date);
-    if (!calByWeek.has(wk)) calByWeek.set(wk, []);
-    calByWeek.get(wk)!.push(calMap.get(date) ?? 0);
+  if (weekEntries.length < 2 || mostRecentWeekCount < 3) {
+    // First week or thin recent-week bucket: use the first log as the baseline and
+    // the average of all subsequent logs as the current state, over a 7-day span.
+    // This prevents a single end-of-week weigh-in from flipping the trend direction.
+    const firstWeight = weightInWindow[0].weight_lbs;
+    const restAvgWeight = mean(weightInWindow.slice(1).map((w) => w.weight_lbs));
+    weightChangeLbs = restAvgWeight - firstWeight;
+    avgDailyCals = mean(calDates.map((d) => calMap.get(d) ?? 0));
+  } else {
+    // Standard week-over-week: compare the two most recent full weeks.
+    const weekAvgWeights = weekEntries.map(([, ws]) => mean(ws));
+    weightChangeLbs = weekAvgWeights[weekAvgWeights.length - 1] - weekAvgWeights[weekAvgWeights.length - 2];
+    const calByWeek = new Map<number, number[]>();
+    for (const date of calDates) {
+      const wk = weekOf(date);
+      if (!calByWeek.has(wk)) calByWeek.set(wk, []);
+      calByWeek.get(wk)!.push(calMap.get(date) ?? 0);
+    }
+    avgDailyCals = mean([...calByWeek.values()].map((cals) => mean(cals)));
   }
-  const avgDailyCals = mean([...calByWeek.values()].map((cals) => mean(cals)));
 
-  // weight change is week-over-week (7 days), so normalize surplus to per-day
   return Math.round(avgDailyCals - (weightChangeLbs * 3500) / 7);
 }
 
@@ -150,13 +158,18 @@ export function buildMacroAdjustment(
   weightGoal: WeightGoal,
   currentWeightLbs: number,
   goalType: GoalType,
+  currentCalories: number,
 ): MacroAdjustment {
   const dailyDeficit = calculateDailyDeficit(
     currentWeightLbs,
     weightGoal.goal_weight_lbs,
     weightGoal.goal_date,
   );
-  const calories = Math.max(1200, Math.round(actualTdee + dailyDeficit));
+  const rawCalories = Math.max(1200, Math.round(actualTdee + dailyDeficit));
+  // Dampen toward the current goal to avoid large one-shot corrections from noisy early data.
+  const calories = currentCalories > 0
+    ? Math.max(1200, Math.round((rawCalories + currentCalories) / 2))
+    : rawCalories;
   const { protein, carbs, fat } = computeMacrosFromCalories(calories, currentWeightLbs, goalType);
   return { calories, protein, carbs, fat, actualTdee, dailyDeficit };
 }
