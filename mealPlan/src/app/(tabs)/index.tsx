@@ -1,12 +1,13 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useTheme } from '@/hooks/use-theme';
 import { triggerSync } from '@/utils/trigger-sync';
 import { getCachedUserId } from '@/services/supabase';
 import { useUserProfile } from '@/hooks/use-user-profile';
+import { useUserRole } from '@/hooks/use-user-role';
 import { useTopRecipes } from '@/hooks/use-top-recipes';
 import { useMacros } from '@/hooks/use-macros';
 import { useGrocery } from '@/hooks/use-grocery';
@@ -21,6 +22,7 @@ import { MacrosPreviewCard } from '@/components/dashboard/macros-preview-card';
 import { NudgeBanner } from '@/components/dashboard/nudge-banner';
 import { DailyWeightBanner } from '@/components/DailyWeightBanner';
 import { MacroAdjustmentBanner } from '@/components/MacroAdjustmentBanner';
+import { MacroAdjustmentCard } from '@/components/MacroAdjustmentCard';
 import { Colors, FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
 
 const TODAY_DATE = new Date();
@@ -29,7 +31,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
 
-  const { profile, authLoading, profileLoading } = useUserProfile();
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
+
+  const { profile, loading, profileLoading } = useUserProfile();
+  const { role } = useUserRole();
+  const isAdmin = role === 'admin';
   const { recipes: topRecipes } = useTopRecipes();
   const { dailyProgress, refresh: refreshMacros } = useMacros(TODAY_DATE);
   const { state: grocery, refresh: refreshGrocery } = useGrocery();
@@ -48,13 +54,13 @@ export default function HomeScreen() {
   }, [refreshMacros, refreshGrocery]));
 
   useEffect(() => {
-    if (authLoading) return;
+    if (loading) return;
     if (!getCachedUserId()) {
       router.replace('/about');
     }
-  }, [authLoading, router]);
+  }, [loading, router]);
 
-  if (authLoading || profileLoading) {
+  if (loading || profileLoading) {
     return (
       <View style={[styles.root, styles.centered, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={Colors.accent} />
@@ -73,9 +79,10 @@ export default function HomeScreen() {
   }, [calendarConnected, profile, router]);
 
   const greeting = getGreeting();
-  const displayName = profile?.user?.display_name ?? (authLoading ? '...' : '');
+  const displayName = profile?.user?.display_name ?? (loading ? '...' : '');
 
   return (
+    <>
     <ScrollView
       style={[styles.root, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
@@ -113,7 +120,17 @@ export default function HomeScreen() {
       {profile && <DailyWeightBanner userId={profile.user.id} />}
 
       {/* Macro adjustment — only shows when 7+ days of data indicate targets need recalibration */}
-      {profile && <MacroAdjustmentBanner userId={profile.user.id} />}
+      {profile && (
+        <MacroAdjustmentBanner
+          userId={profile.user.id}
+          onPress={() => setShowAdjustmentModal(true)}
+        />
+      )}
+      {isAdmin && profile && (
+        <Pressable onPress={() => setShowAdjustmentModal(true)} style={styles.adminTestRow}>
+          <Text style={[styles.adminTestText, { color: theme.textSecondary }]}>⚙ Admin: preview macro adjustment</Text>
+        </Pressable>
+      )}
 
       {/* Module grid: left column (Calendar + Grocery) + right column (Meals) */}
       <View style={styles.grid}>
@@ -143,6 +160,26 @@ export default function HomeScreen() {
         onPress={() => router.push('/macros')}
       />
     </ScrollView>
+
+    {profile && (
+      <Modal
+        visible={showAdjustmentModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAdjustmentModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowAdjustmentModal(false)}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.background }]} onPress={(e) => e.stopPropagation()}>
+            <MacroAdjustmentCard
+              userId={profile.user.id}
+              onDismiss={() => setShowAdjustmentModal(false)}
+              forceShow={isAdmin}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    )}
+    </>
   );
 }
 
@@ -193,6 +230,26 @@ const styles = StyleSheet.create({
   dateLabel: {
     fontSize: FontSizes.sm,
   } as TextStyle,
+  adminTestRow: {
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
+  } as ViewStyle,
+  adminTestText: {
+    fontSize: FontSizes.xs,
+  } as TextStyle,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  } as ViewStyle,
+  modalContent: {
+    width: '100%',
+    maxWidth: 480,
+    borderRadius: 16,
+    overflow: 'hidden',
+  } as ViewStyle,
   grid: {
     flexDirection: 'row',
     gap: Spacing.md,
