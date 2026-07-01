@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { RefreshControl, ScrollView, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useTheme } from '@/hooks/use-theme';
@@ -29,7 +29,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
 
-  const { profile, authLoading } = useUserProfile();
+  const { profile, authLoading, profileLoading } = useUserProfile();
   const { recipes: topRecipes } = useTopRecipes();
   const { dailyProgress, refresh: refreshMacros } = useMacros(TODAY_DATE);
   const { state: grocery, refresh: refreshGrocery } = useGrocery();
@@ -53,6 +53,14 @@ export default function HomeScreen() {
       router.replace('/about');
     }
   }, [authLoading, router]);
+
+  if (authLoading || profileLoading) {
+    return (
+      <View style={[styles.root, styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={Colors.accent} />
+      </View>
+    );
+  }
 
   const handleNudgePress = useCallback(() => {
     if (!calendarConnected) {
@@ -156,6 +164,10 @@ function formatDate(date: Date): string {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  } as ViewStyle,
+  centered: {
+    alignItems: 'center',
+    justifyContent: 'center',
   } as ViewStyle,
   content: {
     padding: Spacing.lg,

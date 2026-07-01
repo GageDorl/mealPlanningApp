@@ -25,6 +25,13 @@
         "buildType": "apk"
       }
     },
+    "play-alpha": {
+      "channel": "alpha",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
     "production": {
       "autoIncrement": true
     }

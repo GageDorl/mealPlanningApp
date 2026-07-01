@@ -83,10 +83,12 @@ export function useUserProfile() {
     };
   }, [userId, userRow, macroGoalRows, dietRows]);
 
+  const profileLoading = !!userId && !authLoading && !userRow;
+
   return {
     profile,
-    authLoading,
-    loading: false,
+    profileLoading,
+    loading: authLoading || profileLoading,
     reload: useCallback(() => {}, []),
   };
 }
