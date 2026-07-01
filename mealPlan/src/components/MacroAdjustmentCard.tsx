@@ -24,6 +24,8 @@ import type { GoalType } from '@/services/macro-planner-service';
 interface Props {
   userId: string;
   onDismiss?: () => void;
+  /** Admin only: skip dismissal and minimum-data guards to allow test previews. */
+  forceShow?: boolean;
 }
 
 function formatDisplayDate(dateStr: string): string {
@@ -44,7 +46,7 @@ function suspiciousReason(day: SuspiciousDay): string {
   return parts.join(' · ');
 }
 
-export function MacroAdjustmentCard({ userId, onDismiss }: Props) {
+export function MacroAdjustmentCard({ userId, onDismiss, forceShow = false }: Props) {
   const db = usePowerSync();
   const theme = useTheme();
   const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set());
@@ -120,7 +122,7 @@ export function MacroAdjustmentCard({ userId, onDismiss }: Props) {
     [actualTdee, weightGoal, currentWeightLbs, goalType, currentCalories],
   );
 
-  if (!weightGoal || isDismissed(weightGoal) || !hasEnoughData(weightLogs, dailyCalories)) {
+  if (!weightGoal || (!forceShow && (isDismissed(weightGoal) || !hasEnoughData(weightLogs, dailyCalories)))) {
     return null;
   }
 

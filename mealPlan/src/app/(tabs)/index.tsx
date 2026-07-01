@@ -7,6 +7,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { triggerSync } from '@/utils/trigger-sync';
 import { getCachedUserId } from '@/services/supabase';
 import { useUserProfile } from '@/hooks/use-user-profile';
+import { useUserRole } from '@/hooks/use-user-role';
 import { useTopRecipes } from '@/hooks/use-top-recipes';
 import { useMacros } from '@/hooks/use-macros';
 import { useGrocery } from '@/hooks/use-grocery';
@@ -32,7 +33,9 @@ export default function HomeScreen() {
 
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
 
-  const { profile, authLoading, profileLoading } = useUserProfile();
+  const { profile, loading, profileLoading } = useUserProfile();
+  const { role } = useUserRole();
+  const isAdmin = role === 'admin';
   const { recipes: topRecipes } = useTopRecipes();
   const { dailyProgress, refresh: refreshMacros } = useMacros(TODAY_DATE);
   const { state: grocery, refresh: refreshGrocery } = useGrocery();
@@ -51,13 +54,13 @@ export default function HomeScreen() {
   }, [refreshMacros, refreshGrocery]));
 
   useEffect(() => {
-    if (authLoading) return;
+    if (loading) return;
     if (!getCachedUserId()) {
       router.replace('/about');
     }
-  }, [authLoading, router]);
+  }, [loading, router]);
 
-  if (authLoading || profileLoading) {
+  if (loading || profileLoading) {
     return (
       <View style={[styles.root, styles.centered, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={Colors.accent} />
@@ -76,7 +79,7 @@ export default function HomeScreen() {
   }, [calendarConnected, profile, router]);
 
   const greeting = getGreeting();
-  const displayName = profile?.user?.display_name ?? (authLoading ? '...' : '');
+  const displayName = profile?.user?.display_name ?? (loading ? '...' : '');
 
   return (
     <>
@@ -123,6 +126,11 @@ export default function HomeScreen() {
           onPress={() => setShowAdjustmentModal(true)}
         />
       )}
+      {isAdmin && profile && (
+        <Pressable onPress={() => setShowAdjustmentModal(true)} style={styles.adminTestRow}>
+          <Text style={[styles.adminTestText, { color: theme.textSecondary }]}>⚙ Admin: preview macro adjustment</Text>
+        </Pressable>
+      )}
 
       {/* Module grid: left column (Calendar + Grocery) + right column (Meals) */}
       <View style={styles.grid}>
@@ -165,6 +173,7 @@ export default function HomeScreen() {
             <MacroAdjustmentCard
               userId={profile.user.id}
               onDismiss={() => setShowAdjustmentModal(false)}
+              forceShow={isAdmin}
             />
           </Pressable>
         </Pressable>
@@ -220,6 +229,13 @@ const styles = StyleSheet.create({
   } as TextStyle,
   dateLabel: {
     fontSize: FontSizes.sm,
+  } as TextStyle,
+  adminTestRow: {
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
+  } as ViewStyle,
+  adminTestText: {
+    fontSize: FontSizes.xs,
   } as TextStyle,
   modalOverlay: {
     flex: 1,
