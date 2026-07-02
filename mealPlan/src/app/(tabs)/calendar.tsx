@@ -136,7 +136,7 @@ export default function WeeklyPlannerScreen() {
   const [addSlotVisible, setAddSlotVisible] = useState(false);
   const [addSlotDate, setAddSlotDate] = useState('');
   const [addSlotTime, setAddSlotTime] = useState<string | undefined>(undefined);
-  const [prefillSuggestion, setPrefillSuggestion] = useState<(LogFoodFormPrefill & { searchQuery: string }) | undefined>(undefined);
+  const [prefillSuggestion, setPrefillSuggestion] = useState<(LogFoodFormPrefill & { searchQuery: string; label?: string; icon?: string | null }) | undefined>(undefined);
 
   // Recipe picker modal state
   const [pickerVisible, setPickerVisible] = useState(false);

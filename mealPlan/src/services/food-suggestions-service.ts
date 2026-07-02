@@ -26,14 +26,14 @@ export async function fetchSuggestions(
 ): Promise<FoodSuggestion[]> {
   const dateStr = dateString(date)
 
-  if (!refreshPrompt) {
+  if (refreshPrompt === undefined) {
     const cached = await getCachedSuggestions(userId, dateStr)
     if (cached) return cached
   }
 
   const { data, error } = await supabase.functions.invoke<{ suggestions: FoodSuggestion[] }>(
     'suggest-foods',
-    { body: { date: dateStr, ...(refreshPrompt ? { refresh_prompt: refreshPrompt } : {}) } }
+    { body: { date: dateStr, ...(refreshPrompt !== undefined ? { refresh_prompt: refreshPrompt } : {}) } }
   )
 
   if (error || !data?.suggestions?.length) {

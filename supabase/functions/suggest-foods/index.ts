@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     const body = await req.json()
     date = typeof body.date === 'string' ? body.date : ''
     refreshPrompt = typeof body.refresh_prompt === 'string' && body.refresh_prompt.trim() ? body.refresh_prompt.trim() : undefined
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(new Date(date).getTime())) {
       return json({ error: 'Invalid date format. Expected YYYY-MM-DD.' }, 400)
     }
   } catch {
@@ -154,27 +154,28 @@ Deno.serve(async (req) => {
       .lt('date', date)
       .order('date', { ascending: false })
 
-    // Frequency count — last 7 days weighted 2x
-    const freqMap = new Map<string, { count: number; cal: number; protein: number; carbs: number; fat: number }>()
+    // Frequency count — last 7 days weighted 2x; macros accumulated for averaging
+    const freqMap = new Map<string, { count: number; entries: number; cal: number; protein: number; carbs: number; fat: number }>()
     for (const log of historyLogs ?? []) {
       const weight = (log.date as string) >= sevenDaysAgo ? 2 : 1
       for (const item of (log.food_log_items as any[]) ?? []) {
         const key = item.food_name + (item.brand_name ? ` (${item.brand_name})` : '')
-        const prev = freqMap.get(key) ?? { count: 0, cal: 0, protein: 0, carbs: 0, fat: 0 }
+        const prev = freqMap.get(key) ?? { count: 0, entries: 0, cal: 0, protein: 0, carbs: 0, fat: 0 }
         const s = Number(item.servings_eaten) || 1
         freqMap.set(key, {
           count:   prev.count + weight,
-          cal:     Math.round((Number(item.calories) || 0) * s),
-          protein: Math.round((Number(item.protein)  || 0) * s),
-          carbs:   Math.round((Number(item.carbs)    || 0) * s),
-          fat:     Math.round((Number(item.fat)      || 0) * s),
+          entries: prev.entries + 1,
+          cal:     prev.cal     + Math.round((Number(item.calories) || 0) * s),
+          protein: prev.protein + Math.round((Number(item.protein)  || 0) * s),
+          carbs:   prev.carbs   + Math.round((Number(item.carbs)    || 0) * s),
+          fat:     prev.fat     + Math.round((Number(item.fat)      || 0) * s),
         })
       }
     }
     const topFoods = [...freqMap.entries()]
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 12)
-      .map(([name, d]) => `- ${name}: ~${d.cal}cal, ${d.protein}g protein, ${d.carbs}g carbs, ${d.fat}g fat`)
+      .map(([name, d]) => `- ${name}: ~${Math.round(d.cal / d.entries)}cal, ${Math.round(d.protein / d.entries)}g protein, ${Math.round(d.carbs / d.entries)}g carbs, ${Math.round(d.fat / d.entries)}g fat`)
 
     // --- Dietary preferences ---
     const { data: prefRows } = await supabase
@@ -231,7 +232,9 @@ Suggest 3–5 specific foods to help me meet my remaining macros.`
           suggestions = (suggestBlock.input as { suggestions: FoodSuggestion[] }).suggestions
           break
         }
-        throw new Error('Unexpected client tool call in response')
+        // Another tool was called alongside suggest_foods — append and loop
+        messages.push({ role: 'assistant', content: response.content as any })
+        continue
       }
 
       // pause_turn: web search is running server-side — append and continue
