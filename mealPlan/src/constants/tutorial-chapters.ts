@@ -67,6 +67,12 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
       },
       {
         type: 'info',
+        illustrationKey: 'food-suggestions',
+        title: 'AI food suggestions',
+        body: "When you have remaining macros for the day, Bento suggests specific foods to help you hit your targets. Tap Log on any suggestion to add it straight to your calendar — or refresh for new ideas.",
+      },
+      {
+        type: 'info',
         illustrationKey: 'recalibration',
         title: 'Adaptive recalibration',
         body: 'After 7 days of data, Bento can suggest adjustments to your targets based on your actual eating patterns.',

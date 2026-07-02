@@ -219,13 +219,13 @@ export function FoodSuggestionsCard({
   )
 }
 
-interface SuggestionRowProps {
+export interface SuggestionRowProps {
   suggestion: FoodSuggestion
   theme: ReturnType<typeof useTheme>
   onLog: () => void
 }
 
-function SuggestionRow({ suggestion, theme, onLog }: SuggestionRowProps) {
+export function SuggestionRow({ suggestion, theme, onLog }: SuggestionRowProps) {
   return (
     <View style={[styles.suggestionRow, { borderColor: theme.border }]}>
       <View style={styles.suggestionMain}>
