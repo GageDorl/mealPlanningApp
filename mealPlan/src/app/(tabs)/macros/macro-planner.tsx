@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@powersync/react-native';
 
@@ -45,6 +46,7 @@ function defaultGoalDate(): Date {
 export default function MacroPlannerScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const { profile, loading } = useUserProfile();
 
   const [weight, setWeight] = useState('170');
@@ -172,14 +174,16 @@ export default function MacroPlannerScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+        <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
         <Text style={[styles.statusText, { color: theme.textSecondary }]}>Loading profile…</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

@@ -1,4 +1,5 @@
-import { ScrollView, View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { ScrollView, View, Text, Pressable, StyleSheet, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 
 import { CalendarPickerList } from '@/components/calendar/calendar-picker-list';
 import { Colors, FontSizes, Spacing, BorderRadius, MaxContentWidth } from '@/constants/theme';
@@ -16,6 +17,7 @@ const THEME_OPTIONS = [
 
 export default function AppearanceScreen() {
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const { themeMode, setTheme } = useThemeToggle();
   const {
     connected, connectError, availableCalendars, selectedCalendarIds,
@@ -23,8 +25,10 @@ export default function AppearanceScreen() {
   } = useCalendar();
 
   return (
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
     <ScrollView
-      style={{ backgroundColor: theme.background }}
+      style={{ backgroundColor: 'transparent' }}
       contentContainerStyle={styles.scroll}
       showsVerticalScrollIndicator={false}
     >
@@ -103,6 +107,7 @@ export default function AppearanceScreen() {
 
       </View>
     </ScrollView>
+    </View>
   );
 }
 

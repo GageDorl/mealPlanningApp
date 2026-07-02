@@ -1,4 +1,5 @@
-import { ScrollView, View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { ScrollView, View, Text, Pressable, StyleSheet, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -25,7 +26,7 @@ function NavRow({ icon, label, description, onPress, last }: NavRowProps) {
         pressed && { backgroundColor: theme.backgroundSelected },
       ]}
     >
-      <View style={[styles.navIcon, { backgroundColor: `${Colors.accent}1A` }]}>
+      <View style={[styles.navIcon, { backgroundColor: `${Colors.accent}40` }]}>
         <Ionicons name={icon} size={18} color={Colors.accent} />
       </View>
       <View style={styles.navText}>
@@ -40,15 +41,18 @@ function NavRow({ icon, label, description, onPress, last }: NavRowProps) {
 export default function AdminScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const { role } = useUserRole();
   const isFullAdmin = role === 'admin';
 
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.background }}
-      contentContainerStyle={styles.scroll}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+      <ScrollView
+        style={{ backgroundColor: 'transparent' }}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={[styles.content, { maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' }]}>
         <Text style={[styles.title, { color: theme.text }]}>Admin</Text>
 
@@ -83,6 +87,7 @@ export default function AdminScreen() {
         </View>
       </View>
     </ScrollView>
+    </View>
   );
 }
 

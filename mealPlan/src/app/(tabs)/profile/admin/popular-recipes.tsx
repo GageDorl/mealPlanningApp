@@ -10,9 +10,11 @@ import {
   StyleSheet,
   Platform,
   Modal,
+  useWindowDimensions,
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import Animated, {
   useSharedValue,
@@ -389,6 +391,7 @@ function RecipePicker({ visible, excludeIds, onSelect, onClose, theme }: RecipeP
 
 export default function PopularRecipesAdminScreen() {
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const router = useRouter();
   const { role } = useUserRole();
   const { items, limit, addRecipe, removeRecipe, reorderRecipes, updateLimit } = usePopularRecipes();
@@ -485,7 +488,8 @@ export default function PopularRecipesAdminScreen() {
   const excludeIds = useMemo(() => items.map((i) => i.recipe_id), [items]);
 
   return (
-    <View style={[layout.screenContainer, { backgroundColor: theme.background }]}>
+    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>

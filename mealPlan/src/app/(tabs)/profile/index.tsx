@@ -1,4 +1,5 @@
-import { ScrollView, View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { ScrollView, View, Text, Pressable, StyleSheet, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -25,7 +26,7 @@ function NavRow({ icon, label, onPress, last }: NavRowProps) {
         pressed && { backgroundColor: theme.backgroundSelected },
       ]}
     >
-      <View style={[styles.navIcon, { backgroundColor: `${Colors.accent}1A` }]}>
+      <View style={[styles.navIcon, { backgroundColor: `${Colors.accent}40` }]}>
         <Ionicons name={icon} size={18} color={Colors.accent} />
       </View>
       <Text style={[styles.navLabel, { color: theme.text }]}>{label}</Text>
@@ -37,6 +38,7 @@ function NavRow({ icon, label, onPress, last }: NavRowProps) {
 export default function ProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const { profile } = useUserProfile();
   const { role } = useUserRole();
 
@@ -45,8 +47,10 @@ export default function ProfileScreen() {
   const email = profile?.user.email ?? '';
 
   return (
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
     <ScrollView
-      style={{ backgroundColor: theme.background }}
+      style={{ backgroundColor: 'transparent' }}
       contentContainerStyle={styles.scroll}
       showsVerticalScrollIndicator={false}
     >
@@ -54,7 +58,7 @@ export default function ProfileScreen() {
 
         {/* User card */}
         <View style={[styles.userCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-          <View style={[styles.avatar, { backgroundColor: `${Colors.accent}1A` }]}>
+          <View style={[styles.avatar, { backgroundColor: `${Colors.accent}40` }]}>
             <Text style={[styles.avatarLetter, { color: Colors.accent }]}>
               {displayName.charAt(0).toUpperCase()}
             </Text>
@@ -105,6 +109,7 @@ export default function ProfileScreen() {
 
       </View>
     </ScrollView>
+    </View>
   );
 }
 

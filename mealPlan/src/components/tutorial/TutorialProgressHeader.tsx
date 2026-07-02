@@ -13,7 +13,7 @@ export function TutorialProgressHeader({ chapterTitle, current, total }: Props) 
   const progressPercent = `${Math.round((current / total) * 100)}%`;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={styles.container}>
       <View style={[styles.track, { backgroundColor: theme.border }]}>
         <View style={[styles.fill, { width: progressPercent, backgroundColor: Colors.accent }]} />
       </View>

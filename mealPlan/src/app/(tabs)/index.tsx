@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions, type TextStyle, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useTheme } from '@/hooks/use-theme';
@@ -23,6 +23,7 @@ import { NudgeBanner } from '@/components/dashboard/nudge-banner';
 import { DailyWeightBanner } from '@/components/DailyWeightBanner';
 import { MacroAdjustmentBanner } from '@/components/MacroAdjustmentBanner';
 import { MacroAdjustmentCard } from '@/components/MacroAdjustmentCard';
+import { WoodTexture } from '@/components/WoodTexture';
 import { Colors, FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
 
 const TODAY_DATE = new Date();
@@ -30,6 +31,7 @@ const TODAY_DATE = new Date();
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
 
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
 
@@ -82,9 +84,10 @@ export default function HomeScreen() {
   const displayName = profile?.user?.display_name ?? (loading ? '...' : '');
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
     <ScrollView
-      style={[styles.root, { backgroundColor: theme.background }]}
+      style={[styles.root, { backgroundColor: 'transparent' }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
@@ -179,7 +182,7 @@ export default function HomeScreen() {
         </Pressable>
       </Modal>
     )}
-    </>
+    </View>
   );
 }
 

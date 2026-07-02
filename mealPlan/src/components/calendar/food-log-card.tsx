@@ -4,7 +4,8 @@ import { useTheme } from '@/hooks/use-theme';
 import type { FoodLogWithItems } from '@/services/food-log-service';
 import { ICON_COMPONENTS } from '@/components/ui/icon-picker';
 
-const ACCENT = '#50C878';
+const ACCENT = '#5EA87A';
+const ICON_COLOR = '#FFFFFF';
 
 function totalCalories(log: FoodLogWithItems): number | null {
   const cals = log.items.reduce((sum, item) => {
@@ -46,11 +47,11 @@ export function FoodLogCard({ log, compact = false, onPress, onDelete }: FoodLog
   if (compact) {
     return (
       <Pressable
-        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
+        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
         onPress={onPress}
       >
         <View style={styles.compactRow}>
-          {IconComp && <IconComp size={12} color={ACCENT} />}
+          {IconComp && <IconComp size={12} color={ICON_COLOR} />}
           <Text style={[styles.compactName, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
             {summary}
           </Text>
@@ -64,11 +65,11 @@ export function FoodLogCard({ log, compact = false, onPress, onDelete }: FoodLog
 
   return (
     <Pressable
-      style={[styles.block, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
+      style={[styles.block, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
       onPress={onPress}
     >
       <View style={styles.headerRow}>
-        {IconComp && <IconComp size={14} color={ACCENT} />}
+        {IconComp && <IconComp size={14} color={ICON_COLOR} />}
         <Text style={[styles.label, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
           {log.label ?? (itemCount === 1 ? log.items[0].food_name : `${itemCount} items`)}
         </Text>

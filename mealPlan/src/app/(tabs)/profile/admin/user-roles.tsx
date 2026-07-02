@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, Pressable, Alert, StyleSheet, ActivityIndicator, TextInput,
+  View, Text, ScrollView, Pressable, Alert, StyleSheet, ActivityIndicator, TextInput, useWindowDimensions,
   type ViewStyle, type TextStyle,
 } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/services/supabase';
@@ -154,6 +155,7 @@ function UserCard({
 
 export default function UserRolesScreen() {
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -210,7 +212,8 @@ export default function UserRolesScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.inner, { maxWidth: MaxContentWidth }]}>
           <View style={styles.header}>

@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
 import {
-  View, Text, ScrollView, RefreshControl, Pressable, StyleSheet,
+  View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, useWindowDimensions,
   type ViewStyle, type TextStyle,
 } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import { usePowerSync, useQuery } from '@powersync/react-native';
 import { triggerSync } from '@/utils/trigger-sync';
@@ -20,6 +21,7 @@ export default function PantryStaplesScreen() {
   const db = usePowerSync();
   const theme = useTheme();
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
   const userId = getCachedUserId() ?? '';
 
   const { data: staples, isLoading } = useQuery<PantryStapleRow>(
@@ -93,7 +95,8 @@ export default function PantryStaplesScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.push('/grocery')} style={styles.backBtn} hitSlop={8}>
           <Text style={[styles.backIcon, { color: Colors.accent }]}>‹</Text>
