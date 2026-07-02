@@ -72,11 +72,23 @@ export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
 // Cached user ID kept current via onAuthStateChange — avoids calling getSession()
 // (which acquires the auth lock) in the hot data-fetch path.
 let _cachedUserId: string | null = null;
+// On web, detectSessionInUrl auto-exchanges the recovery code during JS init,
+// firing PASSWORD_RECOVERY before any component mounts. This flag captures it
+// so callback.tsx can detect the recovery flow even after the event has passed.
+let _pendingRecovery = false;
 supabase.auth.onAuthStateChange((_event, session) => {
   _cachedUserId = session?.user.id ?? null;
+  if (_event === 'PASSWORD_RECOVERY') _pendingRecovery = true;
 });
 export function getCachedUserId(): string | null {
   return _cachedUserId;
+}
+// Reads and clears the pending recovery flag (one-shot so stale state can't
+// incorrectly redirect a later sign-in flow to the reset-password screen).
+export function consumePendingRecovery(): boolean {
+  const pending = _pendingRecovery;
+  _pendingRecovery = false;
+  return pending;
 }
 
 export interface AuthProfile {
@@ -186,6 +198,19 @@ export async function signInWithProvider(provider: 'google' | 'apple'): Promise<
   }
 
   return { session: null, error: null, callbackUrl: result.url };
+}
+
+export async function resetPasswordForEmail(email: string) {
+  const emailRedirectTo = isNative
+    ? redirectTo
+    : typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/callback`
+      : undefined;
+  return supabase.auth.resetPasswordForEmail(email, { redirectTo: emailRedirectTo });
+}
+
+export async function updatePassword(password: string) {
+  return supabase.auth.updateUser({ password });
 }
 
 export async function signOut() {
