@@ -323,6 +323,7 @@ export default function AccountScreen() {
                 <Text style={styles.saveStatusText}>{saveMessage}</Text>
               </View>
             )}
+            <Button label="Change password" onPress={() => router.push('/auth/reset-password')} variant="secondary" />
             <Button label="Sign out" onPress={handleSignOut} variant="secondary" />
           </View>
 
