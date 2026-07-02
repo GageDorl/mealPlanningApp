@@ -30,7 +30,13 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Publish OTA update → beta-testing channel (Android)
-        run: eas update --channel beta-testing --platform android --message "${{ github.event.head_commit.message }}" --non-interactive
+        run: eas update --channel beta-testing --platform android --environment preview --message "${{ github.event.head_commit.message }}"
+        env:
+          CI: '1'
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_POWERSYNC_URL: ${{ secrets.EXPO_PUBLIC_POWERSYNC_URL }}
+          EXPO_PUBLIC_SPOONACULAR_API_KEY: ${{ secrets.EXPO_PUBLIC_SPOONACULAR_API_KEY }}
 
       - name: Export web
         run: npm run export:web

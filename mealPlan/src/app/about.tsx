@@ -1,8 +1,9 @@
-﻿import { ScrollView, View, Text, StyleSheet, Pressable, type ViewStyle, type TextStyle } from 'react-native';
+﻿import { ScrollView, View, Text, StyleSheet, Pressable, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useTheme } from '@/hooks/use-theme';
+import { WoodTexture } from '@/components/WoodTexture';
 import { Colors, FontSizes, Spacing, BorderRadius, MaxContentWidth } from '@/constants/theme';
 import { Button } from '@/components/ui/button';
 import { FatSecretAttribution } from '@/components/food/fatsecret-attribution';
@@ -33,10 +34,13 @@ const FEATURES = [
 export default function AboutScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
 
   return (
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
     <ScrollView
-      style={{ backgroundColor: theme.background }}
+      style={{ backgroundColor: 'transparent' }}
       contentContainerStyle={styles.scroll}
       showsVerticalScrollIndicator={false}
     >
@@ -95,6 +99,7 @@ export default function AboutScreen() {
         </View>
       </View>
     </ScrollView>
+    </View>
   );
 }
 

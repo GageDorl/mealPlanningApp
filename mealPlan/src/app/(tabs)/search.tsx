@@ -7,9 +7,11 @@ import {
   Pressable,
   ActivityIndicator,
   StyleSheet,
+  useWindowDimensions,
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -30,6 +32,7 @@ const TIME_OPTIONS = [
 export default function RecipeSearchScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
 
   const [query, setQuery] = useState('');
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
@@ -107,7 +110,9 @@ export default function RecipeSearchScreen() {
   }
 
   return (
-    <View style={[layout.screenContainer, { backgroundColor: theme.background }]}>
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Text style={[typography.headingXl, { color: theme.text }]}>Find Recipes</Text>
@@ -237,6 +242,7 @@ export default function RecipeSearchScreen() {
           ))}
         </ScrollView>
       )}
+    </View>
     </View>
   );
 }

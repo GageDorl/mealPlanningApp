@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { triggerSync } from '@/utils/trigger-sync';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
@@ -36,6 +37,7 @@ function isToday(date: Date): boolean {
 export default function MacrosScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
   const { selectedDate, dailyProgress, goalRows, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -62,7 +64,9 @@ export default function MacrosScreen() {
   const today = isToday(selectedDate);
 
   return (
-    <View style={[layout.screenContainer, { backgroundColor: theme.background }]}>
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[layout.rowSpaceBetween, { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md }]}>
         <Pressable onPress={goToPrevDay} style={styles.navButton}>
@@ -201,6 +205,7 @@ export default function MacrosScreen() {
         onSelect={goToDate}
         onClose={() => setPickerVisible(false)}
       />
+    </View>
     </View>
   );
 }

@@ -4,7 +4,8 @@ import { useTheme } from '@/hooks/use-theme';
 import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
 import { ICON_COMPONENTS } from '@/components/ui/icon-picker';
 
-const ACCENT = '#4A90D9';
+const ACCENT = '#6A9EC8';
+const ICON_COLOR = '#FFFFFF';
 
 interface MealSlotCardProps {
   slot: MealSlotWithRecipe;
@@ -24,16 +25,16 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
   if (compact) {
     return (
       <Pressable
-        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
+        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
         onPress={hasRecipes ? onPress : onAssignRecipe}
       >
         <View style={styles.compactRow}>
-          {IconComp && <IconComp size={12} color={ACCENT} />}
-          <Text style={[styles.compactLabel, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
+          {IconComp && <IconComp size={12} color={ICON_COLOR} />}
+          <Text style={[styles.compactLabel, { color: '#FFFFFF' }]} numberOfLines={1} ellipsizeMode="tail">
             {slot.label}
           </Text>
           {hasRecipes && (
-            <Text style={[styles.compactName, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
+            <Text style={[styles.compactName, { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1} ellipsizeMode="tail">
               {primary!.title}
             </Text>
           )}
@@ -44,38 +45,38 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
 
   return (
     <Pressable
-      style={[styles.block, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
+      style={[styles.block, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
       onPress={hasRecipes ? onPress : onAssignRecipe}
     >
       <View style={styles.headerRow}>
-        {IconComp && <IconComp size={14} color={ACCENT} />}
-        <Text style={[styles.label, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
+        {IconComp && <IconComp size={14} color={ICON_COLOR} />}
+        <Text style={[styles.label, { color: '#FFFFFF' }]} numberOfLines={1} ellipsizeMode="tail">
           {slot.label}
         </Text>
         <Pressable onPress={onDelete} hitSlop={8} style={styles.deleteButton}>
-          <Text style={[styles.deleteIcon, { color: theme.textSecondary }]}>×</Text>
+          <Text style={[styles.deleteIcon, { color: 'rgba(255,255,255,0.70)' }]}>×</Text>
         </Pressable>
       </View>
 
       {hasRecipes ? (
         <>
           <View style={styles.recipeRow}>
-            <Text style={[styles.recipeName, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
+            <Text style={[styles.recipeName, { color: 'rgba(255,255,255,0.92)' }]} numberOfLines={2} ellipsizeMode="tail">
               {primary!.title}
             </Text>
             {extraCount > 0 && (
-              <Text style={[styles.extraBadge, { color: ACCENT }]}>+{extraCount}</Text>
+              <Text style={[styles.extraBadge, { color: 'rgba(255,255,255,0.75)' }]}>+{extraCount}</Text>
             )}
           </View>
           {primary!.calories_per_serving != null && (
-            <Text style={[styles.calHint, { color: theme.textSecondary }]}>
+            <Text style={[styles.calHint, { color: 'rgba(255,255,255,0.80)' }]}>
               {Math.round(primary!.calories_per_serving)} kcal
             </Text>
           )}
         </>
       ) : (
         <Pressable onPress={onAssignRecipe}>
-          <Text style={[styles.emptyState, { color: ACCENT }]}>+ Add recipe</Text>
+          <Text style={[styles.emptyState, { color: 'rgba(255,255,255,0.80)' }]}>+ Add recipe</Text>
         </Pressable>
       )}
     </Pressable>

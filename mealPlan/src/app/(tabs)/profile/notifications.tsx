@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View, type ViewStyle, type TextStyle } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useFocusEffect } from 'expo-router';
 import { usePowerSync, useQuery } from '@powersync/react-native';
 
@@ -61,6 +62,7 @@ function nextCheckInDate(macroGoalSetAt: string | null): Date | null {
 export default function NotificationsScreen() {
   const db = usePowerSync();
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const { profile } = useUserProfile();
   const [initialized, setInitialized] = useState(false);
   const [notifications, setNotifications] = useState<NotificationState>({
@@ -135,7 +137,8 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={[styles.card, { maxWidth: MaxContentWidth }]}>
           <Text style={[styles.pageTitle, { color: theme.text }]}>Notifications</Text>

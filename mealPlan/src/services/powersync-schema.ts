@@ -238,6 +238,13 @@ const popular_recipes = new Table({
   created_at: column.text,
 });
 
+const profiles = new Table({
+  user_id: column.text,
+  role: column.text,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
 export const AppSchema = new Schema({
   users,
   recipes,
@@ -255,6 +262,7 @@ export const AppSchema = new Schema({
   grocery_lists,
   grocery_items,
   popular_recipes,
+  profiles,
   cached_recipes,
   cached_foods,
   cached_calendar_events,

@@ -1,4 +1,5 @@
 import { Pressable, View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 
@@ -14,11 +15,13 @@ interface TooltipCardProps {
 
 export function TooltipCard({ step, total, title, body, onNext, onDismiss, arrowLeft }: TooltipCardProps) {
   const theme = useTheme();
+  const colorScheme = useColorScheme();
+  const cardBg = colorScheme === 'dark' ? '#2C221A' : '#FCF6EB';
   const isLast = step === total - 1;
   return (
     <View style={styles.wrapper}>
       <View style={[styles.arrow, { borderBottomColor: Colors.accent }, arrowLeft !== undefined && { marginLeft: arrowLeft }]} />
-      <View style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: Colors.accent }]}>
+      <View style={[styles.card, { backgroundColor: cardBg, borderColor: Colors.accent }]}>
         <View style={styles.cardHeader}>
           <Text style={[styles.title, { color: Colors.accent }]}>{title}</Text>
           <Pressable onPress={onDismiss} hitSlop={10} style={styles.closeBtn}>

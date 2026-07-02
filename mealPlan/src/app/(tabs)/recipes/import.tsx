@@ -8,9 +8,11 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import { BorderRadius, Colors, FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -29,6 +31,7 @@ const ERROR_MESSAGES: Record<ImportError, string> = {
 
 export default function ImportRecipeScreen() {
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const router = useRouter();
   const { showLoading, updateMessage, hideLoading } = useLoading();
 
@@ -72,10 +75,12 @@ export default function ImportRecipeScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: theme.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+      <KeyboardAvoidingView
+        style={[styles.root, { backgroundColor: 'transparent' }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
@@ -144,7 +149,8 @@ export default function ImportRecipeScreen() {
           You'll review all details before saving.
         </Text>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
