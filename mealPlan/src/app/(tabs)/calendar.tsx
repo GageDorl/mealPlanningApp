@@ -34,6 +34,10 @@ import { deleteMealEvent } from '@/services/calendar';
 import { WeekPickerModal } from '@/components/calendar/week-picker-modal';
 import type { CalendarEvent } from '@/services/calendar.types';
 import type { Recipe } from '@/models/recipe';
+import { useSelector, useDispatch } from 'react-redux';
+import { selectPendingLogSuggestion, clearPendingLogSuggestion } from '@/store/slices/food-suggestions-slice';
+import type { AppDispatch } from '@/store';
+import type { LogFoodFormPrefill } from '@/components/calendar/log-food-form';
 
 const DAY_GAP = 2;
 const MOBILE_DAY_WIDTH = 130;
@@ -67,6 +71,10 @@ function isSameDay(a: Date, b: string): boolean {
 export default function WeeklyPlannerScreen() {
   const db = usePowerSync();
   const theme = useTheme();
+  const dispatch = useDispatch<AppDispatch>();
+  const pendingLogSuggestion = useSelector(selectPendingLogSuggestion);
+  const pendingLogRef = useRef(pendingLogSuggestion);
+  pendingLogRef.current = pendingLogSuggestion;
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekPickerVisible, setWeekPickerVisible] = useState(false);
@@ -83,7 +91,27 @@ export default function WeeklyPlannerScreen() {
 
   const { weekPlan, createSlot, updateSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, deleteSlot, refresh } = useMealPlan(currentWeekStart);
 
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+  useFocusEffect(useCallback(() => {
+    refresh();
+    if (pendingLogRef.current) {
+      const s = pendingLogRef.current;
+      setAddSlotDate(dateToString(new Date()));
+      setAddSlotTime(undefined);
+      setPrefillSuggestion({
+        food_name: s.name,
+        brand_name: s.brand || undefined,
+        calories: String(s.calories),
+        protein: String(s.protein),
+        carbs: String(s.carbs),
+        fat: String(s.fat),
+        searchQuery: [s.name, s.brand].filter(Boolean).join(' '),
+        label: s.pendingLabel,
+        icon: s.pendingIcon,
+      });
+      setAddSlotVisible(true);
+      dispatch(clearPendingLogSuggestion());
+    }
+  }, [refresh, dispatch]));
   const { weekLogs, userId: currentUserId, createFoodLog, deleteFoodLog, deleteFoodLogItem, updateFoodLogItem, updateFoodLog, addItemsToFoodLog } = useFoodLog(currentWeekStart);
   const {
     connected, events, googleEventsRefreshing, connectError, loadError,
@@ -108,6 +136,7 @@ export default function WeeklyPlannerScreen() {
   const [addSlotVisible, setAddSlotVisible] = useState(false);
   const [addSlotDate, setAddSlotDate] = useState('');
   const [addSlotTime, setAddSlotTime] = useState<string | undefined>(undefined);
+  const [prefillSuggestion, setPrefillSuggestion] = useState<(LogFoodFormPrefill & { searchQuery: string }) | undefined>(undefined);
 
   // Recipe picker modal state
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -749,7 +778,8 @@ export default function WeeklyPlannerScreen() {
         date={addSlotDate}
         initialTime={addSlotTime}
         userId={currentUserId}
-        onClose={() => setAddSlotVisible(false)}
+        prefillSuggestion={prefillSuggestion}
+        onClose={() => { setAddSlotVisible(false); setPrefillSuggestion(undefined); }}
         onAdd={handleCreateSlot}
         onLogFood={handleLogFood}
       />
