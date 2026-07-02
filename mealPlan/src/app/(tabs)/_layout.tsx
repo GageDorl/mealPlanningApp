@@ -25,7 +25,7 @@ export default function TabLayout() {
           paddingTop: 4,
         },
         tabBarActiveTintColor: Colors.accent,
-        tabBarInactiveTintColor: theme.textSecondary,
+        tabBarInactiveTintColor: theme.text,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
         tabBarIconStyle: { marginBottom: -2 },
       }}
