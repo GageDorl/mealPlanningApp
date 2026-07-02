@@ -54,12 +54,16 @@ export function isConnected(): boolean {
 
 export async function restoreSession(): Promise<boolean> {
   try {
+    // Use getSession() instead of getCachedUserId() — the cached ID is set via
+    // onAuthStateChange which fires asynchronously; getSession() reads storage
+    // directly and is safe to call before the first auth event fires.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id ?? null;
+
     const stored = await AsyncStorage.getItem(CONNECTED_KEY);
 
     if (stored === 'true') {
-      // Verify there's an active session — stale flag from a previous sign-out
-      // would otherwise mark a new (or no) session as connected.
-      if (!getCachedUserId()) {
+      if (!userId) {
         await AsyncStorage.removeItem(CONNECTED_KEY);
         return false;
       }
@@ -69,7 +73,6 @@ export async function restoreSession(): Promise<boolean> {
 
     // No local cache — check calendar_tokens DB. Covers first login after connecting
     // on another device (DB is the cross-device source of truth).
-    const userId = getCachedUserId();
     if (userId) {
       const { data } = await supabase
         .from('calendar_tokens')

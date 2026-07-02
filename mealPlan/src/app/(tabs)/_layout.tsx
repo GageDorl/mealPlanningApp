@@ -1,12 +1,14 @@
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Colors } from '@/constants/theme';
 import { WoodTexture } from '@/components/WoodTexture';
 
 export default function TabLayout() {
   const theme = useTheme();
+  const colorScheme = useColorScheme();
   const { width, height } = useWindowDimensions();
 
   return (
@@ -25,7 +27,7 @@ export default function TabLayout() {
           paddingTop: 4,
         },
         tabBarActiveTintColor: Colors.accent,
-        tabBarInactiveTintColor: theme.text,
+        tabBarInactiveTintColor: colorScheme === 'dark' ? theme.textSecondary : theme.text,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
         tabBarIconStyle: { marginBottom: -2 },
       }}
