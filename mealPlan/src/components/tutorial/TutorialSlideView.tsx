@@ -24,6 +24,7 @@ import { GroceryGeneratedPreview } from './previews/GroceryGeneratedPreview';
 import { GroceryPantryPreview } from './previews/GroceryPantryPreview';
 import { GroceryChecklistPreview } from './previews/GroceryChecklistPreview';
 import { GroceryRegeneratePreview } from './previews/GroceryRegeneratePreview';
+import { FoodSuggestionsPreview } from './previews/FoodSuggestionsPreview';
 
 interface Props {
   slide: InfoSlide;
@@ -54,6 +55,7 @@ function resolveIllustration(
     case 'grocery-pantry': return <GroceryPantryPreview />;
     case 'grocery-checklist': return <GroceryChecklistPreview />;
     case 'grocery-regenerate': return <GroceryRegeneratePreview />;
+    case 'food-suggestions': return <FoodSuggestionsPreview />;
     default: return null;
   }
 }

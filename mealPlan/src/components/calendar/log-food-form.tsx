@@ -67,10 +67,21 @@ export interface LogFoodSubmitParams {
   icon?: string | null;
 }
 
+export interface LogFoodFormPrefill {
+  food_name: string;
+  brand_name?: string;
+  calories: string;
+  protein: string;
+  carbs: string;
+  fat: string;
+}
+
 interface LogFoodFormProps {
   initialTime?: string;
   userId?: string;
   showLabelAndTime?: boolean;
+  initialQuery?: string;
+  initialManualValues?: LogFoodFormPrefill;
   onSubmit: (params: LogFoodSubmitParams) => void;
   onCancel: () => void;
 }
@@ -171,14 +182,14 @@ type UnifiedFoodResult =
   | { source: 'community'; item: PublicFood }
   | { source: 'fatsecret'; item: FoodSearchResult };
 
-export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSubmit, onCancel }: LogFoodFormProps) {
+export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, initialQuery, initialManualValues, onSubmit, onCancel }: LogFoodFormProps) {
   const theme = useTheme();
   const db = usePowerSync();
 
   const [formMode, setFormMode] = useState<FormMode>('search');
 
   // Unified search state
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery ?? '');
   const [searchResults, setSearchResults] = useState<UnifiedFoodResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -447,7 +458,11 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, onSu
   const [stagedItems, setStagedItems] = useState<StagedItem[]>([]);
 
   // Current item being edited
-  const [draft, setDraft] = useState<StagedItem>(emptyItem);
+  const [draft, setDraft] = useState<StagedItem>(() =>
+    initialManualValues
+      ? { ...emptyItem(), food_name: initialManualValues.food_name, brand_name: initialManualValues.brand_name ?? '', calories: initialManualValues.calories, protein: initialManualValues.protein, carbs: initialManualValues.carbs, fat: initialManualValues.fat }
+      : emptyItem()
+  );
   const [showMoreMacros, setShowMoreMacros] = useState(false);
 
   const updateDraft = (patch: Partial<StagedItem>) => setDraft((d) => ({ ...d, ...patch }));

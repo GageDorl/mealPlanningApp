@@ -11,7 +11,7 @@ import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { IconPicker } from '@/components/ui/icon-picker';
-import { LogFoodForm, type LogFoodSubmitParams } from './log-food-form';
+import { LogFoodForm, type LogFoodSubmitParams, type LogFoodFormPrefill } from './log-food-form';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/services/supabase';
 import { getTopRecipes, getSavedRecipeIdByApiId, saveRecipe } from '@/services/recipe-service';
@@ -24,6 +24,7 @@ interface AddMealSlotModalProps {
   date: string;
   initialTime?: string;
   userId?: string;
+  prefillSuggestion?: LogFoodFormPrefill & { searchQuery: string; label?: string; icon?: string | null };
   onClose: () => void;
   onAdd: (label: string, time?: string, recipe?: Recipe, icon?: string | null) => void;
   onLogFood: (date: string, params: LogFoodSubmitParams) => Promise<void>;
@@ -63,7 +64,7 @@ function to24(hour: string, minute: string, period: 'AM' | 'PM'): string {
 }
 
 export function AddMealSlotModal({
-  visible, date, initialTime, userId, onClose, onAdd, onLogFood,
+  visible, date, initialTime, userId, prefillSuggestion, onClose, onAdd, onLogFood,
 }: AddMealSlotModalProps) {
   const theme = useTheme();
   const db = usePowerSync();
@@ -89,9 +90,6 @@ export function AddMealSlotModal({
 
   useEffect(() => {
     if (!visible) return;
-    setStep(1);
-    setLabel('');
-    setIcon(null);
     setRecipeQuery('');
     setRecipeResults([]);
     setMostUsedRecipes([]);
@@ -99,7 +97,17 @@ export function AddMealSlotModal({
     setHour(t.hour);
     setMinute(t.minute);
     setPeriod(t.period);
-  }, [visible, initialTime]);
+    if (prefillSuggestion) {
+      setEntryType('log');
+      setLabel(prefillSuggestion?.label ?? 'Snack');
+      setIcon(prefillSuggestion?.icon ?? null);
+      setStep(3);
+    } else {
+      setStep(1);
+      setLabel('');
+      setIcon(null);
+    }
+  }, [visible, initialTime, prefillSuggestion]);
 
   // Load most-used recipes when entering step 3 (plan)
   useEffect(() => {
@@ -440,8 +448,10 @@ export function AddMealSlotModal({
             <LogFoodForm
               userId={userId}
               showLabelAndTime={false}
+              initialQuery={prefillSuggestion?.searchQuery}
+              initialManualValues={prefillSuggestion}
               onSubmit={handleLogFood}
-              onCancel={() => setStep(2)}
+              onCancel={() => prefillSuggestion ? onClose() : setStep(2)}
             />
           )}
 
