@@ -43,7 +43,7 @@ export default function ResetPasswordScreen() {
           style={authStyles.input}
           containerStyle={{ flex: 1 }}
         />
-        <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeButton} hitSlop={8}>
+        <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeButton} hitSlop={8} accessibilityRole="button" accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
           {showPassword
             ? <EyeOff size={20} color={theme.textSecondary} />
             : <Eye size={20} color={theme.textSecondary} />}

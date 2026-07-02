@@ -35,6 +35,10 @@ export default function AuthCallbackScreen() {
     const { data: { subscription: pwRecoverySub } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') isPasswordRecovery = true;
     });
+    let pwRecoveryUnsubbed = false;
+    const unsubPwRecovery = () => {
+      if (!pwRecoveryUnsubbed) { pwRecoveryUnsubbed = true; pwRecoverySub.unsubscribe(); }
+    };
 
     const finishSignIn = async () => {
       // On web, detectSessionInUrl exchanges the recovery code before this
@@ -43,6 +47,7 @@ export default function AuthCallbackScreen() {
       // module-level listener in supabase.ts and clears it so it can't affect
       // a future sign-in.
       if (consumePendingRecovery()) {
+        unsubPwRecovery();
         if (!cancelled) router.replace('/auth/reset-password');
         return;
       }
@@ -109,7 +114,7 @@ export default function AuthCallbackScreen() {
           }
         }
 
-        pwRecoverySub.unsubscribe();
+        unsubPwRecovery();
 
         if (!user) {
           throw new Error(`No session. code=${!!code} token=${!!access_token} cached=${!!getCachedUserId()} url=${typeof window !== 'undefined' ? window.location.href : 'n/a'}`);
@@ -153,7 +158,7 @@ export default function AuthCallbackScreen() {
           router.replace((existingProfile.user.onboarding_completed ? '/' : '/(tutorial)') as any);
         }
       } catch (callbackError) {
-        pwRecoverySub.unsubscribe();
+        unsubPwRecovery();
         if (!cancelled) {
           setError(callbackError instanceof Error ? callbackError.message : 'Failed to finish sign-in.');
         }
@@ -164,7 +169,7 @@ export default function AuthCallbackScreen() {
 
     return () => {
       cancelled = true;
-      pwRecoverySub.unsubscribe();
+      unsubPwRecovery();
     };
   }, [db, router, code, access_token, refresh_token, errParam, error_description]);
 
