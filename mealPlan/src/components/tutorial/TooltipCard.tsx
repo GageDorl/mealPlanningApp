@@ -1,4 +1,5 @@
-import { Pressable, View, Text, StyleSheet, useColorScheme, type ViewStyle, type TextStyle } from 'react-native';
+import { Pressable, View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 
