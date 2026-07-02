@@ -61,8 +61,9 @@ export default function SavedRecipesScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+    <View style={{ flex: 1 }}>
       <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
@@ -165,6 +166,7 @@ export default function SavedRecipesScreen() {
           ))}
         </ScrollView>
       )}
+    </View>
     </View>
   );
 }

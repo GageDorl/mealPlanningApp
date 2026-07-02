@@ -30,8 +30,9 @@ export default function GroceryScreen() {
   const progressPercent = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
 
   return (
-    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
+    <View style={{ flex: 1 }}>
       <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[layout.rowSpaceBetween, { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }]}>
         <Text style={[typography.headingXl, { color: theme.text }]}>Grocery List</Text>
@@ -113,6 +114,7 @@ export default function GroceryScreen() {
           </ScrollView>
         </>
       )}
+    </View>
     </View>
   );
 }

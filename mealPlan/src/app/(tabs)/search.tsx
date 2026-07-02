@@ -110,8 +110,9 @@ export default function RecipeSearchScreen() {
   }
 
   return (
-    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
+    <View style={{ flex: 1 }}>
       <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Text style={[typography.headingXl, { color: theme.text }]}>Find Recipes</Text>
@@ -241,6 +242,7 @@ export default function RecipeSearchScreen() {
           ))}
         </ScrollView>
       )}
+    </View>
     </View>
   );
 }

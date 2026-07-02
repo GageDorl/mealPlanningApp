@@ -64,8 +64,9 @@ export default function MacrosScreen() {
   const today = isToday(selectedDate);
 
   return (
-    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
+    <View style={{ flex: 1 }}>
       <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[layout.rowSpaceBetween, { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md }]}>
         <Pressable onPress={goToPrevDay} style={styles.navButton}>
@@ -204,6 +205,7 @@ export default function MacrosScreen() {
         onSelect={goToDate}
         onClose={() => setPickerVisible(false)}
       />
+    </View>
     </View>
   );
 }
