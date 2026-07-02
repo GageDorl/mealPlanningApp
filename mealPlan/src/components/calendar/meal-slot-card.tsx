@@ -30,11 +30,11 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
       >
         <View style={styles.compactRow}>
           {IconComp && <IconComp size={12} color={ICON_COLOR} />}
-          <Text style={[styles.compactLabel, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
+          <Text style={[styles.compactLabel, { color: '#FFFFFF' }]} numberOfLines={1} ellipsizeMode="tail">
             {slot.label}
           </Text>
           {hasRecipes && (
-            <Text style={[styles.compactName, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
+            <Text style={[styles.compactName, { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1} ellipsizeMode="tail">
               {primary!.title}
             </Text>
           )}
@@ -50,33 +50,33 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
     >
       <View style={styles.headerRow}>
         {IconComp && <IconComp size={14} color={ICON_COLOR} />}
-        <Text style={[styles.label, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
+        <Text style={[styles.label, { color: '#FFFFFF' }]} numberOfLines={1} ellipsizeMode="tail">
           {slot.label}
         </Text>
         <Pressable onPress={onDelete} hitSlop={8} style={styles.deleteButton}>
-          <Text style={[styles.deleteIcon, { color: theme.textSecondary }]}>×</Text>
+          <Text style={[styles.deleteIcon, { color: 'rgba(255,255,255,0.70)' }]}>×</Text>
         </Pressable>
       </View>
 
       {hasRecipes ? (
         <>
           <View style={styles.recipeRow}>
-            <Text style={[styles.recipeName, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
+            <Text style={[styles.recipeName, { color: 'rgba(255,255,255,0.92)' }]} numberOfLines={2} ellipsizeMode="tail">
               {primary!.title}
             </Text>
             {extraCount > 0 && (
-              <Text style={[styles.extraBadge, { color: ACCENT }]}>+{extraCount}</Text>
+              <Text style={[styles.extraBadge, { color: 'rgba(255,255,255,0.75)' }]}>+{extraCount}</Text>
             )}
           </View>
           {primary!.calories_per_serving != null && (
-            <Text style={[styles.calHint, { color: theme.textSecondary }]}>
+            <Text style={[styles.calHint, { color: 'rgba(255,255,255,0.80)' }]}>
               {Math.round(primary!.calories_per_serving)} kcal
             </Text>
           )}
         </>
       ) : (
         <Pressable onPress={onAssignRecipe}>
-          <Text style={[styles.emptyState, { color: ACCENT }]}>+ Add recipe</Text>
+          <Text style={[styles.emptyState, { color: 'rgba(255,255,255,0.80)' }]}>+ Add recipe</Text>
         </Pressable>
       )}
     </Pressable>

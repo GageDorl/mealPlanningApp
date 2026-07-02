@@ -52,11 +52,11 @@ export function FoodLogCard({ log, compact = false, onPress, onDelete }: FoodLog
       >
         <View style={styles.compactRow}>
           {IconComp && <IconComp size={12} color={ICON_COLOR} />}
-          <Text style={[styles.compactName, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
+          <Text style={[styles.compactName, { color: '#FFFFFF' }]} numberOfLines={1} ellipsizeMode="tail">
             {summary}
           </Text>
           {cals != null && (
-            <Text style={[styles.compactCals, { color: theme.textSecondary }]}>{cals} kcal</Text>
+            <Text style={[styles.compactCals, { color: 'rgba(255,255,255,0.80)' }]}>{cals} kcal</Text>
           )}
         </View>
       </Pressable>
@@ -70,22 +70,22 @@ export function FoodLogCard({ log, compact = false, onPress, onDelete }: FoodLog
     >
       <View style={styles.headerRow}>
         {IconComp && <IconComp size={14} color={ICON_COLOR} />}
-        <Text style={[styles.label, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
+        <Text style={[styles.label, { color: '#FFFFFF' }]} numberOfLines={1} ellipsizeMode="tail">
           {log.label ?? (itemCount === 1 ? log.items[0].food_name : `${itemCount} items`)}
         </Text>
         <Pressable hitSlop={8} style={styles.deleteButton} onPress={handleDelete}>
-          <Text style={[styles.deleteIcon, { color: theme.textSecondary }]}>×</Text>
+          <Text style={[styles.deleteIcon, { color: 'rgba(255,255,255,0.70)' }]}>×</Text>
         </Pressable>
       </View>
 
       {log.label && (
-        <Text style={[styles.summary, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
+        <Text style={[styles.summary, { color: 'rgba(255,255,255,0.92)' }]} numberOfLines={2} ellipsizeMode="tail">
           {itemCount === 1 ? log.items[0].food_name : `${itemCount} items`}
         </Text>
       )}
 
       {cals != null && (
-        <Text style={[styles.calHint, { color: theme.textSecondary }]}>{cals} kcal</Text>
+        <Text style={[styles.calHint, { color: 'rgba(255,255,255,0.80)' }]}>{cals} kcal</Text>
       )}
     </Pressable>
   );

@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions, type TextStyle, type ViewStyle } from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
+import { WoodTexture } from '@/components/WoodTexture';
 import { FontSizes, MaxContentWidth, Spacing } from '@/constants/theme';
 
 interface ScreenContainerProps {
@@ -20,8 +21,10 @@ interface ScreenTitleProps {
 
 export function ScreenContainer({ children, style }: ScreenContainerProps) {
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   return (
     <View style={[styles.container, { backgroundColor: theme.background }, style]}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       {children}
     </View>
   );
