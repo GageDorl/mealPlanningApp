@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } fr
 import { useFocusEffect } from 'expo-router';
 import { usePowerSync } from '@powersync/react-native';
 import { View, Text, ScrollView, RefreshControl, Pressable, Platform, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { triggerSync } from '@/utils/trigger-sync';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -66,7 +67,7 @@ function isSameDay(a: Date, b: string): boolean {
 export default function WeeklyPlannerScreen() {
   const db = usePowerSync();
   const theme = useTheme();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekPickerVisible, setWeekPickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -496,7 +497,8 @@ export default function WeeklyPlannerScreen() {
   const isCurrentWeek = weekOffset === 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <WoodTexture width={windowWidth} height={windowHeight} style={StyleSheet.absoluteFill} />
       {/* Header — swipe left/right on native; arrow buttons handle web */}
       {Platform.OS !== 'web' ? (
         <GestureDetector gesture={swipeGesture}>

@@ -1,6 +1,7 @@
 
 import { useCallback, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import { triggerSync } from '@/utils/trigger-sync';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
@@ -15,6 +16,7 @@ import { Button } from '@/components/ui/button';
 export default function GroceryScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
   const { state, generating, error, generate, toggleItem } = useGrocery();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -28,7 +30,8 @@ export default function GroceryScreen() {
   const progressPercent = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
 
   return (
-    <View style={[layout.screenContainer, { backgroundColor: theme.background }]}>
+    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       {/* Header */}
       <View style={[layout.rowSpaceBetween, { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }]}>
         <Text style={[typography.headingXl, { color: theme.text }]}>Grocery List</Text>

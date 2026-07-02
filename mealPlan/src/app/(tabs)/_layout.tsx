@@ -1,19 +1,23 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Colors } from '@/constants/theme';
+import { WoodTexture } from '@/components/WoodTexture';
 
 export default function TabLayout() {
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
 
   return (
-    <Tabs
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+      <Tabs
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: theme.background },
         tabBarStyle: {
-          backgroundColor: theme.backgroundElement,
+          backgroundColor: 'transparent',
           borderTopColor: theme.border,
           borderTopWidth: StyleSheet.hairlineWidth,
           height: 64,
@@ -48,7 +52,6 @@ export default function TabLayout() {
         name="calendar"
         options={{
           title: 'Calendar',
-          sceneStyle: undefined,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
           ),
@@ -74,5 +77,6 @@ export default function TabLayout() {
       <Tabs.Screen name="recipes/import" options={{ tabBarItemStyle: { display: 'none' } }} />
       <Tabs.Screen name="recipes/saved" options={{ tabBarItemStyle: { display: 'none' } }} />
     </Tabs>
+    </View>
   );
 }

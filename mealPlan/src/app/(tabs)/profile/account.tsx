@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import { usePowerSync, useQuery } from '@powersync/react-native';
 
@@ -47,6 +48,7 @@ export default function AccountScreen() {
   const db = usePowerSync();
   const router = useRouter();
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const { profile, reload } = useUserProfile();
 
   const [displayName, setDisplayName] = useState('');
@@ -186,9 +188,10 @@ export default function AccountScreen() {
   };
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       <ScrollView
-        style={{ backgroundColor: theme.background }}
+        style={{ backgroundColor: 'transparent' }}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -384,7 +387,7 @@ export default function AccountScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </>
+    </View>
   );
 }
 

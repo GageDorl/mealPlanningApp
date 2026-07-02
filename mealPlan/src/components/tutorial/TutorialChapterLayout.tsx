@@ -49,7 +49,7 @@ export function TutorialChapterLayout({ chapter, onChapterComplete, onSkipTutori
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={styles.container}>
       {/* Skip row — tutorial skip on left, chapter skip on right */}
       <View style={styles.skipRow}>
         {onSkipTutorial ? (

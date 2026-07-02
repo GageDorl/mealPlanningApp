@@ -4,7 +4,8 @@ import { useTheme } from '@/hooks/use-theme';
 import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
 import { ICON_COMPONENTS } from '@/components/ui/icon-picker';
 
-const ACCENT = '#4A90D9';
+const ACCENT = '#6A9EC8';
+const ICON_COLOR = '#FFFFFF';
 
 interface MealSlotCardProps {
   slot: MealSlotWithRecipe;
@@ -24,11 +25,11 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
   if (compact) {
     return (
       <Pressable
-        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
+        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
         onPress={hasRecipes ? onPress : onAssignRecipe}
       >
         <View style={styles.compactRow}>
-          {IconComp && <IconComp size={12} color={ACCENT} />}
+          {IconComp && <IconComp size={12} color={ICON_COLOR} />}
           <Text style={[styles.compactLabel, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
             {slot.label}
           </Text>
@@ -44,11 +45,11 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
 
   return (
     <Pressable
-      style={[styles.block, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
+      style={[styles.block, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
       onPress={hasRecipes ? onPress : onAssignRecipe}
     >
       <View style={styles.headerRow}>
-        {IconComp && <IconComp size={14} color={ACCENT} />}
+        {IconComp && <IconComp size={14} color={ICON_COLOR} />}
         <Text style={[styles.label, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
           {slot.label}
         </Text>

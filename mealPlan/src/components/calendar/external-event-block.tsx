@@ -27,11 +27,13 @@ export function ExternalEventBlock({ event, compact = false, onPress }: External
   );
 }
 
+const ACCENT = '#6A9EC8';
+
 const styles = StyleSheet.create({
   block: {
-    backgroundColor: 'rgba(74, 144, 217, 0.4)',
+    backgroundColor: `${ACCENT}BB`,
     borderLeftWidth: 3,
-    borderLeftColor: '#4A90D9',
+    borderLeftColor: ACCENT,
     borderRadius: BorderRadius.sm,
     padding: Spacing.xs,
     flex: 1,
@@ -42,11 +44,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSizes.xs,
     fontWeight: '500',
-    color: '#4A90D9',
+    color: '#FFFFFF',
   } as TextStyle,
   time: {
     fontSize: 10,
-    color: '#6BA3DE',
+    color: 'rgba(255,255,255,0.80)',
     marginTop: 1,
   } as TextStyle,
 });
