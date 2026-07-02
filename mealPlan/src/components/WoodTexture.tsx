@@ -36,7 +36,8 @@ export function WoodTexture({ width, height, style, children }: Props) {
               <Stop offset="0"    stopColor={sheenTopColor} stopOpacity={sheenTopOpacity} />
               <Stop offset="0.45" stopColor={sheenTopColor} stopOpacity={0} />
               <Stop offset="0.55" stopColor={sheenBotColor} stopOpacity={0} />
-              <Stop offset="1"    stopColor={sheenBotColor} stopOpacity={sheenBotOpacity} />
+              <Stop offset="0.84" stopColor={sheenBotColor} stopOpacity={sheenBotOpacity} />
+              <Stop offset="1"    stopColor={sheenBotColor} stopOpacity={0} />
             </LinearGradient>
           </Defs>
           <Rect x={0} y={0} width={width} height={height} fill="url(#sheen)" />
