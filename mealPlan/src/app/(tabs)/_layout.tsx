@@ -20,6 +20,7 @@ export default function TabLayout() {
         sceneStyle: { backgroundColor: theme.background },
         tabBarStyle: {
           backgroundColor: 'transparent',
+          elevation: 0,
           borderTopColor: theme.border,
           borderTopWidth: StyleSheet.hairlineWidth,
           height: 64,
