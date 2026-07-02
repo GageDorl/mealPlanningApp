@@ -3,7 +3,7 @@ import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-nativ
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { usePowerSync } from '@powersync/react-native';
 
-import { supabase, getCachedUserId, getCurrentSession } from '@/services/supabase';
+import { supabase, getCachedUserId, getCurrentSession, consumePendingRecovery } from '@/services/supabase';
 import { createUserProfile, getProfile } from '@/services/user-service';
 import { Spacing } from '@/constants/theme';
 import type { User } from '@supabase/supabase-js';
@@ -28,14 +28,36 @@ export default function AuthCallbackScreen() {
 
   useEffect(() => {
     let cancelled = false;
+    let isPasswordRecovery = false;
+
+    // Track PASSWORD_RECOVERY event across both web (auto-exchange) and native
+    // (manual exchangeCodeForSession). Must be set up before any exchange occurs.
+    const { data: { subscription: pwRecoverySub } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') isPasswordRecovery = true;
+    });
+    let pwRecoveryUnsubbed = false;
+    const unsubPwRecovery = () => {
+      if (!pwRecoveryUnsubbed) { pwRecoveryUnsubbed = true; pwRecoverySub.unsubscribe(); }
+    };
 
     const finishSignIn = async () => {
+      // On web, detectSessionInUrl exchanges the recovery code before this
+      // component mounts, so PASSWORD_RECOVERY fires before pwRecoverySub is
+      // registered. consumePendingRecovery() reads the flag set by the
+      // module-level listener in supabase.ts and clears it so it can't affect
+      // a future sign-in.
+      if (consumePendingRecovery()) {
+        unsubPwRecovery();
+        if (!cancelled) router.replace('/auth/reset-password');
+        return;
+      }
+
       try {
         let user: User | null = null;
 
         if (Platform.OS === 'web') {
           // Supabase JS v2 auto-exchanges ?code= via detectSessionInUrl on init.
-          // Wait for SIGNED_IN event, or resolve immediately if it already fired.
+          // Wait for SIGNED_IN / PASSWORD_RECOVERY event, or resolve immediately if already fired.
           await new Promise<void>((resolve, reject) => {
             let settled = false;
             let sub: { unsubscribe: () => void } | null = null;
@@ -58,6 +80,7 @@ export default function AuthCallbackScreen() {
 
             const { data: { subscription } } = supabase.auth.onAuthStateChange(
               (_event, session) => {
+                if (_event === 'PASSWORD_RECOVERY') isPasswordRecovery = true;
                 if (session) { user = session.user; finish(resolve); }
               },
             );
@@ -91,8 +114,15 @@ export default function AuthCallbackScreen() {
           }
         }
 
+        unsubPwRecovery();
+
         if (!user) {
           throw new Error(`No session. code=${!!code} token=${!!access_token} cached=${!!getCachedUserId()} url=${typeof window !== 'undefined' ? window.location.href : 'n/a'}`);
+        }
+
+        if (isPasswordRecovery) {
+          if (!cancelled) router.replace('/auth/reset-password');
+          return;
         }
 
         const existingProfile = await getProfile(user.id);
@@ -128,6 +158,7 @@ export default function AuthCallbackScreen() {
           router.replace((existingProfile.user.onboarding_completed ? '/' : '/(tutorial)') as any);
         }
       } catch (callbackError) {
+        unsubPwRecovery();
         if (!cancelled) {
           setError(callbackError instanceof Error ? callbackError.message : 'Failed to finish sign-in.');
         }
@@ -138,6 +169,7 @@ export default function AuthCallbackScreen() {
 
     return () => {
       cancelled = true;
+      unsubPwRecovery();
     };
   }, [db, router, code, access_token, refresh_token, errParam, error_description]);
 

@@ -1,5 +1,6 @@
 ﻿import { useState } from 'react';
 import { Link, useRouter } from 'expo-router';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 import { usePowerSync } from '@powersync/react-native';
 
 import { Button } from '@/components/ui/button';
@@ -126,6 +127,11 @@ export default function SignInScreen() {
         secureTextEntry
         style={authStyles.input}
       />
+      <View style={styles.forgotRow}>
+        <Link href="/forgot-password">
+          <ThemedText type="linkPrimary">Forgot password?</ThemedText>
+        </Link>
+      </View>
       {error ? <ThemedText type="default" style={authStyles.error}>{error}</ThemedText> : null}
       <Button label={loading ? 'Signing in…' : 'Sign in'} onPress={handleSignIn} disabled={loading} />
       <Button
@@ -146,3 +152,11 @@ export default function SignInScreen() {
     </AuthScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  forgotRow: {
+    width: '100%',
+    alignItems: 'flex-end',
+    marginBottom: 4,
+  } as ViewStyle,
+});
