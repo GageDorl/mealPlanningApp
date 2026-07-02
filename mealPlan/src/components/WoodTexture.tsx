@@ -16,8 +16,10 @@ export function WoodTexture({ width, height, style, children }: Props) {
   const colorScheme = useColorScheme();
   const dark = colorScheme === 'dark';
 
-  const sheenTop    = dark ? 'rgba(255,210,120,0.06)' : 'rgba(255,255,255,0.22)';
-  const sheenBottom = dark ? 'rgba(0,0,0,0.28)'       : 'rgba(0,0,0,0.08)';
+  const sheenTopColor    = dark ? 'rgb(255,210,120)' : 'rgb(255,255,255)';
+  const sheenTopOpacity  = dark ? 0.06 : 0.22;
+  const sheenBotColor    = 'rgb(0,0,0)';
+  const sheenBotOpacity  = dark ? 0.28 : 0.08;
 
   return (
     <ImageBackground
@@ -31,9 +33,10 @@ export function WoodTexture({ width, height, style, children }: Props) {
         <Svg width={width} height={height}>
           <Defs>
             <LinearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0"    stopColor={sheenTop}    stopOpacity="1" />
-              <Stop offset="0.45" stopColor="transparent" stopOpacity="0" />
-              <Stop offset="1"    stopColor={sheenBottom} stopOpacity="1" />
+              <Stop offset="0"    stopColor={sheenTopColor} stopOpacity={sheenTopOpacity} />
+              <Stop offset="0.45" stopColor={sheenTopColor} stopOpacity={0} />
+              <Stop offset="0.55" stopColor={sheenBotColor} stopOpacity={0} />
+              <Stop offset="1"    stopColor={sheenBotColor} stopOpacity={sheenBotOpacity} />
             </LinearGradient>
           </Defs>
           <Rect x={0} y={0} width={width} height={height} fill="url(#sheen)" />
@@ -51,8 +54,5 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   image: {
     opacity: 1,
-    // Anchor to bottom-center — grain reads from the floor up
-    top: undefined,
-    bottom: 0,
   } as ImageStyle,
 });
