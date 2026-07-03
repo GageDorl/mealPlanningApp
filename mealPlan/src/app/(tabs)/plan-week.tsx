@@ -33,15 +33,37 @@ function weekStartForDate(dateStr: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// "buy" items get matched to a real FatSecret product (top search result) so macros are
-// accurate; anything unmatched (or a "cook" item, which won't be in a nutrition database)
-// falls back to Claude's estimate.
+interface PsDb {
+  getAll<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
+}
+
+async function nextSlotDisplayOrder(db: PsDb, mealPlanId: string, date: string): Promise<number> {
+  const rows = await db.getAll<{ display_order: number }>(
+    'SELECT display_order FROM meal_slots WHERE meal_plan_id = ? AND date = ? ORDER BY display_order DESC LIMIT 1',
+    [mealPlanId, date],
+  );
+  return (rows[0]?.display_order ?? -1) + 1;
+}
+
+// lookupIngredient() merges personal-library and community results ahead of raw FatSecret
+// hits, prefixing their ids with "personal:"/"public:" respectively — unprefix and relabel
+// so source/source_id correctly reflect where the match actually came from.
+function classifyMatch(id: string): { source: 'library' | 'community' | 'fatsecret'; source_id: string } {
+  if (id.startsWith('personal:')) return { source: 'library', source_id: id.slice('personal:'.length) };
+  if (id.startsWith('public:')) return { source: 'community', source_id: id.slice('public:'.length) };
+  return { source: 'fatsecret', source_id: id };
+}
+
+// "buy" items get matched to a real food (personal library, community, or FatSecret — top
+// search result) so macros are accurate; anything unmatched (or a "cook" item, which won't
+// be in a nutrition database) falls back to Claude's estimate.
 async function matchItemToFood(item: WeeklyMealItem, db: Parameters<typeof lookupIngredient>[2]): Promise<MealSlotFoodInput> {
   if (item.type === 'buy') {
     try {
       const response = await lookupIngredient(item.name, 1, db);
       const top = response.results[0];
       if (top) {
+        const { source, source_id } = classifyMatch(top.id);
         return {
           food_name: top.name,
           brand_name: top.brand_name ?? null,
@@ -52,8 +74,8 @@ async function matchItemToFood(item: WeeklyMealItem, db: Parameters<typeof looku
           protein: top.proteinPerServing ?? top.proteinPer100g,
           carbs: top.carbsPerServing ?? top.carbsPer100g,
           fat: top.fatPerServing ?? top.fatPer100g,
-          source: 'fatsecret',
-          source_id: top.id,
+          source,
+          source_id,
         };
       }
     } catch {
@@ -127,17 +149,20 @@ export default function PlanWeekScreen() {
     const targetDate = dateForDay(suggestion.day);
     const weekStart = weekStartForDate(targetDate);
     const mealPlanId = await mealPlanService.ensureMealPlan(db, userId, weekStart);
+    const displayOrder = await nextSlotDisplayOrder(db, mealPlanId, targetDate);
     const slot = await mealPlanService.createSlot(db, {
       mealPlanId,
       label: suggestion.meal_label,
       date: targetDate,
-      displayOrder: 0,
+      displayOrder,
       icon: null,
     });
-    await Promise.all(suggestion.items.map(async (item) => {
+    // Sequential, not Promise.all — addFoodToSlot reads the current max display_order
+    // before inserting, so concurrent calls would race and collide on the same order.
+    for (const item of suggestion.items) {
       const input = await matchItemToFood(item, db);
       await mealPlanService.addFoodToSlot(db, slot.id, input);
-    }));
+    }
   }, [db]);
 
   const handleAddToCalendar = useCallback(async (suggestion: WeekSuggestionItem) => {
@@ -157,7 +182,11 @@ export default function PlanWeekScreen() {
     setAddingAll(true);
     setError(null);
     try {
-      await Promise.all(suggestions.map((s) => addSuggestionToSlot(s)));
+      // Sequential — parallel createSlot calls for the same day would race on
+      // nextSlotDisplayOrder and could collide on the same display_order.
+      for (const s of suggestions) {
+        await addSuggestionToSlot(s);
+      }
       setSuggestions([]);
     } catch (err) {
       setError((err as Error).message ?? 'Failed to add meals to your calendar');

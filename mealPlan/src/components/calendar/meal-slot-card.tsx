@@ -24,9 +24,11 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
   const primaryFood = slot.foods[0] ?? null;
   const primaryName = primary?.title ?? primaryFood?.food_name ?? '';
   const extraCount = slot.recipes.length + slot.foods.length - 1;
-  const totalCalories = hasRecipes
-    ? primary?.calories_per_serving ?? null
-    : slot.foods.reduce((sum, f) => sum + (f.calories ?? 0) * (f.servings_planned || 1), 0);
+  const knownCalories = [
+    ...slot.recipes.filter((r) => r.recipe.calories_per_serving != null).map((r) => r.recipe.calories_per_serving as number),
+    ...slot.foods.filter((f) => f.calories != null).map((f) => (f.calories as number) * (f.servings_planned || 1)),
+  ];
+  const totalCalories = knownCalories.length > 0 ? knownCalories.reduce((sum, c) => sum + c, 0) : null;
   const IconComp = slot.icon ? ICON_COMPONENTS[slot.icon] : null;
 
   if (compact) {
