@@ -48,6 +48,13 @@ export function clampMinutes(minutes: number): number {
   return Math.max(START_HOUR * 60, Math.min((END_HOUR + 1) * 60, minutes));
 }
 
+// clampMinutes allows up to (END_HOUR + 1) * 60 = 1440 — correct for rendering (the bottom
+// pixel edge of the grid), but "24:00" is not a valid time_of_day. Use this instead wherever
+// the clamped value is about to be formatted/persisted as an actual clock time.
+export function clampSlotMinutes(minutes: number): number {
+  return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 + 45, minutes));
+}
+
 // Static memoized hour lines — only re-renders if the theme color strings change.
 const HourGrid = memo(function HourGrid({ borderColor, textColor, hourHeight }: { borderColor: string; textColor: string; hourHeight: number }) {
   return (

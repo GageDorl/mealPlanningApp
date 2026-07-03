@@ -20,7 +20,7 @@ import {
   MIN_HOUR_HEIGHT,
   MAX_HOUR_HEIGHT,
   parseTimeToMinutes,
-  clampMinutes,
+  clampSlotMinutes,
   formatMinutes24,
 } from '@/components/calendar/day-column';
 import { WeekEventsOverlay, type DayData } from '@/components/calendar/week-events-overlay';
@@ -474,7 +474,7 @@ export default function WeeklyPlannerScreen() {
     // ScrollView) path.
     const scrollY = isNarrow ? panCurrentXY.current.y : -wideScrollYRef.current;
     const contentY = absoluteY - gridViewportPageY.current - scrollY;
-    return clampMinutes(Math.round((START_HOUR * 60 + (contentY / hourHeight) * 60) / 15) * 15);
+    return clampSlotMinutes(Math.round((START_HOUR * 60 + (contentY / hourHeight) * 60) / 15) * 15);
   }, [isNarrow, hourHeight]);
 
   const handleSlotCrossDragStart = useCallback((slotId: string) => {

@@ -6,7 +6,7 @@ import { ExternalEventBlock } from './external-event-block';
 import { MealSlotCard } from './meal-slot-card';
 import { FoodLogCard } from './food-log-card';
 import {
-  minutesToY, parseTimeToMinutes, formatMinutes24, clampMinutes,
+  minutesToY, parseTimeToMinutes, formatMinutes24, clampMinutes, clampSlotMinutes,
   DEFAULT_HOUR_HEIGHT, START_HOUR, END_HOUR, GRID_HEIGHT, DEFAULT_SLOT_DURATION,
 } from './day-column';
 import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
@@ -68,7 +68,7 @@ function DraggableFoodLog({
       .onUpdate((e) => {
         const rawDelta = (e.translationY / hourHeight) * 60;
         const snapped = Math.round(rawDelta / 15) * 15;
-        const newMin = clampMinutes(startMin + snapped);
+        const newMin = clampSlotMinutes(startMin + snapped);
         dragMinRef.current = newMin;
         onDragUpdate(log.id, newMin);
       })
@@ -134,7 +134,7 @@ function DraggableMealSlot({
       .onUpdate((e) => {
         const rawDelta = (e.translationY / hourHeight) * 60;
         const snapped = Math.round(rawDelta / 15) * 15;
-        const newMin = clampMinutes(startMin + snapped);
+        const newMin = clampSlotMinutes(startMin + snapped);
         dragMinRef.current = newMin;
         onDragUpdate(slot.id, newMin);
       })
@@ -361,7 +361,7 @@ function DayEventsColumn({
             ? (e.nativeEvent as unknown as { offsetY: number }).offsetY
             : e.nativeEvent.locationY;
           const mins = Math.round((START_HOUR * 60 + (y / hourHeight) * 60) / 15) * 15;
-          onAddSlot(day.date, formatMinutes24(clampMinutes(mins)));
+          onAddSlot(day.date, formatMinutes24(clampSlotMinutes(mins)));
         }}
       />
 
