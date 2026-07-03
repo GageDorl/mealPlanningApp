@@ -3,12 +3,11 @@ import {
   View, Text, Pressable, ActivityIndicator, TextInput, Modal,
   StyleSheet, type ViewStyle, type TextStyle,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useDispatch } from 'react-redux';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useFoodSuggestions } from '@/hooks/use-food-suggestions';
-import { setPendingLogSuggestion } from '@/store/slices/food-suggestions-slice';
+import { openAddModal } from '@/store/slices/add-meal-slot-slice';
 import { IconPicker } from '@/components/ui/icon-picker';
 import type { AppDispatch } from '@/store';
 import type { FoodSuggestion } from '@/services/food-suggestions-service';
@@ -41,7 +40,6 @@ export function FoodSuggestionsCard({
   hasGoals,
 }: FoodSuggestionsCardProps) {
   const theme = useTheme()
-  const router = useRouter()
   const dispatch = useDispatch<AppDispatch>()
 
   const { suggestions, status, error, isOffline, eligible, loadSuggestions, refresh } =
@@ -71,10 +69,24 @@ export function FoodSuggestionsCard({
 
   const confirmLog = useCallback(() => {
     if (!pickerTarget) return
-    dispatch(setPendingLogSuggestion({ ...pickerTarget, pendingLabel: pickerLabel, pendingIcon: pickerIcon }))
+    const today = new Date()
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    dispatch(openAddModal({
+      date: todayStr,
+      suggestion: {
+        food_name: pickerTarget.name,
+        brand_name: pickerTarget.brand || undefined,
+        calories: String(pickerTarget.calories),
+        protein: String(pickerTarget.protein),
+        carbs: String(pickerTarget.carbs),
+        fat: String(pickerTarget.fat),
+        searchQuery: [pickerTarget.name, pickerTarget.brand].filter(Boolean).join(' '),
+        label: pickerLabel,
+        icon: pickerIcon,
+      },
+    }))
     setPickerTarget(null)
-    router.push('/(tabs)/calendar')
-  }, [pickerTarget, pickerLabel, pickerIcon, dispatch, router])
+  }, [pickerTarget, pickerLabel, pickerIcon, dispatch])
 
   // Goals met — show positive message
   if (hasGoals && isToday(date) && remainingCalories <= 150) {
