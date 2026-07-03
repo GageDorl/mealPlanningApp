@@ -1,5 +1,6 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { MealSlotCard } from './meal-slot-card';
@@ -47,6 +48,13 @@ export function clampMinutes(minutes: number): number {
   return Math.max(START_HOUR * 60, Math.min((END_HOUR + 1) * 60, minutes));
 }
 
+// clampMinutes allows up to (END_HOUR + 1) * 60 = 1440 — correct for rendering (the bottom
+// pixel edge of the grid), but "24:00" is not a valid time_of_day. Use this instead wherever
+// the clamped value is about to be formatted/persisted as an actual clock time.
+export function clampSlotMinutes(minutes: number): number {
+  return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 + 45, minutes));
+}
+
 // Static memoized hour lines — only re-renders if the theme color strings change.
 const HourGrid = memo(function HourGrid({ borderColor, textColor, hourHeight }: { borderColor: string; textColor: string; hourHeight: number }) {
   return (
@@ -80,6 +88,56 @@ export function DayHeader({ dayIndex, date, isToday }: { dayIndex: number; date:
   );
 }
 
+/**
+ * Wraps a compact, untimed MealSlotCard with a long-press-then-pan gesture so it can be
+ * dragged out of the all-day row and dropped onto the timed grid below (which lives in a
+ * different, possibly scrolled/zoomed viewport — see calendar.tsx's cross-drag handlers for
+ * the absolute-coordinate math). Reports raw screen coordinates; has no opinion on time.
+ */
+function CrossDraggableSlot({
+  slot,
+  isDragging,
+  onPress,
+  onAssignRecipe,
+  onDelete,
+  onCrossDragStart,
+  onCrossDragUpdate,
+  onCrossDragEnd,
+}: {
+  slot: MealSlotWithRecipe;
+  isDragging: boolean;
+  onPress: () => void;
+  onAssignRecipe: () => void;
+  onDelete: () => void;
+  onCrossDragStart: (slotId: string) => void;
+  onCrossDragUpdate: (slotId: string, absoluteY: number) => void;
+  onCrossDragEnd: (slotId: string, absoluteY: number, success: boolean) => void;
+}) {
+  const gesture = useMemo(() =>
+    Gesture.Pan()
+      .runOnJS(true)
+      .activateAfterLongPress(350)
+      .onStart(() => {
+        onCrossDragStart(slot.id);
+      })
+      .onUpdate((e) => {
+        onCrossDragUpdate(slot.id, e.absoluteY);
+      })
+      .onFinalize((e, success) => {
+        onCrossDragEnd(slot.id, e.absoluteY, success);
+      }),
+    [slot.id, onCrossDragStart, onCrossDragUpdate, onCrossDragEnd],
+  );
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <View style={{ flex: 1, opacity: isDragging ? 0.3 : 1 }}>
+        <MealSlotCard slot={slot} compact onPress={onPress} onAssignRecipe={onAssignRecipe} onDelete={onDelete} />
+      </View>
+    </GestureDetector>
+  );
+}
+
 /** All-day events + untimed meal slots + untimed food logs row above the scroll area. */
 export function AllDayCell({
   events,
@@ -91,6 +149,10 @@ export function AllDayCell({
   onDeleteFoodLog,
   onFoodLogPress,
   onSlotPress,
+  onSlotCrossDragStart,
+  onSlotCrossDragUpdate,
+  onSlotCrossDragEnd,
+  draggingSlotId,
 }: {
   events: CalendarEvent[];
   untimedSlots?: MealSlotWithRecipe[];
@@ -101,6 +163,10 @@ export function AllDayCell({
   onDeleteFoodLog?: (id: string) => void;
   onFoodLogPress?: (log: FoodLogWithItems) => void;
   onSlotPress?: (slot: MealSlotWithRecipe) => void;
+  onSlotCrossDragStart?: (slotId: string) => void;
+  onSlotCrossDragUpdate?: (slotId: string, absoluteY: number) => void;
+  onSlotCrossDragEnd?: (slotId: string, absoluteY: number, success: boolean) => void;
+  draggingSlotId?: string | null;
 }) {
   const theme = useTheme();
   return (
@@ -111,14 +177,28 @@ export function AllDayCell({
         </Pressable>
       ))}
       {untimedSlots.map((slot) => (
-        <MealSlotCard
-          key={slot.id}
-          slot={slot}
-          compact
-          onPress={() => onSlotPress?.(slot)}
-          onAssignRecipe={() => onAssignRecipe?.(slot.id)}
-          onDelete={() => onDeleteSlot?.(slot.id)}
-        />
+        onSlotCrossDragStart && onSlotCrossDragUpdate && onSlotCrossDragEnd ? (
+          <CrossDraggableSlot
+            key={slot.id}
+            slot={slot}
+            isDragging={draggingSlotId === slot.id}
+            onPress={() => onSlotPress?.(slot)}
+            onAssignRecipe={() => onAssignRecipe?.(slot.id)}
+            onDelete={() => onDeleteSlot?.(slot.id)}
+            onCrossDragStart={onSlotCrossDragStart}
+            onCrossDragUpdate={onSlotCrossDragUpdate}
+            onCrossDragEnd={onSlotCrossDragEnd}
+          />
+        ) : (
+          <MealSlotCard
+            key={slot.id}
+            slot={slot}
+            compact
+            onPress={() => onSlotPress?.(slot)}
+            onAssignRecipe={() => onAssignRecipe?.(slot.id)}
+            onDelete={() => onDeleteSlot?.(slot.id)}
+          />
+        )
       ))}
       {untimedFoodLogs.map((log) => (
         <FoodLogCard

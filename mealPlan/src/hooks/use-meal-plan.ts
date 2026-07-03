@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { usePowerSync, useQuery } from '@powersync/react-native';
 import { getCachedUserId } from '@/services/supabase';
 import * as mealPlanService from '@/services/meal-plan-service';
@@ -92,7 +92,7 @@ const SLOT_QUERY = `
   FROM meal_slots ms
   LEFT JOIN meal_slot_recipes msr ON msr.meal_slot_id = ms.id
   LEFT JOIN recipes r ON r.id = msr.recipe_id
-  WHERE ms.meal_plan_id = ?
+  WHERE ms.meal_plan_id IN (__MEAL_PLAN_IDS__)
   ORDER BY ms.date, ms.display_order, msr.display_order
 `;
 
@@ -134,7 +134,7 @@ const FOOD_QUERY = `
     msf.created_at, msf.updated_at
   FROM meal_slot_foods msf
   JOIN meal_slots ms ON ms.id = msf.meal_slot_id
-  WHERE ms.meal_plan_id = ?
+  WHERE ms.meal_plan_id IN (__MEAL_PLAN_IDS__)
   ORDER BY msf.meal_slot_id, msf.display_order
 `;
 
@@ -143,27 +143,30 @@ export function useMealPlan(weekStart: Date) {
   const userId = getCachedUserId() ?? '';
   const weekStartStr = getWeekStart(weekStart);
 
+  // ensureMealPlan's local-cache existence check races against sync — offline-first apps
+  // routinely end up with more than one meal_plans row for the same (user_id, week_start).
+  // Rather than assume there's exactly one, fetch every matching row and merge their slots.
+  // The oldest is treated as canonical for new writes so we stop compounding the problem.
   const { data: planRows } = useQuery<PlanRow>(
-    'SELECT * FROM meal_plans WHERE user_id = ? AND week_start = ? ORDER BY created_at ASC LIMIT 1',
+    'SELECT * FROM meal_plans WHERE user_id = ? AND week_start = ? ORDER BY created_at ASC',
     [userId, weekStartStr],
   );
   const mealPlanRow = planRows[0];
+  const mealPlanIds = useMemo(() => planRows.map((p) => p.id), [planRows]);
+  const mealPlanIdsKey = mealPlanIds.join(',');
 
-  const { data: slotRows } = useQuery<FlatSlotRow>(
-    SLOT_QUERY,
-    [mealPlanRow?.id ?? ''],
+  const slotSql = useMemo(
+    () => SLOT_QUERY.replace('__MEAL_PLAN_IDS__', mealPlanIds.map(() => '?').join(',') || 'NULL'),
+    [mealPlanIdsKey],
+  );
+  const foodSql = useMemo(
+    () => FOOD_QUERY.replace('__MEAL_PLAN_IDS__', mealPlanIds.map(() => '?').join(',') || 'NULL'),
+    [mealPlanIdsKey],
   );
 
-  const { data: foodRows } = useQuery<FlatFoodRow>(
-    FOOD_QUERY,
-    [mealPlanRow?.id ?? ''],
-  );
+  const { data: slotRows } = useQuery<FlatSlotRow>(slotSql, mealPlanIds);
 
-  // Auto-create a meal plan for this week if none exists in local SQLite
-  useEffect(() => {
-    if (!userId || mealPlanRow) return;
-    mealPlanService.ensureMealPlan(db, userId, weekStartStr);
-  }, [userId, weekStartStr, mealPlanRow, db]);
+  const { data: foodRows } = useQuery<FlatFoodRow>(foodSql, mealPlanIds);
 
   const weekPlan = useMemo<WeekPlan | null>(() => {
     if (!mealPlanRow) return null;
@@ -270,14 +273,18 @@ export function useMealPlan(weekStart: Date) {
 
   const createSlot = useCallback(
     async (params: { label: string; date: string; time?: string; displayOrder: number; icon?: string | null }): Promise<string | null> => {
-      if (!weekPlan) return null;
+      if (!userId) return null;
+      // Lazily ensure the plan exists here, at the point of an actual write, rather than
+      // eagerly on every mount — the latter is what caused the local-cache/sync race to spam
+      // duplicate meal_plans rows just from viewing a week with nothing in it yet.
+      const mealPlanId = mealPlanRow?.id ?? await mealPlanService.ensureMealPlan(db, userId, weekStartStr);
       const slot = await mealPlanService.createSlot(db, {
-        mealPlanId: weekPlan.mealPlan.id,
+        mealPlanId,
         ...params,
       });
       return slot.id;
     },
-    [db, weekPlan],
+    [db, userId, weekStartStr, mealPlanRow],
   );
 
   const addRecipeToSlot = useCallback(async (slotId: string, recipeId: string) => {

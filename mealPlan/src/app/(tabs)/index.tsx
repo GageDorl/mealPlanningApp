@@ -40,7 +40,7 @@ export default function HomeScreen() {
   const isAdmin = role === 'admin';
   const { recipes: topRecipes } = useTopRecipes();
   const { dailyProgress, refresh: refreshMacros } = useMacros(TODAY_DATE);
-  const { state: grocery, refresh: refreshGrocery } = useGrocery();
+  const { state: grocery, refresh: refreshGrocery } = useGrocery(TODAY_DATE);
   const { connected: calendarConnected } = useCalendar();
 
   const { isRefreshing, triggerRefresh } = useRefresh();
