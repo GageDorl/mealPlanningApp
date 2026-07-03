@@ -18,11 +18,14 @@ function totalCalories(log: FoodLogWithItems): number | null {
 interface FoodLogCardProps {
   log: FoodLogWithItems;
   compact?: boolean;
+  // See MealSlotCard's growToFill for why this matters — flex:1 only makes sense inside an
+  // ancestor with a definite height (the timed grid), not the all-day row's auto-height stack.
+  growToFill?: boolean;
   onPress: () => void;
   onDelete: () => void;
 }
 
-export function FoodLogCard({ log, compact = false, onPress, onDelete }: FoodLogCardProps) {
+export function FoodLogCard({ log, compact = false, growToFill = true, onPress, onDelete }: FoodLogCardProps) {
   const theme = useTheme();
   const cals = totalCalories(log);
   const itemCount = log.items.length;
@@ -47,7 +50,7 @@ export function FoodLogCard({ log, compact = false, onPress, onDelete }: FoodLog
   if (compact) {
     return (
       <Pressable
-        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
+        style={[styles.block, styles.blockCompact, !growToFill && styles.blockAuto, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
         onPress={onPress}
       >
         <View style={styles.compactRow}>
@@ -98,6 +101,11 @@ const styles = StyleSheet.create({
     padding: Spacing.xs,
     flex: 1,
     minHeight: 36,
+  } as ViewStyle,
+  blockAuto: {
+    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
   } as ViewStyle,
   blockCompact: {
     justifyContent: 'center',
