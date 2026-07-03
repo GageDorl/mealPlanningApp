@@ -47,6 +47,9 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
               {primaryName}
             </Text>
           )}
+          <Pressable onPress={onDelete} hitSlop={8} style={styles.deleteButtonCompact}>
+            <Text style={[styles.deleteIcon, { color: 'rgba(255,255,255,0.70)' }]}>×</Text>
+          </Pressable>
         </View>
       </Pressable>
     );
@@ -131,6 +134,9 @@ const styles = StyleSheet.create({
   deleteButton: {
     flexShrink: 0,
     marginLeft: 2,
+  } as ViewStyle,
+  deleteButtonCompact: {
+    flexShrink: 0,
   } as ViewStyle,
   deleteIcon: {
     fontSize: 14,

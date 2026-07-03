@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Modal, View, Text, Pressable, TextInput, ScrollView, StyleSheet, Platform, type ViewStyle, type TextStyle } from 'react-native';
+import { Modal, View, Text, Pressable, TextInput, ScrollView, StyleSheet, Platform, Alert, type ViewStyle, type TextStyle } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
@@ -15,6 +15,7 @@ interface MealSlotDetailModalProps {
   onSaveRecipeServings: (slotRecipeId: string, servings: number | null) => void;
   onRemoveFood?: (slotFoodId: string) => void;
   onUpdateSlot?: (slotId: string, patch: { label?: string; time_of_day?: string | null; icon?: string | null }) => void;
+  onDeleteSlot?: (slotId: string) => void;
 }
 
 function parse24to12(time24: string | null): { hour: number; min: 0 | 15 | 30 | 45 } {
@@ -113,7 +114,7 @@ function FoodRow({ entry, onRemove }: { entry: MealSlotFoodEntry; onRemove: () =
   );
 }
 
-export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe, onSaveRecipeServings, onRemoveFood, onUpdateSlot }: MealSlotDetailModalProps) {
+export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe, onSaveRecipeServings, onRemoveFood, onUpdateSlot, onDeleteSlot }: MealSlotDetailModalProps) {
   const theme = useTheme();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -135,6 +136,21 @@ export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe
     setEditHour(parsed.hour);
     setEditMin(parsed.min);
     setEditing(true);
+  }
+
+  function handleDeleteSlot() {
+    if (!onDeleteSlot) return;
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete this meal slot?')) {
+        onDeleteSlot(slot!.id);
+        onClose();
+      }
+    } else {
+      Alert.alert('Delete meal slot?', 'This will remove it from your calendar.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => { onDeleteSlot(slot!.id); onClose(); } },
+      ]);
+    }
   }
 
   function commitEdit() {
@@ -246,8 +262,13 @@ export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe
                 </Pressable>
               </ScrollView>
 
-              <View style={styles.footer}>
-                <Pressable style={[styles.doneBtn, { backgroundColor: Colors.accent }]} onPress={onClose}>
+              <View style={[styles.footer, styles.footerRow]}>
+                {onDeleteSlot && (
+                  <Pressable style={[styles.doneBtn, styles.deleteBtn, { flex: 1 }]} onPress={handleDeleteSlot}>
+                    <Text style={[styles.doneBtnText, styles.deleteBtnText]}>Delete Slot</Text>
+                  </Pressable>
+                )}
+                <Pressable style={[styles.doneBtn, { backgroundColor: Colors.accent, flex: 1 }]} onPress={onClose}>
                   <Text style={styles.doneBtnText}>Done</Text>
                 </Pressable>
               </View>
@@ -443,6 +464,10 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingTop: Spacing.sm,
   } as ViewStyle,
+  footerRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  } as ViewStyle,
   doneBtn: {
     borderRadius: BorderRadius.full,
     paddingVertical: Spacing.sm,
@@ -452,5 +477,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: FontSizes.sm,
     fontWeight: '700',
+  } as TextStyle,
+  deleteBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#E53E3E',
+  } as ViewStyle,
+  deleteBtnText: {
+    color: '#E53E3E',
   } as TextStyle,
 });

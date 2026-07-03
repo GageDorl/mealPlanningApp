@@ -20,6 +20,8 @@ import {
   MIN_HOUR_HEIGHT,
   MAX_HOUR_HEIGHT,
   parseTimeToMinutes,
+  clampMinutes,
+  formatMinutes24,
 } from '@/components/calendar/day-column';
 import { WeekEventsOverlay, type DayData } from '@/components/calendar/week-events-overlay';
 import { RecipePickerModal } from '@/components/calendar/recipe-picker-modal';
@@ -64,6 +66,14 @@ function dateToString(date: Date): string {
 
 function isSameDay(a: Date, b: string): boolean {
   return dateToString(a) === b;
+}
+
+function formatDropTime(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const display = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${display}:${String(m).padStart(2, '0')} ${suffix}`;
 }
 
 export default function WeeklyPlannerScreen() {
@@ -128,6 +138,22 @@ export default function WeeklyPlannerScreen() {
 
   // Wide path: vertical scroll ref
   const verticalScrollRef = useRef<ScrollView>(null);
+  const wideScrollYRef = useRef(0);
+
+  // Cross-section drag: untimed slot (all-day row) dragged onto the timed grid below.
+  // The grid lives in a separately-scrolled/zoomed viewport, so math is done in screen
+  // (absolute) coordinates rather than the translationY math the in-grid drags use.
+  const narrowGridViewportRef = useRef<View>(null);
+  const gridViewportPageY = useRef(0);
+  const calendarShellRef = useRef<View>(null);
+  const calendarShellPageY = useRef(0);
+  const [crossDragInfo, setCrossDragInfo] = useState<{
+    slotId: string;
+    label: string;
+    screenY: number;
+    withinGrid: boolean;
+    previewLabel: string | null;
+  } | null>(null);
 
   const hourHeightRef = useRef(hourHeight);
   const viewportHeightRef = useRef(viewportHeight);
@@ -438,6 +464,44 @@ export default function WeeklyPlannerScreen() {
     setSelectedSlot((prev) => prev?.id === slotId ? { ...prev, ...patch } : prev);
   }, [updateSlot]);
 
+  const handleUpdateSlotTime = useCallback((slotId: string, newTime: string) => {
+    handleUpdateSlot(slotId, { time_of_day: newTime });
+  }, [handleUpdateSlot]);
+
+  const computeDropMinutes = useCallback((absoluteY: number): number => {
+    // Both conventions normalized to "negative when scrolled down" so the same formula
+    // works whether the grid is under the narrow (Animated translateY) or wide (native
+    // ScrollView) path.
+    const scrollY = isNarrow ? panCurrentXY.current.y : -wideScrollYRef.current;
+    const contentY = absoluteY - gridViewportPageY.current - scrollY;
+    return clampMinutes(Math.round((START_HOUR * 60 + (contentY / hourHeight) * 60) / 15) * 15);
+  }, [isNarrow, hourHeight]);
+
+  const handleSlotCrossDragStart = useCallback((slotId: string) => {
+    const viewportEl = isNarrow ? narrowGridViewportRef.current : verticalScrollRef.current;
+    (viewportEl as unknown as { measureInWindow?: (cb: (x: number, y: number) => void) => void })
+      ?.measureInWindow?.((_x, y) => { gridViewportPageY.current = y; });
+    (calendarShellRef.current as unknown as { measureInWindow?: (cb: (x: number, y: number) => void) => void })
+      ?.measureInWindow?.((_x, y) => { calendarShellPageY.current = y; });
+    const slot = weekPlan?.slots.find((s) => s.id === slotId);
+    setCrossDragInfo({ slotId, label: slot?.label ?? 'Meal', screenY: 0, withinGrid: false, previewLabel: null });
+  }, [isNarrow, weekPlan]);
+
+  const handleSlotCrossDragUpdate = useCallback((slotId: string, absoluteY: number) => {
+    const withinGrid = absoluteY >= gridViewportPageY.current && absoluteY <= gridViewportPageY.current + viewportHeightRef.current;
+    const screenY = absoluteY - calendarShellPageY.current;
+    const previewLabel = withinGrid ? formatDropTime(computeDropMinutes(absoluteY)) : null;
+    setCrossDragInfo((prev) => (prev && prev.slotId === slotId ? { ...prev, screenY, withinGrid, previewLabel } : prev));
+  }, [computeDropMinutes]);
+
+  const handleSlotCrossDragEnd = useCallback((slotId: string, absoluteY: number, success: boolean) => {
+    const withinGrid = absoluteY >= gridViewportPageY.current && absoluteY <= gridViewportPageY.current + viewportHeightRef.current;
+    if (success && withinGrid) {
+      handleUpdateSlotTime(slotId, formatMinutes24(computeDropMinutes(absoluteY)));
+    }
+    setCrossDragInfo(null);
+  }, [computeDropMinutes, handleUpdateSlotTime]);
+
   const handleUpdateFoodLog = useCallback(async (logId: string, patch: { label?: string | null; icon?: string | null }) => {
     await updateFoodLog(logId, patch);
     setSelectedLog((prev) => prev?.id === logId ? { ...prev, ...patch } : prev);
@@ -551,7 +615,7 @@ export default function WeeklyPlannerScreen() {
         )}
       </View>
 
-      <View style={styles.calendarShell}>
+      <View style={styles.calendarShell} ref={calendarShellRef}>
         {isNarrow ? (
           // Narrow/mobile path: single pan area, no nested ScrollViews
           <View
@@ -593,6 +657,10 @@ export default function WeeklyPlannerScreen() {
                       onDeleteFoodLog={handleDeleteFoodLog}
                       onFoodLogPress={handleFoodLogPress}
                       onSlotPress={handleSlotPress}
+                      onSlotCrossDragStart={handleSlotCrossDragStart}
+                      onSlotCrossDragUpdate={handleSlotCrossDragUpdate}
+                      onSlotCrossDragEnd={handleSlotCrossDragEnd}
+                      draggingSlotId={crossDragInfo?.slotId ?? null}
                     />
                   ))}
                 </View>
@@ -602,6 +670,7 @@ export default function WeeklyPlannerScreen() {
             {/* Scrollable grid — pan X and Y, pinch zoom */}
             <GestureDetector gesture={composedGesture}>
               <View
+                ref={narrowGridViewportRef}
                 style={{ flex: 1, overflow: 'hidden' }}
                 onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
               >
@@ -636,6 +705,7 @@ export default function WeeklyPlannerScreen() {
                       onEventPress={setSelectedEvent}
                       onFoodLogPress={handleFoodLogPress}
                       onUpdateFoodLogTime={handleUpdateFoodLogTime}
+                      onUpdateSlotTime={handleUpdateSlotTime}
                     />
                   </Animated.View>
                 </Animated.View>
@@ -665,6 +735,10 @@ export default function WeeklyPlannerScreen() {
                     onDeleteFoodLog={handleDeleteFoodLog}
                     onFoodLogPress={handleFoodLogPress}
                     onSlotPress={handleSlotPress}
+                    onSlotCrossDragStart={handleSlotCrossDragStart}
+                    onSlotCrossDragUpdate={handleSlotCrossDragUpdate}
+                    onSlotCrossDragEnd={handleSlotCrossDragEnd}
+                    draggingSlotId={crossDragInfo?.slotId ?? null}
                   />
                 ))}
               </View>
@@ -687,6 +761,7 @@ export default function WeeklyPlannerScreen() {
                   const { height } = event.nativeEvent.layout;
                   setViewportHeight(height);
                 }}
+                onScroll={(e) => { wideScrollYRef.current = e.nativeEvent.contentOffset.y; }}
                 scrollEventThrottle={16}
               >
                 <Animated.View style={[styles.weekGrid, styles.weekGridWeb, { height: gridHeight }, pinchPreviewTransform]}>
@@ -712,11 +787,22 @@ export default function WeeklyPlannerScreen() {
                     onEventPress={setSelectedEvent}
                     onFoodLogPress={handleFoodLogPress}
                     onUpdateFoodLogTime={handleUpdateFoodLogTime}
+                    onUpdateSlotTime={handleUpdateSlotTime}
                   />
                 </Animated.View>
               </ScrollView>
             </GestureDetector>
           </>
+        )}
+
+        {crossDragInfo && (
+          <View pointerEvents="none" style={[styles.crossDragGhost, { top: crossDragInfo.screenY - 18 }]}>
+            <Text style={styles.crossDragGhostText} numberOfLines={1}>
+              {crossDragInfo.withinGrid
+                ? `${crossDragInfo.label} → ${crossDragInfo.previewLabel}`
+                : 'Drag onto the grid to schedule'}
+            </Text>
+          </View>
         )}
       </View>
 
@@ -745,6 +831,7 @@ export default function WeeklyPlannerScreen() {
         onSaveRecipeServings={handleSaveRecipeServings}
         onRemoveFood={handleRemoveFoodFromSlot}
         onUpdateSlot={handleUpdateSlot}
+        onDeleteSlot={handleDeleteSlot}
       />
 
       <FoodLogDetailModal
@@ -821,6 +908,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingBottom: Spacing.sm,
   } as ViewStyle,
+  crossDragGhost: {
+    position: 'absolute',
+    left: Spacing.md,
+    right: Spacing.md,
+    zIndex: 999,
+    backgroundColor: Colors.accent,
+    borderRadius: BorderRadius.full,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  } as ViewStyle,
+  crossDragGhostText: {
+    color: '#FFFFFF',
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+  } as TextStyle,
   connectRow: {
     flexDirection: 'column',
     alignSelf: 'center',
