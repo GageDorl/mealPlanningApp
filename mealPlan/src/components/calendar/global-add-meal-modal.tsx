@@ -8,6 +8,7 @@ import { useCalendar } from '@/hooks/use-calendar';
 import { getCachedUserId } from '@/services/supabase';
 import { updateExternalEventId } from '@/services/meal-plan-service';
 import type { Recipe } from '@/models/recipe';
+import type { MealSlotFoodInput } from '@/services/meal-plan-service';
 import type { LogFoodSubmitParams } from '@/components/calendar/log-food-form';
 import {
   selectAddModalOpen,
@@ -37,7 +38,7 @@ export function GlobalAddMealModal() {
   const weekStart = useMemo(() => toWeekStart(prefillDate), [prefillDate]);
   const userId = getCachedUserId() ?? undefined;
 
-  const { weekPlan, createSlot, addRecipeToSlot } = useMealPlan(weekStart);
+  const { weekPlan, createSlot, addRecipeToSlot, addFoodToSlot } = useMealPlan(weekStart);
   const { createFoodLog } = useFoodLog(weekStart);
   const { connected, createMealEvent } = useCalendar();
 
@@ -64,6 +65,20 @@ export function GlobalAddMealModal() {
     }
   };
 
+  const handleAddFood = async (label: string, time: string, food: MealSlotFoodInput, icon?: string | null) => {
+    const daySlots = weekPlan?.slots.filter((s) => s.date === prefillDate) ?? [];
+    const slotId = await createSlot({
+      label,
+      date: prefillDate,
+      time,
+      displayOrder: daySlots.length,
+      icon,
+    });
+    if (slotId) {
+      await addFoodToSlot(slotId, food);
+    }
+  };
+
   const handleLogFood = async (date: string, params: LogFoodSubmitParams) => {
     await createFoodLog(date, params.label, params.timeOfDay, params.items, params.icon);
   };
@@ -81,6 +96,7 @@ export function GlobalAddMealModal() {
       prefillSuggestion={prefillSuggestion ?? undefined}
       onClose={handleClose}
       onAdd={handleAdd}
+      onAddFood={handleAddFood}
       onLogFood={handleLogFood}
     />
   );

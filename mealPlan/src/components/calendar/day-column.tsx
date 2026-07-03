@@ -131,8 +131,8 @@ function CrossDraggableSlot({
 
   return (
     <GestureDetector gesture={gesture}>
-      <View style={{ flex: 1, opacity: isDragging ? 0.3 : 1 }}>
-        <MealSlotCard slot={slot} compact onPress={onPress} onAssignRecipe={onAssignRecipe} onDelete={onDelete} />
+      <View style={{ opacity: isDragging ? 0.3 : 1 }}>
+        <MealSlotCard slot={slot} compact growToFill={false} onPress={onPress} onAssignRecipe={onAssignRecipe} onDelete={onDelete} />
       </View>
     </GestureDetector>
   );
@@ -194,6 +194,7 @@ export function AllDayCell({
             key={slot.id}
             slot={slot}
             compact
+            growToFill={false}
             onPress={() => onSlotPress?.(slot)}
             onAssignRecipe={() => onAssignRecipe?.(slot.id)}
             onDelete={() => onDeleteSlot?.(slot.id)}
@@ -205,6 +206,7 @@ export function AllDayCell({
           key={log.id}
           log={log}
           compact
+          growToFill={false}
           onPress={() => onFoodLogPress?.(log)}
           onDelete={() => onDeleteFoodLog?.(log.id)}
         />

@@ -10,12 +10,17 @@ const ICON_COLOR = '#FFFFFF';
 interface MealSlotCardProps {
   slot: MealSlotWithRecipe;
   compact?: boolean;
+  // true (default) fills an ancestor with a definite height — the absolutely-positioned
+  // wrapper WeekEventsOverlay uses for the timed grid. Set false inside an auto-height
+  // column stack (the all-day row) — flex:1 there is ambiguous and Android's Yoga can
+  // resolve it by not growing the row to fit multiple stacked slots.
+  growToFill?: boolean;
   onPress: () => void;
   onAssignRecipe: () => void;
   onDelete: () => void;
 }
 
-export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, onDelete }: MealSlotCardProps) {
+export function MealSlotCard({ slot, compact = false, growToFill = true, onPress, onAssignRecipe, onDelete }: MealSlotCardProps) {
   const theme = useTheme();
   const hasRecipes = slot.recipes.length > 0;
   const hasFoods = slot.foods.length > 0;
@@ -34,7 +39,7 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
   if (compact) {
     return (
       <Pressable
-        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
+        style={[styles.block, styles.blockCompact, !growToFill && styles.blockAuto, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
         onPress={hasContent ? onPress : onAssignRecipe}
       >
         <View style={styles.compactRow}>
@@ -102,6 +107,11 @@ const styles = StyleSheet.create({
     padding: Spacing.xs,
     flex: 1,
     minHeight: 36,
+  } as ViewStyle,
+  blockAuto: {
+    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
   } as ViewStyle,
   blockCompact: {
     justifyContent: 'center',

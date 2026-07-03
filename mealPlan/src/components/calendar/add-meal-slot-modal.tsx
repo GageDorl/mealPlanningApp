@@ -16,8 +16,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/services/supabase';
 import { getTopRecipes, getSavedRecipeIdByApiId, saveRecipe } from '@/services/recipe-service';
 import { searchRecipes as spoonacularSearch, getRecipeDetail } from '@/services/spoonacular';
+import { lookupIngredient, mapSearchResultToFoodInput } from '@/services/fatsecret';
+import { FatSecretAttribution } from '@/components/food/fatsecret-attribution';
 import type { Recipe } from '@/models/recipe';
 import type { SpoonacularSearchResult } from '@/services/spoonacular';
+import type { FoodSearchResult } from '@/services/fatsecret';
+import type { MealSlotFoodInput } from '@/services/meal-plan-service';
 
 interface AddMealSlotModalProps {
   visible: boolean;
@@ -27,12 +31,13 @@ interface AddMealSlotModalProps {
   prefillSuggestion?: LogFoodFormPrefill & { searchQuery: string; label?: string; icon?: string | null };
   onClose: () => void;
   onAdd: (label: string, time?: string, recipe?: Recipe, icon?: string | null) => void;
+  onAddFood?: (label: string, time: string, food: MealSlotFoodInput, icon?: string | null) => void;
   onLogFood: (date: string, params: LogFoodSubmitParams) => Promise<void>;
 }
 
 const QUICK_LABELS = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Post-workout'];
 
-type EntryType = 'plan' | 'log';
+type EntryType = 'plan' | 'plan-food' | 'log';
 type RecipeResult = { source: 'saved'; item: Recipe } | { source: 'spoonacular'; item: SpoonacularSearchResult };
 
 function currentTime12(): { hour: string; minute: string; period: 'AM' | 'PM' } {
@@ -64,7 +69,7 @@ function to24(hour: string, minute: string, period: 'AM' | 'PM'): string {
 }
 
 export function AddMealSlotModal({
-  visible, date, initialTime, userId, prefillSuggestion, onClose, onAdd, onLogFood,
+  visible, date, initialTime, userId, prefillSuggestion, onClose, onAdd, onAddFood, onLogFood,
 }: AddMealSlotModalProps) {
   const theme = useTheme();
   const db = usePowerSync();
@@ -88,11 +93,21 @@ export function AddMealSlotModal({
   const [importingId, setImportingId] = useState<number | null>(null);
   const recipeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Step 3c: standalone food item search
+  const [foodQuery, setFoodQuery] = useState('');
+  const [foodResults, setFoodResults] = useState<FoodSearchResult[]>([]);
+  const [foodLoading, setFoodLoading] = useState(false);
+  const [foodError, setFoodError] = useState<string | null>(null);
+  const foodDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!visible) return;
     setRecipeQuery('');
     setRecipeResults([]);
     setMostUsedRecipes([]);
+    setFoodQuery('');
+    setFoodResults([]);
+    setFoodError(null);
     const t = initialTime ? parse24to12(initialTime) : currentTime12();
     setHour(t.hour);
     setMinute(t.minute);
@@ -146,6 +161,31 @@ export function AddMealSlotModal({
     return () => { if (recipeDebounceRef.current) clearTimeout(recipeDebounceRef.current); };
   }, [visible, recipeQuery, step, entryType, runRecipeSearch]);
 
+  useEffect(() => {
+    if (!visible || step !== 3 || entryType !== 'plan-food') return;
+    if (foodDebounceRef.current) clearTimeout(foodDebounceRef.current);
+    const trimmed = foodQuery.trim();
+    if (!trimmed) {
+      setFoodResults([]);
+      setFoodError(null);
+      return;
+    }
+    foodDebounceRef.current = setTimeout(async () => {
+      setFoodLoading(true);
+      setFoodError(null);
+      try {
+        const response = await lookupIngredient(trimmed, 1, db);
+        setFoodResults(response.results);
+      } catch {
+        setFoodResults([]);
+        setFoodError('Search failed. Try again.');
+      } finally {
+        setFoodLoading(false);
+      }
+    }, 400);
+    return () => { if (foodDebounceRef.current) clearTimeout(foodDebounceRef.current); };
+  }, [visible, foodQuery, step, entryType, db]);
+
   const time24 = to24(hour, minute, period);
 
   const [year, month, day] = date.split('-').map(Number);
@@ -155,6 +195,11 @@ export function AddMealSlotModal({
 
   const handleSelectSaved = (recipe: Recipe) => {
     onAdd(label.trim(), time24, recipe, icon);
+    onClose();
+  };
+
+  const handleSelectFood = (result: FoodSearchResult) => {
+    onAddFood?.(label.trim(), time24, mapSearchResultToFoodInput(result), icon);
     onClose();
   };
 
@@ -257,6 +302,14 @@ export function AddMealSlotModal({
                 </Pressable>
                 <Pressable
                   style={[styles.typeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+                  onPress={() => { setEntryType('plan-food'); setStep(2); }}
+                >
+                  <Ionicons name="cart-outline" size={28} color={Colors.accent} />
+                  <Text style={[styles.typeCardTitle, { color: theme.text }]}>Plan a Food Item</Text>
+                  <Text style={[styles.typeCardSub, { color: theme.textSecondary }]}>Schedule something you'll buy, like a protein bar</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.typeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
                   onPress={() => { setEntryType('log'); setStep(2); }}
                 >
                   <Ionicons name="nutrition-outline" size={28} color={Colors.accent} />
@@ -271,7 +324,7 @@ export function AddMealSlotModal({
           {step === 2 && (
             <View style={styles.detailsStep}>
               <Text style={[styles.stepTitle, { color: theme.text }]}>
-                {entryType === 'plan' ? 'Name your meal slot' : 'Name this food entry'}
+                {entryType === 'log' ? 'Name this food entry' : 'Name your meal slot'}
               </Text>
 
               <IconPicker value={icon} onChange={setIcon} />
@@ -322,7 +375,7 @@ export function AddMealSlotModal({
               <View style={styles.actions}>
                 <Button label="Back" onPress={() => setStep(1)} variant="secondary" />
                 <Button
-                  label={entryType === 'plan' ? 'Choose Recipe →' : 'Add Food →'}
+                  label={entryType === 'plan' ? 'Choose Recipe →' : entryType === 'plan-food' ? 'Choose Food →' : 'Add Food →'}
                   onPress={() => setStep(3)}
                   disabled={!label.trim()}
                 />
@@ -443,6 +496,56 @@ export function AddMealSlotModal({
             </>
           )}
 
+          {/* Step 3c: standalone food item search */}
+          {step === 3 && entryType === 'plan-food' && (
+            <>
+              <Text style={[styles.stepTitle, { color: theme.text }]}>Choose a Food Item</Text>
+              <View style={[styles.searchBar, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+                <TextInput
+                  style={[styles.searchInput, { color: theme.text }]}
+                  placeholder="Search foods…"
+                  placeholderTextColor={theme.textSecondary}
+                  value={foodQuery}
+                  onChangeText={setFoodQuery}
+                  autoFocus
+                />
+                {foodQuery.length > 0 && (
+                  <Pressable onPress={() => setFoodQuery('')} hitSlop={8} style={styles.clearBtn}>
+                    <Text style={[styles.clearIcon, { color: theme.textSecondary }]}>×</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              {foodLoading && <ActivityIndicator color={Colors.accent} style={styles.spinner} />}
+              {foodError && <Text style={[styles.emptyHint, { color: theme.text }]}>{foodError}</Text>}
+
+              <ScrollView style={styles.recipeList} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {!foodLoading && !foodError && foodResults.map((r) => (
+                  <Pressable
+                    key={r.id}
+                    style={[styles.recipeRow, { borderBottomColor: theme.border }]}
+                    onPress={() => handleSelectFood(r)}
+                  >
+                    <View style={styles.recipeRowInfo}>
+                      {r.brand_name && (
+                        <Text style={[styles.recipeRowMeta, { color: Colors.accent, fontWeight: '700' }]} numberOfLines={1}>{r.brand_name}</Text>
+                      )}
+                      <Text style={[styles.recipeRowTitle, { color: theme.text }]} numberOfLines={1}>{r.name}</Text>
+                      <Text style={[styles.recipeRowMeta, { color: theme.textSecondary }]}>
+                        {Math.round(r.caloriesPerServing ?? r.caloriesPer100g)} kcal
+                      </Text>
+                    </View>
+                    <Text style={[styles.chevron, { color: theme.textSecondary }]}>›</Text>
+                  </Pressable>
+                ))}
+                {!foodLoading && !foodError && foodQuery.trim().length > 0 && foodResults.length === 0 && (
+                  <Text style={[styles.emptyHint, { color: theme.textSecondary }]}>No results.</Text>
+                )}
+              </ScrollView>
+              <FatSecretAttribution />
+            </>
+          )}
+
           {/* Step 3b: food log form */}
           {step === 3 && entryType === 'log' && (
             <LogFoodForm
@@ -516,10 +619,12 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   typeCards: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.md,
   } as ViewStyle,
   typeCard: {
-    flex: 1,
+    flexBasis: '46%',
+    flexGrow: 1,
     borderWidth: 1,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
