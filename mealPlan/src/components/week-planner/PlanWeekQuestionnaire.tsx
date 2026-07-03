@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { ScrollView, Text, TextInput, View, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Button } from '@/components/ui/button';
 import type { WeeklyQuestionnaire } from '@/services/week-planner-service';
+import type { PantryStapleRow } from '@/services/grocery-service';
 
 const COOK_TIME_OPTIONS: Array<{ label: string; value: WeeklyQuestionnaire['cook_time'] }> = [
   { label: 'Quick (under 30 min)', value: 'quick' },
@@ -26,14 +28,16 @@ const NOTES_MAX = 200;
 
 interface PlanWeekQuestionnaireProps {
   submitting: boolean;
+  mealsPerDay: number;
+  pantryStaples: PantryStapleRow[];
   onSubmit: (questionnaire: WeeklyQuestionnaire) => void;
 }
 
-export function PlanWeekQuestionnaire({ submitting, onSubmit }: PlanWeekQuestionnaireProps) {
+export function PlanWeekQuestionnaire({ submitting, mealsPerDay, pantryStaples, onSubmit }: PlanWeekQuestionnaireProps) {
   const theme = useTheme();
+  const router = useRouter();
 
   const [daysCooking, setDaysCooking] = useState<number | null>(null);
-  const [mealsPerDay, setMealsPerDay] = useState<number | null>(null);
   const [cookTime, setCookTime] = useState<WeeklyQuestionnaire['cook_time']>('any');
   const [prepStyle, setPrepStyle] = useState<WeeklyQuestionnaire['prep_style']>('fresh');
   const [budgetMode, setBudgetMode] = useState<'general' | 'specific'>('general');
@@ -41,10 +45,10 @@ export function PlanWeekQuestionnaire({ submitting, onSubmit }: PlanWeekQuestion
   const [weeklyBudget, setWeeklyBudget] = useState('');
   const [notes, setNotes] = useState('');
 
-  const canSubmit = daysCooking != null && mealsPerDay != null && !submitting;
+  const canSubmit = daysCooking != null && !submitting;
 
   const handleSubmit = () => {
-    if (daysCooking == null || mealsPerDay == null) return;
+    if (daysCooking == null) return;
     onSubmit({
       days_cooking: daysCooking,
       meals_per_day: mealsPerDay,
@@ -64,7 +68,30 @@ export function PlanWeekQuestionnaire({ submitting, onSubmit }: PlanWeekQuestion
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.question, { color: theme.text }]}>
+      <View style={styles.pantryHeaderRow}>
+        <Text style={[styles.question, { color: theme.text, marginBottom: 0 }]}>Your pantry</Text>
+        <Pressable onPress={() => router.push('/grocery/pantry-staples')} hitSlop={8}>
+          <Text style={[styles.pantryEditLink, { color: Colors.accent }]}>Edit</Text>
+        </Pressable>
+      </View>
+      <Text style={[styles.pantryHint, { color: theme.textSecondary }]}>
+        Make sure this is up to date — suggestions avoid re-buying what you already have.
+      </Text>
+      {pantryStaples.length === 0 ? (
+        <Text style={[styles.pantryEmpty, { color: theme.textSecondary }]}>Nothing added yet.</Text>
+      ) : (
+        <View style={styles.chipRow}>
+          {pantryStaples.map((p) => (
+            <View key={p.id} style={[styles.pantryChip, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+              <Text style={[styles.pantryChipText, { color: theme.text }]}>
+                {p.ingredient_name.charAt(0).toUpperCase() + p.ingredient_name.slice(1)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <Text style={[styles.question, { color: theme.text, marginTop: Spacing.xl }]}>
         How many days will you be cooking at home this week?
       </Text>
       <View style={styles.dayRow}>
@@ -83,29 +110,6 @@ export function PlanWeekQuestionnaire({ submitting, onSubmit }: PlanWeekQuestion
             accessibilityLabel={`${n} day${n === 1 ? '' : 's'}`}
           >
             <Text style={[styles.dayChipText, { color: daysCooking === n ? '#FFFFFF' : theme.text }]}>{n}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={[styles.question, { color: theme.text, marginTop: Spacing.xl }]}>
-        How many meals do you eat a day?
-      </Text>
-      <View style={styles.dayRow}>
-        {[1, 2, 3, 4, 5, 6].map((n) => (
-          <Pressable
-            key={n}
-            style={[
-              styles.dayChip,
-              {
-                borderColor: mealsPerDay === n ? Colors.accent : theme.border,
-                backgroundColor: mealsPerDay === n ? Colors.accent : theme.backgroundElement,
-              },
-            ]}
-            onPress={() => setMealsPerDay(n)}
-            accessibilityRole="button"
-            accessibilityLabel={`${n} meal${n === 1 ? '' : 's'} per day`}
-          >
-            <Text style={[styles.dayChipText, { color: mealsPerDay === n ? '#FFFFFF' : theme.text }]}>{n}</Text>
           </Pressable>
         ))}
       </View>
@@ -243,6 +247,12 @@ export function PlanWeekQuestionnaire({ submitting, onSubmit }: PlanWeekQuestion
 const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg } as ViewStyle,
   question: { fontSize: FontSizes.md, fontWeight: '700', marginBottom: Spacing.md } as TextStyle,
+  pantryHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' } as ViewStyle,
+  pantryEditLink: { fontSize: FontSizes.sm, fontWeight: '600' } as TextStyle,
+  pantryHint: { fontSize: FontSizes.xs, marginTop: 2, marginBottom: Spacing.md } as TextStyle,
+  pantryEmpty: { fontSize: FontSizes.sm, fontStyle: 'italic' } as TextStyle,
+  pantryChip: { paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.full, borderWidth: 1 } as ViewStyle,
+  pantryChipText: { fontSize: FontSizes.sm, fontWeight: '500' } as TextStyle,
   dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm } as ViewStyle,
   dayChip: {
     width: 44,

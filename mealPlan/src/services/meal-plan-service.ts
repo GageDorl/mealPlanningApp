@@ -40,6 +40,7 @@ export interface MealSlotFoodEntry {
   added_sugar?: number | null;
   source: 'manual' | 'fatsecret' | 'library' | 'community' | 'ai_estimate';
   source_id?: string | null;
+  is_grocery_item: boolean;
   display_order: number;
   created_at: string;
   updated_at: string;
@@ -254,13 +255,13 @@ export async function addFoodToSlot(db: PsDb, slotId: string, food: MealSlotFood
     `INSERT INTO meal_slot_foods (
       id, meal_slot_id, food_name, brand_name, serving_size_amount, serving_size_unit, servings_planned,
       calories, protein, carbs, fat, saturated_fat, trans_fat, cholesterol, sodium,
-      dietary_fiber, total_sugar, added_sugar, source, source_id, display_order, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      dietary_fiber, total_sugar, added_sugar, source, source_id, is_grocery_item, display_order, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id, slotId, food.food_name, food.brand_name ?? null, food.serving_size_amount ?? null, food.serving_size_unit ?? null, food.servings_planned,
       food.calories ?? null, food.protein ?? null, food.carbs ?? null, food.fat ?? null, food.saturated_fat ?? null, food.trans_fat ?? null,
       food.cholesterol ?? null, food.sodium ?? null, food.dietary_fiber ?? null, food.total_sugar ?? null, food.added_sugar ?? null,
-      food.source, food.source_id ?? null, nextOrder + 1, now, now,
+      food.source, food.source_id ?? null, food.is_grocery_item ? 1 : 0, nextOrder + 1, now, now,
     ],
   );
   return { ...food, id, meal_slot_id: slotId, display_order: nextOrder + 1, created_at: now, updated_at: now };

@@ -179,6 +179,32 @@ export async function generateList(db: PsDb, userId: string, weekStart: Date): P
     }
   }
 
+  // Planned food items (from the weekly planner or a manual add) that are grocery-purchasable —
+  // restaurant/fast-food orders and "cook" items with no ingredient breakdown are excluded
+  // (is_grocery_item is set at the source when the slot is committed).
+  if (slotIds.length > 0) {
+    interface SlotFoodRow {
+      food_name: string;
+      brand_name: string | null;
+      servings_planned: number | null;
+    }
+    const { data: sfData } = await supabase
+      .from('meal_slot_foods')
+      .select('food_name, brand_name, servings_planned')
+      .in('meal_slot_id', slotIds)
+      .eq('is_grocery_item', true);
+
+    for (const sf of (sfData ?? []) as SlotFoodRow[]) {
+      rawInputs.push({
+        name: sf.brand_name ? `${sf.food_name} (${sf.brand_name})` : sf.food_name,
+        quantity: sf.servings_planned ?? 1,
+        unit: null,
+        category: null,
+        ingredient_id: null,
+      });
+    }
+  }
+
   const { data: staplesData } = await supabase
     .from('pantry_staples')
     .select('ingredient_name, quantity, unit')

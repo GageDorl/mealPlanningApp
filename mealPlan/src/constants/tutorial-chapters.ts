@@ -118,8 +118,8 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
       {
         type: 'info',
         illustrationKey: 'plan-week',
-        title: 'Let AI plan your week',
-        body: "Tap Plan Week on the Calendar and answer a few quick questions — how many days you'll cook, your prep style, even a budget. Bento builds a full week of meals, mixing home-cooked dishes with things you can just buy, so you can review and add them to your calendar in one tap.",
+        title: 'Plan your whole week',
+        body: "Tap Plan Week to pick a week and see every meal slot laid out empty. Fill them in yourself — assign a recipe or a specific food item — or tap Get Suggestions to let AI fill in the gaps for you, mixing home-cooked dishes with things you can just buy. Either way, tap the checkmark to add a meal to your calendar.",
       },
       {
         type: 'action',

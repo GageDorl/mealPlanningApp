@@ -117,6 +117,7 @@ interface FlatFoodRow {
   added_sugar: number | null;
   source: string | null;
   source_id: string | null;
+  is_grocery_item: number | null;
   display_order: number | null;
   created_at: string;
   updated_at: string;
@@ -129,7 +130,7 @@ const FOOD_QUERY = `
     msf.calories, msf.protein, msf.carbs, msf.fat,
     msf.saturated_fat, msf.trans_fat, msf.cholesterol, msf.sodium,
     msf.dietary_fiber, msf.total_sugar, msf.added_sugar,
-    msf.source, msf.source_id, msf.display_order,
+    msf.source, msf.source_id, msf.is_grocery_item, msf.display_order,
     msf.created_at, msf.updated_at
   FROM meal_slot_foods msf
   JOIN meal_slots ms ON ms.id = msf.meal_slot_id
@@ -256,6 +257,7 @@ export function useMealPlan(weekStart: Date) {
         added_sugar: row.added_sugar ?? null,
         source: (row.source ?? 'manual') as MealSlotFoodEntry['source'],
         source_id: row.source_id ?? null,
+        is_grocery_item: Boolean(row.is_grocery_item),
         display_order: row.display_order ?? 0,
         created_at: row.created_at,
         updated_at: row.updated_at,

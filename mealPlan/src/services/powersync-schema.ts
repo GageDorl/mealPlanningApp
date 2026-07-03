@@ -38,6 +38,7 @@ const users = new Table({
   planner_height_ft: column.integer,
   planner_height_in: column.integer,
   planner_activity_level: column.text,
+  meals_per_day: column.integer,
   created_at: column.text,
   updated_at: column.text,
 });
@@ -148,6 +149,7 @@ const meal_slot_foods = new Table({
   added_sugar: column.real,
   source: column.text,
   source_id: column.text,
+  is_grocery_item: column.integer,
   display_order: column.integer,
   created_at: column.text,
   updated_at: column.text,
