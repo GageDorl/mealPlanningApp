@@ -128,6 +128,31 @@ const meal_slot_recipes = new Table({
   updated_at: column.text,
 });
 
+const meal_slot_foods = new Table({
+  meal_slot_id: column.text,
+  food_name: column.text,
+  brand_name: column.text,
+  serving_size_amount: column.real,
+  serving_size_unit: column.text,
+  servings_planned: column.real,
+  calories: column.real,
+  protein: column.real,
+  carbs: column.real,
+  fat: column.real,
+  saturated_fat: column.real,
+  trans_fat: column.real,
+  cholesterol: column.real,
+  sodium: column.real,
+  dietary_fiber: column.real,
+  total_sugar: column.real,
+  added_sugar: column.real,
+  source: column.text,
+  source_id: column.text,
+  display_order: column.integer,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
 const macro_goals = new Table({
   user_id: column.text,
   macro_name: column.text,
@@ -253,6 +278,7 @@ export const AppSchema = new Schema({
   meal_plans,
   meal_slots,
   meal_slot_recipes,
+  meal_slot_foods,
   macro_goals,
   dietary_preferences,
   food_logs,

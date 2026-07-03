@@ -3,7 +3,6 @@ import { useFocusEffect } from 'expo-router';
 import { usePowerSync } from '@powersync/react-native';
 import { View, Text, ScrollView, RefreshControl, Pressable, Platform, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, type ViewStyle, type TextStyle } from 'react-native';
 import { WoodTexture } from '@/components/WoodTexture';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { triggerSync } from '@/utils/trigger-sync';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
@@ -23,7 +22,6 @@ import {
   parseTimeToMinutes,
 } from '@/components/calendar/day-column';
 import { WeekEventsOverlay, type DayData } from '@/components/calendar/week-events-overlay';
-import { AddMealSlotModal } from '@/components/calendar/add-meal-slot-modal';
 import { RecipePickerModal } from '@/components/calendar/recipe-picker-modal';
 import { CalendarPickerModal } from '@/components/calendar/calendar-picker-modal';
 import { EventDetailModal } from '@/components/calendar/event-detail-modal';
@@ -34,10 +32,10 @@ import { deleteMealEvent } from '@/services/calendar';
 import { WeekPickerModal } from '@/components/calendar/week-picker-modal';
 import type { CalendarEvent } from '@/services/calendar.types';
 import type { Recipe } from '@/models/recipe';
-import { useSelector, useDispatch } from 'react-redux';
-import { selectPendingLogSuggestion, clearPendingLogSuggestion } from '@/store/slices/food-suggestions-slice';
+import { useDispatch } from 'react-redux';
+import { useRouter } from 'expo-router';
+import { openAddModal } from '@/store/slices/add-meal-slot-slice';
 import type { AppDispatch } from '@/store';
-import type { LogFoodFormPrefill } from '@/components/calendar/log-food-form';
 
 const DAY_GAP = 2;
 const MOBILE_DAY_WIDTH = 130;
@@ -72,9 +70,7 @@ export default function WeeklyPlannerScreen() {
   const db = usePowerSync();
   const theme = useTheme();
   const dispatch = useDispatch<AppDispatch>();
-  const pendingLogSuggestion = useSelector(selectPendingLogSuggestion);
-  const pendingLogRef = useRef(pendingLogSuggestion);
-  pendingLogRef.current = pendingLogSuggestion;
+  const router = useRouter();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekPickerVisible, setWeekPickerVisible] = useState(false);
@@ -89,30 +85,12 @@ export default function WeeklyPlannerScreen() {
   const currentWeekStart = getSunday(addDays(today, weekOffset * 7));
   const currentWeekEnd = addDays(currentWeekStart, 7);
 
-  const { weekPlan, createSlot, updateSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, deleteSlot, refresh } = useMealPlan(currentWeekStart);
+  const { weekPlan, updateSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, removeFoodFromSlot, deleteSlot, refresh } = useMealPlan(currentWeekStart);
 
   useFocusEffect(useCallback(() => {
     refresh();
-    if (pendingLogRef.current) {
-      const s = pendingLogRef.current;
-      setAddSlotDate(dateToString(new Date()));
-      setAddSlotTime(undefined);
-      setPrefillSuggestion({
-        food_name: s.name,
-        brand_name: s.brand || undefined,
-        calories: String(s.calories),
-        protein: String(s.protein),
-        carbs: String(s.carbs),
-        fat: String(s.fat),
-        searchQuery: [s.name, s.brand].filter(Boolean).join(' '),
-        label: s.pendingLabel,
-        icon: s.pendingIcon,
-      });
-      setAddSlotVisible(true);
-      dispatch(clearPendingLogSuggestion());
-    }
-  }, [refresh, dispatch]));
-  const { weekLogs, userId: currentUserId, createFoodLog, deleteFoodLog, deleteFoodLogItem, updateFoodLogItem, updateFoodLog, addItemsToFoodLog } = useFoodLog(currentWeekStart);
+  }, [refresh]));
+  const { weekLogs, userId: currentUserId, deleteFoodLog, deleteFoodLogItem, updateFoodLogItem, updateFoodLog, addItemsToFoodLog } = useFoodLog(currentWeekStart);
   const {
     connected, events, googleEventsRefreshing, connectError, loadError,
     availableCalendars, selectedCalendarIds, connectedCalendarTitle,
@@ -131,12 +109,6 @@ export default function WeeklyPlannerScreen() {
 
   // Event detail modal state
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-
-  // Add-slot modal state
-  const [addSlotVisible, setAddSlotVisible] = useState(false);
-  const [addSlotDate, setAddSlotDate] = useState('');
-  const [addSlotTime, setAddSlotTime] = useState<string | undefined>(undefined);
-  const [prefillSuggestion, setPrefillSuggestion] = useState<(LogFoodFormPrefill & { searchQuery: string; label?: string; icon?: string | null }) | undefined>(undefined);
 
   // Recipe picker modal state
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -365,33 +337,8 @@ export default function WeeklyPlannerScreen() {
   const weekLabel = `${currentWeekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${currentWeekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 
   const handleAddSlot = useCallback((dayDate: string, time?: string) => {
-    setAddSlotDate(dayDate);
-    setAddSlotTime(time);
-    setAddSlotVisible(true);
-  }, []);
-
-  const handleCreateSlot = async (label: string, time?: string, recipe?: Recipe, icon?: string | null) => {
-    const daySlots = weekPlan?.slots.filter((s) => s.date === addSlotDate) ?? [];
-    const slotId = await createSlot({
-      label,
-      date: addSlotDate,
-      time,
-      displayOrder: daySlots.length,
-      icon,
-    });
-    if (recipe && slotId) {
-      await addRecipeToSlot(slotId, recipe.id);
-      if (connected) {
-        const eventId = await createMealEvent({
-          title: recipe.title,
-          date: addSlotDate,
-          timeOfDay: time || null,
-          slotId,
-        });
-        if (eventId) await updateExternalEventId(db, slotId, eventId);
-      }
-    }
-  };
+    dispatch(openAddModal({ date: dayDate, time: time ?? null }));
+  }, [dispatch]);
 
   const handleAssignRecipe = useCallback((slotId: string) => {
     setActiveSlotId(slotId);
@@ -427,7 +374,7 @@ export default function WeeklyPlannerScreen() {
   }, [deleteSlot, connected, weekPlan]);
 
   const handleSlotPress = useCallback((slot: import('@/services/meal-plan-service').MealSlotWithRecipe) => {
-    if (slot.recipes.length > 0) setSelectedSlot(slot);
+    if (slot.recipes.length > 0 || slot.foods.length > 0) setSelectedSlot(slot);
     else handleAssignRecipe(slot.id);
   }, [handleAssignRecipe]);
 
@@ -449,6 +396,13 @@ export default function WeeklyPlannerScreen() {
     await updateSlotRecipeServings(slotRecipeId, servings);
   }, [updateSlotRecipeServings]);
 
+  const handleRemoveFoodFromSlot = useCallback(async (slotFoodId: string) => {
+    await removeFoodFromSlot(slotFoodId);
+    setSelectedSlot((prev) =>
+      prev ? { ...prev, foods: prev.foods.filter((f) => f.id !== slotFoodId) } : null
+    );
+  }, [removeFoodFromSlot]);
+
   const handleFoodLogPress = useCallback((log: import('@/services/food-log-service').FoodLogWithItems) => {
     setSelectedLog(log);
   }, []);
@@ -469,10 +423,6 @@ export default function WeeklyPlannerScreen() {
       return { ...prev, items: prev.items.map((i) => i.id === itemId ? { ...i, ...patch } : i) };
     });
   }, [updateFoodLogItem]);
-
-  const handleLogFood = useCallback(async (date: string, params: { label: string | null; timeOfDay: string | null; items: any[]; icon?: string | null }) => {
-    await createFoodLog(date, params.label, params.timeOfDay, params.items, params.icon);
-  }, [createFoodLog]);
 
   const handleDeleteFoodLog = useCallback(async (id: string) => {
     await deleteFoodLog(id);
@@ -642,6 +592,7 @@ export default function WeeklyPlannerScreen() {
                       onDeleteSlot={handleDeleteSlot}
                       onDeleteFoodLog={handleDeleteFoodLog}
                       onFoodLogPress={handleFoodLogPress}
+                      onSlotPress={handleSlotPress}
                     />
                   ))}
                 </View>
@@ -713,6 +664,7 @@ export default function WeeklyPlannerScreen() {
                     onDeleteSlot={handleDeleteSlot}
                     onDeleteFoodLog={handleDeleteFoodLog}
                     onFoodLogPress={handleFoodLogPress}
+                    onSlotPress={handleSlotPress}
                   />
                 ))}
               </View>
@@ -768,22 +720,7 @@ export default function WeeklyPlannerScreen() {
         )}
       </View>
 
-      <Pressable style={styles.addButton} onPress={() => handleAddSlot(dateToString(today))} testID="calendar-add-fab">
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </Pressable>
-
       {/* Modals */}
-      <AddMealSlotModal
-        visible={addSlotVisible}
-        date={addSlotDate}
-        initialTime={addSlotTime}
-        userId={currentUserId}
-        prefillSuggestion={prefillSuggestion}
-        onClose={() => { setAddSlotVisible(false); setPrefillSuggestion(undefined); }}
-        onAdd={handleCreateSlot}
-        onLogFood={handleLogFood}
-      />
-
       <RecipePickerModal
         visible={pickerVisible}
         onClose={() => {
@@ -806,6 +743,7 @@ export default function WeeklyPlannerScreen() {
         onAddRecipe={handleAddRecipeToSlot}
         onRemoveRecipe={handleRemoveRecipeFromSlot}
         onSaveRecipeServings={handleSaveRecipeServings}
+        onRemoveFood={handleRemoveFoodFromSlot}
         onUpdateSlot={handleUpdateSlot}
       />
 
@@ -832,6 +770,15 @@ export default function WeeklyPlannerScreen() {
         onSelect={setWeekOffset}
         onClose={() => setWeekPickerVisible(false)}
       />
+
+      <Pressable
+        style={styles.planWeekButton}
+        onPress={() => router.push('/plan-week' as any)}
+        accessibilityRole="button"
+        accessibilityLabel="Plan Week"
+      >
+        <Text style={styles.planWeekButtonText}>Plan Week</Text>
+      </Pressable>
 
     </View>
   );
@@ -934,14 +881,14 @@ const styles = StyleSheet.create({
   weekGridWeb: {
     flex: 1,
   } as ViewStyle,
-  addButton: {
+  planWeekButton: {
     position: 'absolute',
     right: Spacing.lg,
     bottom: Spacing.xl,
     backgroundColor: Colors.accent,
     borderRadius: BorderRadius.full,
-    width: 48,
-    height: 48,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
     ...(Platform.OS === 'web'
@@ -954,4 +901,9 @@ const styles = StyleSheet.create({
           elevation: 4,
         }),
   } as ViewStyle,
+  planWeekButtonText: {
+    color: '#FFFFFF',
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+  } as TextStyle,
 });

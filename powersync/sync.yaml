@@ -36,3 +36,4 @@ streams:
       - SELECT * FROM grocery_lists WHERE user_id = auth.user_id()
       - SELECT grocery_items.* FROM grocery_items JOIN grocery_lists ON grocery_lists.id = grocery_items.grocery_list_id WHERE grocery_lists.user_id = auth.user_id()
       - SELECT meal_slot_recipes.* FROM meal_slot_recipes JOIN meal_slots ON meal_slots.id = meal_slot_recipes.meal_slot_id JOIN meal_plans ON meal_plans.id = meal_slots.meal_plan_id WHERE meal_plans.user_id = auth.user_id()
+      - SELECT meal_slot_foods.* FROM meal_slot_foods JOIN meal_slots ON meal_slots.id = meal_slot_foods.meal_slot_id JOIN meal_plans ON meal_plans.id = meal_slots.meal_plan_id WHERE meal_plans.user_id = auth.user_id()

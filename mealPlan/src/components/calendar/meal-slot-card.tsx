@@ -18,24 +18,33 @@ interface MealSlotCardProps {
 export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, onDelete }: MealSlotCardProps) {
   const theme = useTheme();
   const hasRecipes = slot.recipes.length > 0;
+  const hasFoods = slot.foods.length > 0;
+  const hasContent = hasRecipes || hasFoods;
   const primary = slot.recipes[0]?.recipe ?? null;
-  const extraCount = slot.recipes.length - 1;
+  const primaryFood = slot.foods[0] ?? null;
+  const primaryName = primary?.title ?? primaryFood?.food_name ?? '';
+  const extraCount = slot.recipes.length + slot.foods.length - 1;
+  const knownCalories = [
+    ...slot.recipes.filter((r) => r.recipe.calories_per_serving != null).map((r) => r.recipe.calories_per_serving as number),
+    ...slot.foods.filter((f) => f.calories != null).map((f) => (f.calories as number) * (f.servings_planned || 1)),
+  ];
+  const totalCalories = knownCalories.length > 0 ? knownCalories.reduce((sum, c) => sum + c, 0) : null;
   const IconComp = slot.icon ? ICON_COMPONENTS[slot.icon] : null;
 
   if (compact) {
     return (
       <Pressable
         style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
-        onPress={hasRecipes ? onPress : onAssignRecipe}
+        onPress={hasContent ? onPress : onAssignRecipe}
       >
         <View style={styles.compactRow}>
           {IconComp && <IconComp size={12} color={ICON_COLOR} />}
           <Text style={[styles.compactLabel, { color: '#FFFFFF' }]} numberOfLines={1} ellipsizeMode="tail">
             {slot.label}
           </Text>
-          {hasRecipes && (
+          {hasContent && (
             <Text style={[styles.compactName, { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1} ellipsizeMode="tail">
-              {primary!.title}
+              {primaryName}
             </Text>
           )}
         </View>
@@ -46,7 +55,7 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
   return (
     <Pressable
       style={[styles.block, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
-      onPress={hasRecipes ? onPress : onAssignRecipe}
+      onPress={hasContent ? onPress : onAssignRecipe}
     >
       <View style={styles.headerRow}>
         {IconComp && <IconComp size={14} color={ICON_COLOR} />}
@@ -58,19 +67,19 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
         </Pressable>
       </View>
 
-      {hasRecipes ? (
+      {hasContent ? (
         <>
           <View style={styles.recipeRow}>
             <Text style={[styles.recipeName, { color: 'rgba(255,255,255,0.92)' }]} numberOfLines={2} ellipsizeMode="tail">
-              {primary!.title}
+              {primaryName}
             </Text>
             {extraCount > 0 && (
               <Text style={[styles.extraBadge, { color: 'rgba(255,255,255,0.75)' }]}>+{extraCount}</Text>
             )}
           </View>
-          {primary!.calories_per_serving != null && (
+          {totalCalories != null && (
             <Text style={[styles.calHint, { color: 'rgba(255,255,255,0.80)' }]}>
-              {Math.round(primary!.calories_per_serving)} kcal
+              {Math.round(totalCalories)} kcal
             </Text>
           )}
         </>
