@@ -1,6 +1,27 @@
 # Week Planner — Implementation Plan
 
-Adds a persistent "Add" button to the tab bar (accessible on every screen), swaps the recipe API from Spoonacular to FatSecret on the search page, and introduces a new "Plan Week" feature on the calendar that uses Claude AI to generate a personalized weekly meal plan from user input and historical data.
+Adds a persistent "Add" button to the tab bar (accessible on every screen) and introduces a new "Plan Week" feature on the calendar that uses Claude AI to generate a personalized weekly meal plan from user input and historical data.
+
+## Status
+
+| Phase | Status |
+|---|---|
+| Phase 1 — Persistent Add Button | ✅ COMPLETE — committed as `8fcd6ec` |
+| Phase 2 — Recipe API swap | ❌ DROPPED — staying on Spoonacular (see note below) |
+| Phase 3 — Plan Week Feature | 🔧 IN PROGRESS — see status note below |
+
+### Phase 3 status note
+Core flow (questionnaire → AI suggestions → add to calendar) is built. Suggestions plan actual `meal_slots` (not food log entries — see Decisions), each meal made of one or more individually-named, FatSecret-matchable items. This required a new `meal_slot_foods` table (parallel to `meal_slot_recipes`) so a slot can hold standalone food items instead of only recipes.
+
+`supabase/migrations/20260703000000_meal_slot_foods.sql` is pushed (confirmed via `supabase migration list`), and `suggest-weekly-meals` is deployed with the grouped-items schema. `powersync/sync.yaml` was updated locally with the new `meal_slot_foods` stream query — still needs to be applied to the PowerSync instance.
+
+### Phase 2 note
+Attempted to swap Spoonacular for FatSecret. FatSecret was abandoned because:
+- Search quality is poor (e.g. "chicken dumplings", "spaghetti" return no results)
+- IP allowlist issue required routing through an existing proxy
+- OAuth 1.0a signing was complex and fragile
+
+Edamam was evaluated as an alternative ($9/month entry tier, 10k calls/month, 10/min throttle) but has no free tier to test search quality before committing. Spoonacular `complexSearch` with `addRecipeNutrition=true` is good enough — staying on it.
 
 ## Decisions
 
@@ -9,13 +30,20 @@ Adds a persistent "Add" button to the tab bar (accessible on every screen), swap
 | Persistent Add button placement | Center tab bar slot (custom rendered, not a real tab) |
 | Add modal trigger | Global Redux state (`addMealSlotSlice`) controls open/close + prefill |
 | Modal rendering location | Root `_layout.tsx` so it renders above all tabs |
-| Recipe API | FatSecret (Phase 2 swaps search page + calendar recipe picker; Spoonacular fully removed after Phase 2) |
-| FatSecret OAuth | Handled in a Supabase Edge Function (`fatsecret-proxy`) — consumer secret never on client |
+| Recipe API | Spoonacular — staying, Phase 2 dropped |
 | Plan Week entry point | New button in calendar screen bottom-right (replaces the FAB that moved to tab bar) |
 | Week planner flow | Full screen route (`/plan-week`) — not a modal |
-| AI meal suggestions | New Edge Function `suggest-weekly-meals` modeled after `suggest-foods` |
-| AI suggestion output | Day-by-day meal suggestions (name, macros, meal label, reason) |
-| Add-to-calendar flow | Reuses existing `AddMealSlotModal` prefill pattern from food suggestions |
+| AI meal suggestions | New Edge Function `suggest-weekly-meals` modeled after `suggest-foods`; calls split into 4 day-chunks run concurrently to stay under Supabase's fixed 150s edge function request-idle timeout |
+| AI suggestion output | Full 7-day coverage, `meals_per_day` meal slots per day, each slot has 1-3 individually-named `items` (cook or buy), so a meal can be e.g. "protein bar + protein shake" |
+| Planned non-recipe items | New `meal_slot_foods` table (parallel to `meal_slot_recipes`) — meal slots can now hold standalone food items, not just recipes. Food log stays reserved for unplanned/after-the-fact entries; meal plans (this table) are for anything intentionally planned, including prebought items |
+| Add-to-calendar flow | No modal — suggestions create a real `meal_slot` directly (`ensureMealPlan` + `createSlot` + `addFoodToSlot` per item). Old `AddMealSlotModal`-prefill approach was dropped because it logged to `food_logs`, which is wrong for *planned* meals |
+| FatSecret matching for "buy" items | Auto-match: search FatSecret by the item's name and use the top result's real macros; unmatched items (and all "cook" items) fall back to Claude's macro estimate (`source: 'ai_estimate'`). **First pass — revisit if match quality is poor** (see Follow-ups) |
+
+## Follow-ups / Open Decisions
+
+- **FatSecret auto-match accuracy**: currently silent — no confirmation step. If the top search result is often wrong (mismatched flavor/brand/size), add a picker UI so the user confirms the match instead of it being applied blindly. Tradeoff already discussed: a picker doesn't scale to "Add All" (20+ items) without also keeping an auto-match fallback for bulk-add.
+- **No manual "add a food item to a meal slot" UI yet.** `meal_slot_foods` is currently only written by the AI weekly planner. A general entry point (e.g. a "+ Add Food" button next to "+ Add Recipe" in `MealSlotDetailModal`, reusing the FatSecret search UI from the food log form) would let users plan non-recipe items by hand, not just via AI suggestions — this was the original ask but scoped out of this pass for size.
+- **Untimed slot display is compact-only.** Suggestions are added without a specific time (`time_of_day: null`), so they show in the all-day row at the top of each day column, not the timed grid. Users can tap to open the detail view, but there's no drag-to-schedule for these yet.
 
 ---
 
@@ -85,9 +113,9 @@ Remove the `styles.addButton` `Pressable` and its associated styles. Verify the 
 
 ---
 
-## Phase 2 — FatSecret API on Search Page
+## Phase 2 — Recipe API Swap ❌ DROPPED
 
-Swap the recipe data source on the search screen from Spoonacular to FatSecret. The recipe picker inside the calendar's `AddMealSlotModal` is left on Spoonacular until Phase 3.
+Staying on Spoonacular. See status note above.
 
 ### 2.1 — Create FatSecret proxy Edge Function
 

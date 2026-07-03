@@ -90,6 +90,7 @@ export function AllDayCell({
   onDeleteSlot,
   onDeleteFoodLog,
   onFoodLogPress,
+  onSlotPress,
 }: {
   events: CalendarEvent[];
   untimedSlots?: MealSlotWithRecipe[];
@@ -99,6 +100,7 @@ export function AllDayCell({
   onDeleteSlot?: (slotId: string) => void;
   onDeleteFoodLog?: (id: string) => void;
   onFoodLogPress?: (log: FoodLogWithItems) => void;
+  onSlotPress?: (slot: MealSlotWithRecipe) => void;
 }) {
   const theme = useTheme();
   return (
@@ -113,7 +115,7 @@ export function AllDayCell({
           key={slot.id}
           slot={slot}
           compact
-          onPress={() => {}}
+          onPress={() => onSlotPress?.(slot)}
           onAssignRecipe={() => onAssignRecipe?.(slot.id)}
           onDelete={() => onDeleteSlot?.(slot.id)}
         />

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Modal, View, Text, Pressable, TextInput, ScrollView, StyleSheet, Platform, type ViewStyle, type TextStyle } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
-import type { MealSlotWithRecipe, MealSlotRecipeEntry } from '@/services/meal-plan-service';
+import type { MealSlotWithRecipe, MealSlotRecipeEntry, MealSlotFoodEntry } from '@/services/meal-plan-service';
 import { IconPicker } from '@/components/ui/icon-picker';
 
 interface MealSlotDetailModalProps {
@@ -12,6 +13,7 @@ interface MealSlotDetailModalProps {
   onAddRecipe: () => void;
   onRemoveRecipe: (slotRecipeId: string) => void;
   onSaveRecipeServings: (slotRecipeId: string, servings: number | null) => void;
+  onRemoveFood?: (slotFoodId: string) => void;
   onUpdateSlot?: (slotId: string, patch: { label?: string; time_of_day?: string | null; icon?: string | null }) => void;
 }
 
@@ -81,7 +83,37 @@ function RecipeRow({
   );
 }
 
-export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe, onSaveRecipeServings, onUpdateSlot }: MealSlotDetailModalProps) {
+function FoodRow({ entry, onRemove }: { entry: MealSlotFoodEntry; onRemove: () => void }) {
+  const theme = useTheme();
+  const calories = entry.calories != null ? Math.round(entry.calories * (entry.servings_planned || 1)) : null;
+
+  return (
+    <View style={[styles.recipeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      <View style={styles.recipeCardHeader}>
+        <View style={{ flex: 1 }}>
+          <View style={styles.foodNameRow}>
+            <Ionicons
+              name={entry.source === 'fatsecret' ? 'cart-outline' : 'restaurant-outline'}
+              size={13}
+              color={theme.textSecondary}
+            />
+            <Text style={[styles.recipeTitle, { color: theme.text }]} numberOfLines={2}>
+              {entry.food_name}{entry.brand_name ? ` (${entry.brand_name})` : ''}
+            </Text>
+          </View>
+          {calories != null && (
+            <Text style={[styles.recipeCalHint, { color: theme.textSecondary }]}>≈ {calories} kcal</Text>
+          )}
+        </View>
+        <Pressable onPress={onRemove} hitSlop={8} style={styles.removeBtn}>
+          <Text style={[styles.removeIcon, { color: theme.textSecondary }]}>×</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe, onSaveRecipeServings, onRemoveFood, onUpdateSlot }: MealSlotDetailModalProps) {
   const theme = useTheme();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -186,18 +218,27 @@ export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe
                   )}
                 </View>
 
-                {slot.recipes.length === 0 ? (
-                  <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No recipes assigned</Text>
+                {slot.recipes.length === 0 && slot.foods.length === 0 ? (
+                  <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Nothing planned yet</Text>
                 ) : (
-                  slot.recipes.map((entry) => (
-                    <RecipeRow
-                      key={entry.id}
-                      entry={entry}
-                      onViewRecipe={() => { onClose(); router.push(`/recipes/${entry.recipe_id}`); }}
-                      onRemove={() => onRemoveRecipe(entry.id)}
-                      onSaveServings={(s) => onSaveRecipeServings(entry.id, s)}
-                    />
-                  ))
+                  <>
+                    {slot.recipes.map((entry) => (
+                      <RecipeRow
+                        key={entry.id}
+                        entry={entry}
+                        onViewRecipe={() => { onClose(); router.push(`/recipes/${entry.recipe_id}`); }}
+                        onRemove={() => onRemoveRecipe(entry.id)}
+                        onSaveServings={(s) => onSaveRecipeServings(entry.id, s)}
+                      />
+                    ))}
+                    {slot.foods.map((entry) => (
+                      <FoodRow
+                        key={entry.id}
+                        entry={entry}
+                        onRemove={() => onRemoveFood?.(entry.id)}
+                      />
+                    ))}
+                  </>
                 )}
 
                 <Pressable style={[styles.addBtn, { borderColor: Colors.accent }]} onPress={onAddRecipe}>
@@ -349,7 +390,13 @@ const styles = StyleSheet.create({
   recipeTitle: {
     fontSize: FontSizes.md,
     fontWeight: '600',
+    flexShrink: 1,
   } as TextStyle,
+  foodNameRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  } as ViewStyle,
   recipeCalHint: {
     fontSize: FontSizes.xs,
     marginTop: 2,

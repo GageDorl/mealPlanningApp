@@ -33,6 +33,7 @@ import { WeekPickerModal } from '@/components/calendar/week-picker-modal';
 import type { CalendarEvent } from '@/services/calendar.types';
 import type { Recipe } from '@/models/recipe';
 import { useDispatch } from 'react-redux';
+import { useRouter } from 'expo-router';
 import { openAddModal } from '@/store/slices/add-meal-slot-slice';
 import type { AppDispatch } from '@/store';
 
@@ -69,6 +70,7 @@ export default function WeeklyPlannerScreen() {
   const db = usePowerSync();
   const theme = useTheme();
   const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekPickerVisible, setWeekPickerVisible] = useState(false);
@@ -83,7 +85,7 @@ export default function WeeklyPlannerScreen() {
   const currentWeekStart = getSunday(addDays(today, weekOffset * 7));
   const currentWeekEnd = addDays(currentWeekStart, 7);
 
-  const { weekPlan, updateSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, deleteSlot, refresh } = useMealPlan(currentWeekStart);
+  const { weekPlan, updateSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, removeFoodFromSlot, deleteSlot, refresh } = useMealPlan(currentWeekStart);
 
   useFocusEffect(useCallback(() => {
     refresh();
@@ -372,7 +374,7 @@ export default function WeeklyPlannerScreen() {
   }, [deleteSlot, connected, weekPlan]);
 
   const handleSlotPress = useCallback((slot: import('@/services/meal-plan-service').MealSlotWithRecipe) => {
-    if (slot.recipes.length > 0) setSelectedSlot(slot);
+    if (slot.recipes.length > 0 || slot.foods.length > 0) setSelectedSlot(slot);
     else handleAssignRecipe(slot.id);
   }, [handleAssignRecipe]);
 
@@ -393,6 +395,13 @@ export default function WeeklyPlannerScreen() {
   const handleSaveRecipeServings = useCallback(async (slotRecipeId: string, servings: number | null) => {
     await updateSlotRecipeServings(slotRecipeId, servings);
   }, [updateSlotRecipeServings]);
+
+  const handleRemoveFoodFromSlot = useCallback(async (slotFoodId: string) => {
+    await removeFoodFromSlot(slotFoodId);
+    setSelectedSlot((prev) =>
+      prev ? { ...prev, foods: prev.foods.filter((f) => f.id !== slotFoodId) } : null
+    );
+  }, [removeFoodFromSlot]);
 
   const handleFoodLogPress = useCallback((log: import('@/services/food-log-service').FoodLogWithItems) => {
     setSelectedLog(log);
@@ -583,6 +592,7 @@ export default function WeeklyPlannerScreen() {
                       onDeleteSlot={handleDeleteSlot}
                       onDeleteFoodLog={handleDeleteFoodLog}
                       onFoodLogPress={handleFoodLogPress}
+                      onSlotPress={handleSlotPress}
                     />
                   ))}
                 </View>
@@ -654,6 +664,7 @@ export default function WeeklyPlannerScreen() {
                     onDeleteSlot={handleDeleteSlot}
                     onDeleteFoodLog={handleDeleteFoodLog}
                     onFoodLogPress={handleFoodLogPress}
+                    onSlotPress={handleSlotPress}
                   />
                 ))}
               </View>
@@ -732,6 +743,7 @@ export default function WeeklyPlannerScreen() {
         onAddRecipe={handleAddRecipeToSlot}
         onRemoveRecipe={handleRemoveRecipeFromSlot}
         onSaveRecipeServings={handleSaveRecipeServings}
+        onRemoveFood={handleRemoveFoodFromSlot}
         onUpdateSlot={handleUpdateSlot}
       />
 
@@ -758,6 +770,15 @@ export default function WeeklyPlannerScreen() {
         onSelect={setWeekOffset}
         onClose={() => setWeekPickerVisible(false)}
       />
+
+      <Pressable
+        style={styles.planWeekButton}
+        onPress={() => router.push('/plan-week' as any)}
+        accessibilityRole="button"
+        accessibilityLabel="Plan Week"
+      >
+        <Text style={styles.planWeekButtonText}>Plan Week</Text>
+      </Pressable>
 
     </View>
   );
@@ -860,4 +881,29 @@ const styles = StyleSheet.create({
   weekGridWeb: {
     flex: 1,
   } as ViewStyle,
+  planWeekButton: {
+    position: 'absolute',
+    right: Spacing.lg,
+    bottom: Spacing.xl,
+    backgroundColor: Colors.accent,
+    borderRadius: BorderRadius.full,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0px 3px 8px rgba(0,0,0,0.18)' }
+      : {
+          shadowColor: '#000000',
+          shadowOpacity: 0.18,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 4,
+        }),
+  } as ViewStyle,
+  planWeekButtonText: {
+    color: '#FFFFFF',
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+  } as TextStyle,
 });

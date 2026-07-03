@@ -111,6 +111,7 @@ export default function TabLayout() {
         <Tabs.Screen name="recipes/create" options={{ tabBarItemStyle: { display: 'none' } }} />
         <Tabs.Screen name="recipes/import" options={{ tabBarItemStyle: { display: 'none' } }} />
         <Tabs.Screen name="recipes/saved" options={{ tabBarItemStyle: { display: 'none' } }} />
+        <Tabs.Screen name="plan-week" options={{ tabBarItemStyle: { display: 'none' } }} />
       </Tabs>
 
       <GlobalAddMealModal />
