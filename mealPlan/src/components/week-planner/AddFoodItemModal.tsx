@@ -20,12 +20,14 @@ export function AddFoodItemModal({ visible, onClose, onSelect }: AddFoodItemModa
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!visible) {
       setQuery('');
       setResults([]);
+      setError(null);
     }
   }, [visible]);
 
@@ -34,13 +36,18 @@ export function AddFoodItemModal({ visible, onClose, onSelect }: AddFoodItemModa
     const trimmed = query.trim();
     if (!trimmed) {
       setResults([]);
+      setError(null);
       return;
     }
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
+      setError(null);
       try {
         const response = await lookupIngredient(trimmed, 1, db);
         setResults(response.results);
+      } catch {
+        setResults([]);
+        setError('Search failed. Try again.');
       } finally {
         setLoading(false);
       }
@@ -68,6 +75,7 @@ export function AddFoodItemModal({ visible, onClose, onSelect }: AddFoodItemModa
             autoFocus
           />
           {loading && <ActivityIndicator size="small" color={Colors.accent} style={styles.loadingSpinner} />}
+          {error && <Text style={[styles.emptyText, { color: theme.error }]}>{error}</Text>}
           <ScrollView style={styles.results} keyboardShouldPersistTaps="handled">
             {results.map((r) => (
               <Pressable
@@ -86,7 +94,7 @@ export function AddFoodItemModal({ visible, onClose, onSelect }: AddFoodItemModa
                 </Text>
               </Pressable>
             ))}
-            {!loading && query.trim().length > 0 && results.length === 0 && (
+            {!loading && !error && query.trim().length > 0 && results.length === 0 && (
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No results.</Text>
             )}
           </ScrollView>

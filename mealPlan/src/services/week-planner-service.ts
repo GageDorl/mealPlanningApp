@@ -28,7 +28,7 @@ export interface WeeklyMealSuggestion {
   day: number
   meal_label: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'
   items: WeeklyMealItem[]
-  reason: string
+  reason?: string
 }
 
 export interface PantryItemInput {
