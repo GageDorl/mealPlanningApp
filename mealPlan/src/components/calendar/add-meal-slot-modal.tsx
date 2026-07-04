@@ -355,7 +355,7 @@ export function AddMealSlotModal({
             ) : (
               <View style={styles.headerSide} />
             )}
-            {onDateChange ? (
+            {onDateChange && !createdSlotId ? (
               <Pressable style={styles.headerDatePressable} onPress={() => setDatePickerVisible(true)} hitSlop={8}>
                 <Text style={[styles.headerDate, { color: theme.text }]}>{formattedDate}</Text>
                 <Ionicons name="chevron-down" size={14} color={theme.textSecondary} />
