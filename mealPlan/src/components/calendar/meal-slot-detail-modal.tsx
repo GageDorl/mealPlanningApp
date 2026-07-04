@@ -11,6 +11,7 @@ interface MealSlotDetailModalProps {
   slot: MealSlotWithRecipe | null;
   onClose: () => void;
   onAddRecipe: () => void;
+  onAddFood?: () => void;
   onRemoveRecipe: (slotRecipeId: string) => void;
   onSaveRecipeServings: (slotRecipeId: string, servings: number | null) => void;
   onRemoveFood?: (slotFoodId: string) => void;
@@ -114,7 +115,7 @@ function FoodRow({ entry, onRemove }: { entry: MealSlotFoodEntry; onRemove: () =
   );
 }
 
-export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe, onSaveRecipeServings, onRemoveFood, onUpdateSlot, onDeleteSlot }: MealSlotDetailModalProps) {
+export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onAddFood, onRemoveRecipe, onSaveRecipeServings, onRemoveFood, onUpdateSlot, onDeleteSlot }: MealSlotDetailModalProps) {
   const theme = useTheme();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -257,9 +258,16 @@ export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe
                   </>
                 )}
 
-                <Pressable style={[styles.addBtn, { borderColor: Colors.accent }]} onPress={onAddRecipe}>
-                  <Text style={[styles.addBtnText, { color: Colors.accent }]}>+ Add Recipe</Text>
-                </Pressable>
+                <View style={styles.addBtnRow}>
+                  <Pressable style={[styles.addBtn, styles.addBtnHalf, { borderColor: Colors.accent }]} onPress={onAddRecipe}>
+                    <Text style={[styles.addBtnText, { color: Colors.accent }]}>+ Recipe</Text>
+                  </Pressable>
+                  {onAddFood && (
+                    <Pressable style={[styles.addBtn, styles.addBtnHalf, { borderColor: Colors.accent }]} onPress={onAddFood}>
+                      <Text style={[styles.addBtnText, { color: Colors.accent }]}>+ Food Item</Text>
+                    </Pressable>
+                  )}
+                </View>
               </ScrollView>
 
               <View style={[styles.footer, styles.footerRow]}>
@@ -448,13 +456,20 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     textAlign: 'center',
   } as TextStyle,
+  addBtnRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  } as ViewStyle,
   addBtn: {
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.sm,
     alignItems: 'center',
-    marginTop: Spacing.xs,
+  } as ViewStyle,
+  addBtnHalf: {
+    flex: 1,
   } as ViewStyle,
   addBtnText: {
     fontSize: FontSizes.sm,

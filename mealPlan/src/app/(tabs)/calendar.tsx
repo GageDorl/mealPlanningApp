@@ -29,11 +29,13 @@ import { CalendarPickerModal } from '@/components/calendar/calendar-picker-modal
 import { EventDetailModal } from '@/components/calendar/event-detail-modal';
 import { MealSlotDetailModal } from '@/components/calendar/meal-slot-detail-modal';
 import { FoodLogDetailModal } from '@/components/calendar/food-log-detail-modal';
+import { AddFoodItemModal } from '@/components/week-planner/AddFoodItemModal';
 import { updateExternalEventId } from '@/services/meal-plan-service';
 import { deleteMealEvent } from '@/services/calendar';
 import { WeekPickerModal } from '@/components/calendar/week-picker-modal';
 import type { CalendarEvent } from '@/services/calendar.types';
 import type { Recipe } from '@/models/recipe';
+import type { MealSlotFoodInput } from '@/services/meal-plan-service';
 import { useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
 import { openAddModal } from '@/store/slices/add-meal-slot-slice';
@@ -95,7 +97,7 @@ export default function WeeklyPlannerScreen() {
   const currentWeekStart = getSunday(addDays(today, weekOffset * 7));
   const currentWeekEnd = addDays(currentWeekStart, 7);
 
-  const { weekPlan, updateSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, removeFoodFromSlot, deleteSlot, refresh } = useMealPlan(currentWeekStart);
+  const { weekPlan, updateSlot, addRecipeToSlot, removeRecipeFromSlot, updateSlotRecipeServings, addFoodToSlot, removeFoodFromSlot, deleteSlot, refresh } = useMealPlan(currentWeekStart);
 
   useFocusEffect(useCallback(() => {
     refresh();
@@ -123,6 +125,9 @@ export default function WeeklyPlannerScreen() {
   // Recipe picker modal state
   const [pickerVisible, setPickerVisible] = useState(false);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
+
+  // Food item picker modal state (adding a standalone food item to an existing slot)
+  const [foodPickerVisible, setFoodPickerVisible] = useState(false);
 
   // Meal slot detail modal state
   const [selectedSlot, setSelectedSlot] = useState<import('@/services/meal-plan-service').MealSlotWithRecipe | null>(null);
@@ -400,9 +405,10 @@ export default function WeeklyPlannerScreen() {
   }, [deleteSlot, connected, weekPlan]);
 
   const handleSlotPress = useCallback((slot: import('@/services/meal-plan-service').MealSlotWithRecipe) => {
-    if (slot.recipes.length > 0 || slot.foods.length > 0) setSelectedSlot(slot);
-    else handleAssignRecipe(slot.id);
-  }, [handleAssignRecipe]);
+    // Always open the detail modal — even an empty slot now offers a choice between a
+    // recipe and a standalone food item, rather than assuming "empty means recipe".
+    setSelectedSlot(slot);
+  }, []);
 
   const handleAddRecipeToSlot = useCallback(() => {
     if (!selectedSlot) return;
@@ -410,6 +416,19 @@ export default function WeeklyPlannerScreen() {
     setSelectedSlot(null);
     setPickerVisible(true);
   }, [selectedSlot]);
+
+  const handleAddFoodToSlot = useCallback(() => {
+    if (!selectedSlot) return;
+    setActiveSlotId(selectedSlot.id);
+    setSelectedSlot(null);
+    setFoodPickerVisible(true);
+  }, [selectedSlot]);
+
+  const handleFoodSelected = async (food: MealSlotFoodInput) => {
+    const slotId = activeSlotId;
+    if (!slotId) return;
+    await addFoodToSlot(slotId, food);
+  };
 
   const handleRemoveRecipeFromSlot = useCallback(async (slotRecipeId: string) => {
     await removeRecipeFromSlot(slotRecipeId);
@@ -816,6 +835,19 @@ export default function WeeklyPlannerScreen() {
         onSelect={handleRecipeSelected}
       />
 
+      <AddFoodItemModal
+        visible={foodPickerVisible}
+        onClose={() => {
+          setFoodPickerVisible(false);
+          setActiveSlotId(null);
+        }}
+        onSelect={async (food) => {
+          await handleFoodSelected(food);
+          setFoodPickerVisible(false);
+          setActiveSlotId(null);
+        }}
+      />
+
       <CalendarPickerModal
         visible={calPickerVisible}
         calendars={availableCalendars}
@@ -827,6 +859,7 @@ export default function WeeklyPlannerScreen() {
         slot={selectedSlot}
         onClose={() => setSelectedSlot(null)}
         onAddRecipe={handleAddRecipeToSlot}
+        onAddFood={handleAddFoodToSlot}
         onRemoveRecipe={handleRemoveRecipeFromSlot}
         onSaveRecipeServings={handleSaveRecipeServings}
         onRemoveFood={handleRemoveFoodFromSlot}

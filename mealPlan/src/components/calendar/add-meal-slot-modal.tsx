@@ -5,6 +5,7 @@ import {
   type ViewStyle, type TextStyle,
 } from 'react-native';
 import { usePowerSync } from '@powersync/react-native';
+import { useRouter } from 'expo-router';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { IconPicker } from '@/components/ui/icon-picker';
 import { LogFoodForm, type LogFoodSubmitParams, type LogFoodFormPrefill } from './log-food-form';
+import { DatePickerModal } from '@/components/ui/date-picker-modal';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/services/supabase';
 import { getTopRecipes, getSavedRecipeIdByApiId, saveRecipe } from '@/services/recipe-service';
@@ -30,15 +32,26 @@ interface AddMealSlotModalProps {
   userId?: string;
   prefillSuggestion?: LogFoodFormPrefill & { searchQuery: string; label?: string; icon?: string | null };
   onClose: () => void;
-  onAdd: (label: string, time?: string, recipe?: Recipe, icon?: string | null) => void;
-  onAddFood?: (label: string, time: string, food: MealSlotFoodInput, icon?: string | null) => void;
+  onDateChange?: (date: string) => void;
+  // Slot creation is split from item attachment so multiple recipes/food items can be added
+  // to the same slot in one visit — the slot is created once, on the first pick, and reused.
+  onCreateSlot: (label: string, date: string, time: string, icon?: string | null) => Promise<string | null>;
+  onAddRecipeToSlot: (slotId: string, recipe: Recipe) => Promise<void>;
+  onAddFoodToSlot?: (slotId: string, food: MealSlotFoodInput) => Promise<void>;
   onLogFood: (date: string, params: LogFoodSubmitParams) => Promise<void>;
 }
 
 const QUICK_LABELS = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Post-workout'];
 
-type EntryType = 'plan' | 'plan-food' | 'log';
+type EntryType = 'plan' | 'log';
+type PlanItemKind = 'recipe' | 'food' | null;
 type RecipeResult = { source: 'saved'; item: Recipe } | { source: 'spoonacular'; item: SpoonacularSearchResult };
+interface AddedItem {
+  key: string;
+  name: string;
+  kind: 'recipe' | 'food';
+  detail?: string;
+}
 
 function currentTime12(): { hour: string; minute: string; period: 'AM' | 'PM' } {
   const now = new Date();
@@ -68,15 +81,35 @@ function to24(hour: string, minute: string, period: 'AM' | 'PM'): string {
   return `${String(h).padStart(2, '0')}:${minute.padStart(2, '0')}`;
 }
 
+function dateStrToDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0);
+}
+
+function dateToDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function AddMealSlotModal({
-  visible, date, initialTime, userId, prefillSuggestion, onClose, onAdd, onAddFood, onLogFood,
+  visible, date, initialTime, userId, prefillSuggestion, onClose, onDateChange, onCreateSlot, onAddRecipeToSlot, onAddFoodToSlot, onLogFood,
 }: AddMealSlotModalProps) {
   const theme = useTheme();
   const db = usePowerSync();
+  const router = useRouter();
   const keyboardSlide = useKeyboardSlide();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [entryType, setEntryType] = useState<EntryType>('plan');
+  const [planItemKind, setPlanItemKind] = useState<PlanItemKind>(null);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+
+  // A slot is created once, on the first item picked in step 4, and reused for
+  // subsequent picks so the user can add several recipes/food items in one visit.
+  const [createdSlotId, setCreatedSlotId] = useState<string | null>(null);
+  const [addedItems, setAddedItems] = useState<AddedItem[]>([]);
 
   // Step 2: shared label / icon / time
   const [label, setLabel] = useState('');
@@ -85,7 +118,7 @@ export function AddMealSlotModal({
   const [minute, setMinute] = useState('00');
   const [period, setPeriod] = useState<'AM' | 'PM'>('PM');
 
-  // Step 3a: recipe search
+  // Step 4 (plan → recipe): recipe search
   const [recipeQuery, setRecipeQuery] = useState('');
   const [recipeResults, setRecipeResults] = useState<RecipeResult[]>([]);
   const [recipeLoading, setRecipeLoading] = useState(false);
@@ -93,7 +126,7 @@ export function AddMealSlotModal({
   const [importingId, setImportingId] = useState<number | null>(null);
   const recipeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Step 3c: standalone food item search
+  // Step 4 (plan → food item): standalone food item search
   const [foodQuery, setFoodQuery] = useState('');
   const [foodResults, setFoodResults] = useState<FoodSearchResult[]>([]);
   const [foodLoading, setFoodLoading] = useState(false);
@@ -108,6 +141,9 @@ export function AddMealSlotModal({
     setFoodQuery('');
     setFoodResults([]);
     setFoodError(null);
+    setPlanItemKind(null);
+    setCreatedSlotId(null);
+    setAddedItems([]);
     const t = initialTime ? parse24to12(initialTime) : currentTime12();
     setHour(t.hour);
     setMinute(t.minute);
@@ -124,13 +160,13 @@ export function AddMealSlotModal({
     }
   }, [visible, initialTime, prefillSuggestion]);
 
-  // Load most-used recipes when entering step 3 (plan)
+  // Load most-used recipes when entering the recipe search step
   useEffect(() => {
-    if (!visible || step !== 3 || entryType !== 'plan' || !userId) return;
+    if (!visible || step !== 4 || planItemKind !== 'recipe' || !userId) return;
     let cancelled = false;
     getTopRecipes(userId, 5).then((top) => { if (!cancelled) setMostUsedRecipes(top); });
     return () => { cancelled = true; };
-  }, [visible, step, entryType, userId]);
+  }, [visible, step, planItemKind, userId]);
 
   const runRecipeSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -155,14 +191,14 @@ export function AddMealSlotModal({
   }, []);
 
   useEffect(() => {
-    if (!visible || step !== 3 || entryType !== 'plan') return;
+    if (!visible || step !== 4 || planItemKind !== 'recipe') return;
     if (recipeDebounceRef.current) clearTimeout(recipeDebounceRef.current);
     recipeDebounceRef.current = setTimeout(() => runRecipeSearch(recipeQuery), 400);
     return () => { if (recipeDebounceRef.current) clearTimeout(recipeDebounceRef.current); };
-  }, [visible, recipeQuery, step, entryType, runRecipeSearch]);
+  }, [visible, recipeQuery, step, planItemKind, runRecipeSearch]);
 
   useEffect(() => {
-    if (!visible || step !== 3 || entryType !== 'plan-food') return;
+    if (!visible || step !== 4 || planItemKind !== 'food') return;
     if (foodDebounceRef.current) clearTimeout(foodDebounceRef.current);
     const trimmed = foodQuery.trim();
     if (!trimmed) {
@@ -184,23 +220,47 @@ export function AddMealSlotModal({
       }
     }, 400);
     return () => { if (foodDebounceRef.current) clearTimeout(foodDebounceRef.current); };
-  }, [visible, foodQuery, step, entryType, db]);
+  }, [visible, foodQuery, step, planItemKind, db]);
 
   const time24 = to24(hour, minute, period);
 
-  const [year, month, day] = date.split('-').map(Number);
-  const formattedDate = new Date(year, month - 1, day).toLocaleDateString(undefined, {
+  const selectedDateObj = dateStrToDate(date);
+  const formattedDate = selectedDateObj.toLocaleDateString(undefined, {
     weekday: 'long', month: 'short', day: 'numeric',
   });
 
-  const handleSelectSaved = (recipe: Recipe) => {
-    onAdd(label.trim(), time24, recipe, icon);
-    onClose();
+  const ensureSlotCreated = useCallback(async (): Promise<string | null> => {
+    if (createdSlotId) return createdSlotId;
+    const slotId = await onCreateSlot(label.trim(), date, time24, icon);
+    if (slotId) setCreatedSlotId(slotId);
+    return slotId;
+  }, [createdSlotId, onCreateSlot, label, date, time24, icon]);
+
+  const handleSelectSaved = async (recipe: Recipe) => {
+    const slotId = await ensureSlotCreated();
+    if (!slotId) return;
+    await onAddRecipeToSlot(slotId, recipe);
+    setAddedItems((prev) => [...prev, {
+      key: `r-${recipe.id}-${prev.length}`,
+      name: recipe.title,
+      kind: 'recipe',
+      detail: recipe.calories_per_serving ? `${recipe.calories_per_serving} kcal` : undefined,
+    }]);
+    setRecipeQuery('');
   };
 
-  const handleSelectFood = (result: FoodSearchResult) => {
-    onAddFood?.(label.trim(), time24, mapSearchResultToFoodInput(result), icon);
-    onClose();
+  const handleSelectFood = async (result: FoodSearchResult) => {
+    const slotId = await ensureSlotCreated();
+    if (!slotId || !onAddFoodToSlot) return;
+    const food = mapSearchResultToFoodInput(result);
+    await onAddFoodToSlot(slotId, food);
+    setAddedItems((prev) => [...prev, {
+      key: `f-${food.source_id ?? food.food_name}-${prev.length}`,
+      name: food.food_name,
+      kind: 'food',
+      detail: food.calories ? `${food.calories} kcal` : undefined,
+    }]);
+    setFoodQuery('');
   };
 
   const handleSelectSpoonacular = async (item: SpoonacularSearchResult) => {
@@ -244,8 +304,17 @@ export function AddMealSlotModal({
           })),
         });
       }
-      onAdd(label.trim(), time24, recipe, icon);
-      onClose();
+      const slotId = await ensureSlotCreated();
+      if (slotId) {
+        await onAddRecipeToSlot(slotId, recipe);
+        setAddedItems((prev) => [...prev, {
+          key: `r-${recipe.id}-${prev.length}`,
+          name: recipe.title,
+          kind: 'recipe',
+          detail: recipe.calories_per_serving ? `${recipe.calories_per_serving} kcal` : undefined,
+        }]);
+      }
+      setRecipeQuery('');
     } catch {
       // silently fail — user can retry
     } finally {
@@ -273,13 +342,27 @@ export function AddMealSlotModal({
           {/* Header: back arrow + date + close */}
           <View style={styles.headerRow}>
             {step > 1 ? (
-              <Pressable onPress={() => setStep((s) => (s - 1) as 1 | 2 | 3)} hitSlop={12} style={styles.headerSide}>
+              <Pressable
+                onPress={() => {
+                  if (step === 4) setPlanItemKind(null);
+                  setStep((s) => (s - 1) as 1 | 2 | 3 | 4);
+                }}
+                hitSlop={12}
+                style={styles.headerSide}
+              >
                 <Ionicons name="chevron-back" size={22} color={theme.text} />
               </Pressable>
             ) : (
               <View style={styles.headerSide} />
             )}
-            <Text style={[styles.headerDate, { color: theme.textSecondary }]}>{formattedDate}</Text>
+            {onDateChange && !createdSlotId ? (
+              <Pressable style={styles.headerDatePressable} onPress={() => setDatePickerVisible(true)} hitSlop={8}>
+                <Text style={[styles.headerDate, { color: theme.text }]}>{formattedDate}</Text>
+                <Ionicons name="chevron-down" size={14} color={theme.textSecondary} />
+              </Pressable>
+            ) : (
+              <Text style={[styles.headerDate, { color: theme.textSecondary }]}>{formattedDate}</Text>
+            )}
             <View style={styles.headerSide}>
               <Pressable style={[styles.closeButton, { backgroundColor: theme.backgroundElement }]} onPress={onClose} hitSlop={8}>
                 <Ionicons name="close" size={18} color={theme.textSecondary} />
@@ -297,16 +380,8 @@ export function AddMealSlotModal({
                   onPress={() => { setEntryType('plan'); setStep(2); }}
                 >
                   <Ionicons name="restaurant-outline" size={28} color={Colors.accent} />
-                  <Text style={[styles.typeCardTitle, { color: theme.text }]}>Plan a Recipe</Text>
-                  <Text style={[styles.typeCardSub, { color: theme.textSecondary }]}>Schedule a recipe on your calendar</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.typeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-                  onPress={() => { setEntryType('plan-food'); setStep(2); }}
-                >
-                  <Ionicons name="cart-outline" size={28} color={Colors.accent} />
-                  <Text style={[styles.typeCardTitle, { color: theme.text }]}>Plan a Food Item</Text>
-                  <Text style={[styles.typeCardSub, { color: theme.textSecondary }]}>Schedule something you'll buy, like a protein bar</Text>
+                  <Text style={[styles.typeCardTitle, { color: theme.text }]}>Plan a Meal</Text>
+                  <Text style={[styles.typeCardSub, { color: theme.textSecondary }]}>Schedule a recipe or food item on your calendar</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.typeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
@@ -317,6 +392,14 @@ export function AddMealSlotModal({
                   <Text style={[styles.typeCardSub, { color: theme.textSecondary }]}>Track what you ate or are eating</Text>
                 </Pressable>
               </View>
+
+              <Pressable
+                style={styles.planWeekLink}
+                onPress={() => { onClose(); router.push('/plan-week' as any); }}
+              >
+                <Ionicons name="calendar-outline" size={16} color={Colors.accent} />
+                <Text style={[styles.planWeekLinkText, { color: Colors.accent }]}>Plan out your whole week instead</Text>
+              </Pressable>
             </View>
           )}
 
@@ -375,7 +458,7 @@ export function AddMealSlotModal({
               <View style={styles.actions}>
                 <Button label="Back" onPress={() => setStep(1)} variant="secondary" />
                 <Button
-                  label={entryType === 'plan' ? 'Choose Recipe →' : entryType === 'plan-food' ? 'Choose Food →' : 'Add Food →'}
+                  label={entryType === 'plan' ? 'Next →' : 'Add Food →'}
                   onPress={() => setStep(3)}
                   disabled={!label.trim()}
                 />
@@ -383,10 +466,74 @@ export function AddMealSlotModal({
             </View>
           )}
 
-          {/* Step 3a: recipe search */}
+          {/* Step 3 (plan): recipe or food item? */}
           {step === 3 && entryType === 'plan' && (
+            <View style={styles.typePickerStep}>
+              <Text style={[styles.stepTitle, { color: theme.text }]}>Add a recipe or a food item?</Text>
+              <View style={styles.typeCards}>
+                <Pressable
+                  style={[styles.typeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+                  onPress={() => { setPlanItemKind('recipe'); setStep(4); }}
+                >
+                  <Ionicons name="restaurant-outline" size={28} color={Colors.accent} />
+                  <Text style={[styles.typeCardTitle, { color: theme.text }]}>Recipe</Text>
+                  <Text style={[styles.typeCardSub, { color: theme.textSecondary }]}>Search your saved recipes or discover new ones</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.typeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+                  onPress={() => { setPlanItemKind('food'); setStep(4); }}
+                >
+                  <Ionicons name="cart-outline" size={28} color={Colors.accent} />
+                  <Text style={[styles.typeCardTitle, { color: theme.text }]}>Food Item</Text>
+                  <Text style={[styles.typeCardSub, { color: theme.textSecondary }]}>Something you'll buy, like a protein bar</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {/* Step 4 (plan): add recipes and/or food items to the slot */}
+          {step === 4 && entryType === 'plan' && (
             <>
-              <Text style={[styles.stepTitle, { color: theme.text }]}>Choose a Recipe</Text>
+              <Text style={[styles.stepTitle, { color: theme.text }]}>Add Items</Text>
+
+              <View style={[styles.modeTabs, { borderColor: theme.border }]}>
+                <Pressable
+                  style={[styles.modeTab, planItemKind === 'recipe' && styles.modeTabActive]}
+                  onPress={() => setPlanItemKind('recipe')}
+                >
+                  <Text style={[styles.modeTabText, { color: theme.text }, planItemKind === 'recipe' && styles.modeTabTextActive]}>Recipes</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.modeTab, planItemKind === 'food' && styles.modeTabActive]}
+                  onPress={() => setPlanItemKind('food')}
+                >
+                  <Text style={[styles.modeTabText, { color: theme.text }, planItemKind === 'food' && styles.modeTabTextActive]}>Food Items</Text>
+                </Pressable>
+              </View>
+
+              {addedItems.length > 0 && (
+                <View style={styles.stagedList}>
+                  <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Added ({addedItems.length})</Text>
+                  {addedItems.map((it) => (
+                    <View key={it.key} style={[styles.stagedItem, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+                      <Ionicons
+                        name={it.kind === 'recipe' ? 'restaurant-outline' : 'nutrition-outline'}
+                        size={16}
+                        color={Colors.accent}
+                      />
+                      <View style={styles.stagedItemText}>
+                        <Text style={[styles.stagedItemName, { color: theme.text }]} numberOfLines={1}>{it.name}</Text>
+                        {it.detail && (
+                          <Text style={[styles.stagedItemDetail, { color: theme.textSecondary }]}>{it.detail}</Text>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {planItemKind === 'recipe' ? (
+            <>
               <View style={[styles.searchBar, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
                 <TextInput
                   style={[styles.searchInput, { color: theme.text }]}
@@ -487,19 +634,9 @@ export function AddMealSlotModal({
                   })
                 )}
               </ScrollView>
-
-              <Button
-                label="Add slot without a recipe"
-                onPress={() => { onAdd(label.trim(), time24, undefined, icon); onClose(); }}
-                variant="secondary"
-              />
             </>
-          )}
-
-          {/* Step 3c: standalone food item search */}
-          {step === 3 && entryType === 'plan-food' && (
+              ) : (
             <>
-              <Text style={[styles.stepTitle, { color: theme.text }]}>Choose a Food Item</Text>
               <View style={[styles.searchBar, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
                 <TextInput
                   style={[styles.searchInput, { color: theme.text }]}
@@ -544,9 +681,23 @@ export function AddMealSlotModal({
               </ScrollView>
               <FatSecretAttribution />
             </>
+              )}
+
+              <View style={styles.actions}>
+                {addedItems.length === 0 ? (
+                  <Button
+                    label="Add slot without items"
+                    onPress={async () => { await ensureSlotCreated(); onClose(); }}
+                    variant="secondary"
+                  />
+                ) : (
+                  <Button label="Done" onPress={onClose} />
+                )}
+              </View>
+            </>
           )}
 
-          {/* Step 3b: food log form */}
+          {/* Step 3 (log): food log form */}
           {step === 3 && entryType === 'log' && (
             <LogFoodForm
               userId={userId}
@@ -560,6 +711,16 @@ export function AddMealSlotModal({
 
         </Animated.View>
       </View>
+
+      {onDateChange && (
+        <DatePickerModal
+          visible={datePickerVisible}
+          currentDate={selectedDateObj}
+          onSelect={(d) => onDateChange(dateToDateStr(d))}
+          onClose={() => setDatePickerVisible(false)}
+          allowFuture
+        />
+      )}
     </Modal>
   );
 }
@@ -597,9 +758,16 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   headerDate: {
     fontSize: FontSizes.sm,
-    flex: 1,
+    fontWeight: '600',
     textAlign: 'center',
   } as TextStyle,
+  headerDatePressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  } as ViewStyle,
   closeButton: {
     width: 28,
     height: 28,
@@ -619,18 +787,27 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   typeCards: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.md,
   } as ViewStyle,
   typeCard: {
-    flexBasis: '46%',
-    flexGrow: 1,
+    flex: 1,
     borderWidth: 1,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     gap: Spacing.sm,
     alignItems: 'flex-start',
   } as ViewStyle,
+  planWeekLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+  } as ViewStyle,
+  planWeekLinkText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  } as TextStyle,
   typeCardTitle: {
     fontSize: FontSizes.md,
     fontWeight: '700',
@@ -789,4 +966,50 @@ const styles = StyleSheet.create({
   spinner: {
     marginTop: Spacing.xl,
   } as ViewStyle,
+
+  // Step 4 mode tabs + added-items list
+  modeTabs: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: BorderRadius.sm,
+    overflow: 'hidden',
+  } as ViewStyle,
+  modeTab: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+  } as ViewStyle,
+  modeTabActive: {
+    backgroundColor: Colors.accent,
+  } as ViewStyle,
+  modeTabText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  } as TextStyle,
+  modeTabTextActive: {
+    color: '#FFFFFF',
+  } as TextStyle,
+  stagedList: {
+    gap: Spacing.xs,
+  } as ViewStyle,
+  stagedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderRadius: BorderRadius.sm,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+  } as ViewStyle,
+  stagedItemText: {
+    flex: 1,
+  } as ViewStyle,
+  stagedItemName: {
+    fontSize: FontSizes.sm,
+    fontWeight: '500',
+  } as TextStyle,
+  stagedItemDetail: {
+    fontSize: FontSizes.xs,
+    marginTop: 1,
+  } as TextStyle,
 });

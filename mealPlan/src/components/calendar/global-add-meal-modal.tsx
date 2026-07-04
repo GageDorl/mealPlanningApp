@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePowerSync } from '@powersync/react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { AddMealSlotModal } from '@/components/calendar/add-meal-slot-modal';
@@ -35,48 +35,54 @@ export function GlobalAddMealModal() {
   const prefillTime     = useSelector(selectAddModalTime);
   const prefillSuggestion = useSelector(selectAddModalSuggestion);
 
-  const weekStart = useMemo(() => toWeekStart(prefillDate), [prefillDate]);
+  // The user can change the day within the modal, so the working date is local
+  // state seeded from the redux prefill rather than read straight from it.
+  const [pickedDate, setPickedDate] = useState(prefillDate);
+  useEffect(() => {
+    if (isOpen) setPickedDate(prefillDate);
+  }, [isOpen, prefillDate]);
+
+  const weekStart = useMemo(() => toWeekStart(pickedDate), [pickedDate]);
   const userId = getCachedUserId() ?? undefined;
 
   const { weekPlan, createSlot, addRecipeToSlot, addFoodToSlot } = useMealPlan(weekStart);
   const { createFoodLog } = useFoodLog(weekStart);
   const { connected, createMealEvent } = useCalendar();
 
-  const handleAdd = async (label: string, time?: string, recipe?: Recipe, icon?: string | null) => {
-    const daySlots = weekPlan?.slots.filter((s) => s.date === prefillDate) ?? [];
+  // weekPlan's live query may not yet reflect a slot created moments ago, so track the
+  // date/time each newly-created slot was given here instead of re-reading it back from weekPlan.
+  const createdSlotInfoRef = useRef<Map<string, { date: string; time: string }>>(new Map());
+
+  const handleCreateSlot = async (label: string, slotDate: string, time: string, icon?: string | null) => {
+    const daySlots = weekPlan?.slots.filter((s) => s.date === slotDate) ?? [];
     const slotId = await createSlot({
       label,
-      date: prefillDate,
+      date: slotDate,
       time,
       displayOrder: daySlots.length,
       icon,
     });
-    if (recipe && slotId) {
-      await addRecipeToSlot(slotId, recipe.id);
-      if (connected) {
-        const eventId = await createMealEvent({
-          title: recipe.title,
-          date: prefillDate,
-          timeOfDay: time || null,
-          slotId,
-        });
-        if (eventId) await updateExternalEventId(db, slotId, eventId);
-      }
+    if (slotId) createdSlotInfoRef.current.set(slotId, { date: slotDate, time });
+    return slotId;
+  };
+
+  const handleAddRecipeToSlot = async (slotId: string, recipe: Recipe) => {
+    await addRecipeToSlot(slotId, recipe.id);
+    if (connected) {
+      const slot = weekPlan?.slots.find((s) => s.id === slotId);
+      const info = createdSlotInfoRef.current.get(slotId);
+      const eventId = await createMealEvent({
+        title: recipe.title,
+        date: slot?.date ?? info?.date ?? pickedDate,
+        timeOfDay: slot?.time_of_day ?? info?.time ?? null,
+        slotId,
+      });
+      if (eventId) await updateExternalEventId(db, slotId, eventId);
     }
   };
 
-  const handleAddFood = async (label: string, time: string, food: MealSlotFoodInput, icon?: string | null) => {
-    const daySlots = weekPlan?.slots.filter((s) => s.date === prefillDate) ?? [];
-    const slotId = await createSlot({
-      label,
-      date: prefillDate,
-      time,
-      displayOrder: daySlots.length,
-      icon,
-    });
-    if (slotId) {
-      await addFoodToSlot(slotId, food);
-    }
+  const handleAddFoodToSlot = async (slotId: string, food: MealSlotFoodInput) => {
+    await addFoodToSlot(slotId, food);
   };
 
   const handleLogFood = async (date: string, params: LogFoodSubmitParams) => {
@@ -90,13 +96,15 @@ export function GlobalAddMealModal() {
   return (
     <AddMealSlotModal
       visible={isOpen}
-      date={prefillDate}
+      date={pickedDate}
       initialTime={prefillTime ?? undefined}
       userId={userId}
       prefillSuggestion={prefillSuggestion ?? undefined}
       onClose={handleClose}
-      onAdd={handleAdd}
-      onAddFood={handleAddFood}
+      onDateChange={setPickedDate}
+      onCreateSlot={handleCreateSlot}
+      onAddRecipeToSlot={handleAddRecipeToSlot}
+      onAddFoodToSlot={handleAddFoodToSlot}
       onLogFood={handleLogFood}
     />
   );

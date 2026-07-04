@@ -171,7 +171,7 @@ export function WeekBoard({ slots, weekStart, dailyGoals, committingSlotId, onAd
             {daySlots.map((slot) => {
               if (slot.committed) {
                 return (
-                  <View key={slot.id} style={[styles.card, styles.committedCard, { backgroundColor: theme.backgroundSelected }]}>
+                  <View key={`${slot.id}-committed`} style={[styles.card, styles.committedCard, { backgroundColor: theme.backgroundSelected }]}>
                     <Ionicons name="checkmark-circle" size={16} color={theme.success} />
                     <Text style={[styles.committedText, { color: theme.textSecondary }]} numberOfLines={1}>
                       {slot.meal_label} — added to your calendar
@@ -182,7 +182,7 @@ export function WeekBoard({ slots, weekStart, dailyGoals, committingSlotId, onAd
 
               if (slot.items.length === 0) {
                 return (
-                  <View key={slot.id} style={[styles.card, styles.emptyCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+                  <View key={`${slot.id}-empty`} style={[styles.card, styles.emptyCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
                     <Text style={[styles.mealLabelText, { color: Colors.accent }]}>{slot.meal_label}</Text>
                     <View style={styles.emptyActions}>
                       <Pressable
@@ -212,7 +212,7 @@ export function WeekBoard({ slots, weekStart, dailyGoals, committingSlotId, onAd
               const headerIcon = displays.every((d) => d.icon === 'restaurant-outline') ? 'restaurant-outline' : displays.every((d) => d.icon === 'cart-outline') ? 'cart-outline' : 'fast-food-outline';
 
               return (
-                <View key={slot.id} style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
+                <View key={`${slot.id}-filled`} style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
                   <Pressable style={styles.row} onPress={() => toggleExpanded(slot.id)}>
                     <Ionicons name={headerIcon} size={16} color={theme.textSecondary} style={styles.typeIcon} />
                     <View style={styles.rowMain}>
