@@ -6,6 +6,7 @@ import {
   type DailyMacroProgress,
   type FlatLogRow,
   type FlatSlotRow,
+  type FlatSlotFoodRow,
   type MacroGoalRow,
 } from '@/services/macro-service';
 import { deleteSlot } from '@/services/meal-plan-service';
@@ -40,6 +41,16 @@ const SLOT_RECIPES_QUERY = `
   WHERE mp.user_id = ? AND ms.date = ?
 `;
 
+const SLOT_FOODS_QUERY = `
+  SELECT ms.id AS slot_id, ms.label, ms.time_of_day,
+    msf.id AS msf_id, msf.food_name, msf.brand_name, msf.servings_planned,
+    msf.calories, msf.protein, msf.carbs, msf.fat, msf.dietary_fiber, msf.total_sugar, msf.sodium
+  FROM meal_slot_foods msf
+  JOIN meal_slots ms ON ms.id = msf.meal_slot_id
+  JOIN meal_plans mp ON mp.id = ms.meal_plan_id
+  WHERE mp.user_id = ? AND ms.date = ?
+`;
+
 export function useMacros(initialDate?: Date) {
   const db = usePowerSync();
   const userId = getCachedUserId() ?? '';
@@ -52,11 +63,12 @@ export function useMacros(initialDate?: Date) {
   );
   const { data: logRows } = useQuery<FlatLogRow>(LOG_ITEMS_QUERY, [userId, dateStr]);
   const { data: slotRows } = useQuery<FlatSlotRow>(SLOT_RECIPES_QUERY, [userId, dateStr]);
+  const { data: slotFoodRows } = useQuery<FlatSlotFoodRow>(SLOT_FOODS_QUERY, [userId, dateStr]);
 
   const dailyProgress = useMemo<DailyMacroProgress | null>(() => {
     if (!userId) return null;
-    return computeDailyProgress(dateStr, goalRows, logRows, slotRows);
-  }, [userId, dateStr, goalRows, logRows, slotRows]);
+    return computeDailyProgress(dateStr, goalRows, logRows, slotRows, slotFoodRows);
+  }, [userId, dateStr, goalRows, logRows, slotRows, slotFoodRows]);
 
   const goToPrevDay = useCallback(() => {
     setSelectedDate((d) => {
