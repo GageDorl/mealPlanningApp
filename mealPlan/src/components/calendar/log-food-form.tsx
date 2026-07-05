@@ -82,6 +82,7 @@ interface LogFoodFormProps {
   showLabelAndTime?: boolean;
   initialQuery?: string;
   initialManualValues?: LogFoodFormPrefill;
+  submitLabel?: string;
   onSubmit: (params: LogFoodSubmitParams) => void;
   onCancel: () => void;
 }
@@ -182,7 +183,7 @@ type UnifiedFoodResult =
   | { source: 'community'; item: PublicFood }
   | { source: 'fatsecret'; item: FoodSearchResult };
 
-export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, initialQuery, initialManualValues, onSubmit, onCancel }: LogFoodFormProps) {
+export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, initialQuery, initialManualValues, submitLabel = 'Log Food', onSubmit, onCancel }: LogFoodFormProps) {
   const theme = useTheme();
   const db = usePowerSync();
 
@@ -863,7 +864,7 @@ export function LogFoodForm({ initialTime, userId, showLabelAndTime = true, init
 
           <View style={styles.actions}>
             <Button label="Cancel" onPress={onCancel} variant="secondary" />
-            <Button label="Log Food" onPress={handleSubmit} disabled={!canSubmit} />
+            <Button label={submitLabel} onPress={handleSubmit} disabled={!canSubmit} />
           </View>
         </View>
       )}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { parseWeightLogs, parseWeightGoal } from '@/services/weight-log-service';
 import {
   Animated,
+  Platform,
   View,
   Text,
   Pressable,
@@ -36,6 +37,8 @@ const MONTH_ABBREVS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', '
 
 const Y_AXIS_WIDTH = 48;
 const CHART_HEIGHT = 160;
+// Bigger touch target for data points on mobile — the default 3px radius is hard to tap precisely.
+const DATA_POINT_RADIUS = Platform.OS === 'web' ? 3 : 8;
 // 30d view renders at 3× container width so ~10 days are visible; user scrolls to see the rest.
 const THIRTY_DAY_MULTIPLIER = 3;
 
@@ -286,43 +289,55 @@ export function MacroTrendChart({ userId }: Props) {
       });
 
   const goalValue = chartPoints.find((p) => p.goal > 0)?.goal ?? 0;
-  const maxRaw = Math.max(...chartPoints.map((p) => p.value), goalValue, 0);
 
-  // Weight: 0 → next 100 above max, grid lines every 10 lbs
-  const stepValue = isWeight ? 10 : selectedMacro === 'calories' ? 500 : 25;
+  // Weight: axis floor/ceiling are based only on logged weight values (not the goal,
+  // which can sit far outside the logged range and would otherwise blow out the padding) —
+  // 10lbs under the lowest logged weight and 10lbs over the highest, each rounded to the
+  // nearest 5. Other macros keep the old 0-to-next-multiple range and factor the goal in
+  // so its reference line is always visible.
+  const realWeightValues = isWeight ? chartPoints.filter((p) => p.value > 0).map((p) => p.value) : [];
+  const minRaw = realWeightValues.length ? Math.min(...realWeightValues) : 0;
+  const maxRaw = isWeight
+    ? (realWeightValues.length ? Math.max(...realWeightValues) : 0)
+    : Math.max(...chartPoints.map((p) => p.value), goalValue, 0);
+
+  const stepValue = isWeight ? 5 : selectedMacro === 'calories' ? 500 : 25;
+  const minValue = isWeight ? Math.max(0, Math.round((minRaw - 10) / 5) * 5) : 0;
   const maxValue = isWeight
-    ? Math.max(100, Math.ceil(maxRaw / 100) * 100)
+    ? Math.max(minValue + stepValue, Math.round((maxRaw + 10) / 5) * 5)
     : Math.max(stepValue, Math.ceil((maxRaw * 1.1) / stepValue) * stepValue);
-  const noOfSections = maxValue / stepValue;
+  const noOfSections = (maxValue - minValue) / stepValue;
   const hasData = chartPoints.some((p) => p.value > 0);
 
-  // Weight: label only every 50 lbs (every 5th section) so they don't crowd the axis.
-  // noOfSections is always maxValue/10 and maxValue is always a multiple of 100,
-  // so noOfSections/5 is always a whole number and the labels land on exact grid lines.
-  const yAxisLabels = isWeight
-    ? Array.from({ length: noOfSections / 5 + 1 }, (_, i) => (noOfSections / 5 - i) * 50)
-    : Array.from({ length: noOfSections + 1 }, (_, i) => (noOfSections - i) * stepValue);
+  const yAxisLabels = Array.from({ length: noOfSections + 1 }, (_, i) => maxValue - i * stepValue);
+
+  // Charts are always scaled from 0, so weight values/reference line are shifted
+  // down by minValue before being handed to the chart and the axis labels above
+  // add it back — this fakes a non-zero floor since gifted-charts doesn't support one.
+  const plotValue = (v: number) => (isWeight ? v - minValue : v);
 
   const labelStyle = { color: theme.textSecondary, fontSize: 10 };
 
   const barData: barDataItem[] = chartPoints.map(({ value, label, date }) => ({
-    value,
+    value: plotValue(value),
     label,
     frontColor: macroOption.color,
     labelTextStyle: labelStyle,
     onPress: () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
   }));
 
-  const lineData: lineDataItem[] = chartPoints.map(({ value, label, date }, i) => {
+  // Days with no logged weight are fed in as `value: undefined` rather than 0 — gifted-charts
+  // treats a non-number value as a missing point and (by default) draws a straight line
+  // through it connecting the surrounding real values, instead of dipping down to 0.
+  const lineData: lineDataItem[] = chartPoints.map(({ value, label, date }) => {
     const noData = value === 0;
-    const nextIsGap = i < chartPoints.length - 1 && chartPoints[i + 1].value === 0;
     return {
-      value,
+      value: noData ? undefined : plotValue(value),
       label,
       labelTextStyle: labelStyle,
       hideDataPoint: noData,
       dataPointColor: macroOption.color,
-      color: noData || nextIsGap ? 'transparent' : macroOption.color,
+      color: macroOption.color,
       onPress: noData ? undefined : () => setTooltip((prev) => (prev?.date === date && prev?.value === value ? null : { value, date })),
     };
   });
@@ -341,14 +356,14 @@ export function MacroTrendChart({ userId }: Props) {
 
   const commonChartProps = {
     height: CHART_HEIGHT,
-    maxValue,
+    maxValue: maxValue - minValue,
     noOfSections,
     stepValue,
     hideYAxisText: true,
     yAxisThickness: 0,
     yAxisLabelWidth: 0,
     showReferenceLine1: goalValue > 0,
-    referenceLine1Position: goalValue,
+    referenceLine1Position: plotValue(goalValue),
     referenceLine1Config: refLineConfig,
     xAxisColor: theme.border,
     rulesColor: theme.border,
@@ -449,6 +464,8 @@ export function MacroTrendChart({ userId }: Props) {
                     color={macroOption.color}
                     width={chartWidth}
                     spacing={pointSpacing}
+                    extrapolateMissingValues={false}
+                    dataPointsRadius={DATA_POINT_RADIUS}
                     {...commonChartProps}
                   />
                 )}

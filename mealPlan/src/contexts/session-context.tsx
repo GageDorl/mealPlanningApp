@@ -20,7 +20,6 @@ const SessionContext = createContext<SessionContextValue>({ sessionReady: true }
 function clearStaleRefresh(refreshing: { current: boolean }) {
   const auth = (supabase as any).auth;
   if (auth._refreshingDeferred) {
-    console.log('[session] clearing stale _refreshingDeferred from background');
     try {
       auth._refreshingDeferred.reject(new Error('[session] cleared on foreground'));
     } catch {
@@ -72,13 +71,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         !!session?.access_token &&
         (expiresAt === undefined || expiresAt < nowSecs + 30);
 
-      console.log(
-        `[session] foreground check | hasSession: ${!!session?.access_token}` +
-        ` | expiresAt: ${expiresAt ?? 'none'} | now: ${nowSecs}` +
-        ` | secsUntilExpiry: ${expiresAt ? expiresAt - nowSecs : 'n/a'}` +
-        ` | needsRefresh: ${needsRefresh}`,
-      );
-
       if (!needsRefresh) return;
 
       setSessionReady(false);
@@ -122,12 +114,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const sub = AppState.addEventListener('change', (state) => {
         const ts = new Date().toISOString();
         if (state === 'active') {
-          console.log(`[session] AppState → active at ${ts}`);
           clearStaleRefresh(refreshing);
           foregroundAtRef.current = Date.now();
           doRefresh();
         } else {
-          console.log(`[session] AppState → ${state} at ${ts}`);
           supabase.auth.stopAutoRefresh();
         }
       });
@@ -135,12 +125,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     } else if (typeof document !== 'undefined') {
       const onVisibility = () => {
         if (!document.hidden) {
-          console.log(`[session] visibilitychange → visible at ${new Date().toISOString()}`);
           clearStaleRefresh(refreshing);
           foregroundAtRef.current = Date.now();
           doRefresh();
         } else {
-          console.log(`[session] visibilitychange → hidden at ${new Date().toISOString()}`);
           supabase.auth.stopAutoRefresh();
         }
       };

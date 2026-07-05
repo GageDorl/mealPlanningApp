@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { usePowerSync, useQuery } from '@powersync/react-native';
-import { getCachedUserId } from '@/services/supabase';
+import { useCachedUserId } from '@/hooks/use-cached-user-id';
 import {
   computeDailyProgress,
   type DailyMacroProgress,
@@ -53,7 +53,7 @@ const SLOT_FOODS_QUERY = `
 
 export function useMacros(initialDate?: Date) {
   const db = usePowerSync();
-  const userId = getCachedUserId() ?? '';
+  const userId = useCachedUserId() ?? '';
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate ?? new Date());
   const dateStr = dateToString(selectedDate);
 
