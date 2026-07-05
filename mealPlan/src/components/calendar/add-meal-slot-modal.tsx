@@ -217,40 +217,44 @@ export function AddMealSlotModal({
   };
 
   const handleAddFoodItems = async (params: LogFoodSubmitParams) => {
-    const slotId = await ensureSlotCreated();
-    if (!slotId || !onAddFoodToSlot) return;
-    for (const item of params.items) {
-      const food: MealSlotFoodInput = {
-        food_name: item.food_name,
-        brand_name: item.brand_name,
-        serving_size_amount: item.serving_size_amount,
-        serving_size_unit: item.serving_size_unit,
-        servings_planned: item.servings_eaten,
-        calories: item.calories,
-        protein: item.protein,
-        carbs: item.carbs,
-        fat: item.fat,
-        saturated_fat: item.saturated_fat,
-        trans_fat: item.trans_fat,
-        cholesterol: item.cholesterol,
-        sodium: item.sodium,
-        dietary_fiber: item.dietary_fiber,
-        total_sugar: item.total_sugar,
-        added_sugar: item.added_sugar,
-        source: item.source as MealSlotFoodInput['source'],
-        source_id: item.source_id,
-        // Manual search picks default to grocery-purchasable, matching the recipe-import path.
-        is_grocery_item: true,
-      };
-      await onAddFoodToSlot(slotId, food);
-      setAddedItems((prev) => [...prev, {
-        key: `f-${food.source_id ?? food.food_name}-${prev.length}`,
-        name: food.food_name,
-        kind: 'food',
-        detail: food.calories ? `${food.calories} kcal` : undefined,
-      }]);
+    try {
+      const slotId = await ensureSlotCreated();
+      if (!slotId || !onAddFoodToSlot) return;
+      for (const item of params.items) {
+        const food: MealSlotFoodInput = {
+          food_name: item.food_name,
+          brand_name: item.brand_name,
+          serving_size_amount: item.serving_size_amount,
+          serving_size_unit: item.serving_size_unit,
+          servings_planned: item.servings_eaten,
+          calories: item.calories,
+          protein: item.protein,
+          carbs: item.carbs,
+          fat: item.fat,
+          saturated_fat: item.saturated_fat,
+          trans_fat: item.trans_fat,
+          cholesterol: item.cholesterol,
+          sodium: item.sodium,
+          dietary_fiber: item.dietary_fiber,
+          total_sugar: item.total_sugar,
+          added_sugar: item.added_sugar,
+          source: item.source as MealSlotFoodInput['source'],
+          source_id: item.source_id,
+          // Manual search picks default to grocery-purchasable, matching the recipe-import path.
+          is_grocery_item: true,
+        };
+        await onAddFoodToSlot(slotId, food);
+        setAddedItems((prev) => [...prev, {
+          key: `f-${food.source_id ?? food.food_name}-${prev.length}`,
+          name: food.food_name,
+          kind: 'food',
+          detail: food.calories ? `${food.calories} kcal` : undefined,
+        }]);
+      }
+      setFoodFormKey((k) => k + 1);
+    } catch (e) {
+      Alert.alert('Failed to add food item', e instanceof Error ? e.message : 'Unknown error');
     }
-    setFoodFormKey((k) => k + 1);
   };
 
   const handleSelectSpoonacular = async (item: SpoonacularSearchResult) => {

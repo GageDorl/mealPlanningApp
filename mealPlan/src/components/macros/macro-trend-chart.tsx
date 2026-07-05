@@ -302,9 +302,9 @@ export function MacroTrendChart({ userId }: Props) {
     : Math.max(...chartPoints.map((p) => p.value), goalValue, 0);
 
   const stepValue = isWeight ? 5 : selectedMacro === 'calories' ? 500 : 25;
-  const minValue = isWeight ? Math.max(0, Math.round((minRaw - 10) / 5) * 5) : 0;
+  const minValue = isWeight ? Math.max(0, Math.floor((minRaw - 10) / 5) * 5) : 0;
   const maxValue = isWeight
-    ? Math.max(minValue + stepValue, Math.round((maxRaw + 10) / 5) * 5)
+    ? Math.max(minValue + stepValue, Math.ceil((maxRaw + 10) / 5) * 5)
     : Math.max(stepValue, Math.ceil((maxRaw * 1.1) / stepValue) * stepValue);
   const noOfSections = (maxValue - minValue) / stepValue;
   const hasData = chartPoints.some((p) => p.value > 0);
