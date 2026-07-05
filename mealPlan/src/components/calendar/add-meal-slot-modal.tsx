@@ -18,11 +18,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/services/supabase';
 import { getTopRecipes, getSavedRecipeIdByApiId, saveRecipe } from '@/services/recipe-service';
 import { searchRecipes as spoonacularSearch, getRecipeDetail } from '@/services/spoonacular';
-import { lookupIngredient, mapSearchResultToFoodInput } from '@/services/fatsecret';
-import { FatSecretAttribution } from '@/components/food/fatsecret-attribution';
 import type { Recipe } from '@/models/recipe';
 import type { SpoonacularSearchResult } from '@/services/spoonacular';
-import type { FoodSearchResult } from '@/services/fatsecret';
 import type { MealSlotFoodInput } from '@/services/meal-plan-service';
 
 interface AddMealSlotModalProps {
@@ -126,21 +123,16 @@ export function AddMealSlotModal({
   const [importingId, setImportingId] = useState<number | null>(null);
   const recipeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Step 4 (plan → food item): standalone food item search
-  const [foodQuery, setFoodQuery] = useState('');
-  const [foodResults, setFoodResults] = useState<FoodSearchResult[]>([]);
-  const [foodLoading, setFoodLoading] = useState(false);
-  const [foodError, setFoodError] = useState<string | null>(null);
-  const foodDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Step 4 (plan → food item): reuses LogFoodForm; bumped after each add so the
+  // form resets and the user can add another food item to the same slot.
+  const [foodFormKey, setFoodFormKey] = useState(0);
 
   useEffect(() => {
     if (!visible) return;
     setRecipeQuery('');
     setRecipeResults([]);
     setMostUsedRecipes([]);
-    setFoodQuery('');
-    setFoodResults([]);
-    setFoodError(null);
+    setFoodFormKey((k) => k + 1);
     setPlanItemKind(null);
     setCreatedSlotId(null);
     setAddedItems([]);
@@ -197,31 +189,6 @@ export function AddMealSlotModal({
     return () => { if (recipeDebounceRef.current) clearTimeout(recipeDebounceRef.current); };
   }, [visible, recipeQuery, step, planItemKind, runRecipeSearch]);
 
-  useEffect(() => {
-    if (!visible || step !== 4 || planItemKind !== 'food') return;
-    if (foodDebounceRef.current) clearTimeout(foodDebounceRef.current);
-    const trimmed = foodQuery.trim();
-    if (!trimmed) {
-      setFoodResults([]);
-      setFoodError(null);
-      return;
-    }
-    foodDebounceRef.current = setTimeout(async () => {
-      setFoodLoading(true);
-      setFoodError(null);
-      try {
-        const response = await lookupIngredient(trimmed, 1, db);
-        setFoodResults(response.results);
-      } catch {
-        setFoodResults([]);
-        setFoodError('Search failed. Try again.');
-      } finally {
-        setFoodLoading(false);
-      }
-    }, 400);
-    return () => { if (foodDebounceRef.current) clearTimeout(foodDebounceRef.current); };
-  }, [visible, foodQuery, step, planItemKind, db]);
-
   const time24 = to24(hour, minute, period);
 
   const selectedDateObj = dateStrToDate(date);
@@ -249,18 +216,45 @@ export function AddMealSlotModal({
     setRecipeQuery('');
   };
 
-  const handleSelectFood = async (result: FoodSearchResult) => {
-    const slotId = await ensureSlotCreated();
-    if (!slotId || !onAddFoodToSlot) return;
-    const food = mapSearchResultToFoodInput(result);
-    await onAddFoodToSlot(slotId, food);
-    setAddedItems((prev) => [...prev, {
-      key: `f-${food.source_id ?? food.food_name}-${prev.length}`,
-      name: food.food_name,
-      kind: 'food',
-      detail: food.calories ? `${food.calories} kcal` : undefined,
-    }]);
-    setFoodQuery('');
+  const handleAddFoodItems = async (params: LogFoodSubmitParams) => {
+    try {
+      const slotId = await ensureSlotCreated();
+      if (!slotId || !onAddFoodToSlot) return;
+      for (const item of params.items) {
+        const food: MealSlotFoodInput = {
+          food_name: item.food_name,
+          brand_name: item.brand_name,
+          serving_size_amount: item.serving_size_amount,
+          serving_size_unit: item.serving_size_unit,
+          servings_planned: item.servings_eaten,
+          calories: item.calories,
+          protein: item.protein,
+          carbs: item.carbs,
+          fat: item.fat,
+          saturated_fat: item.saturated_fat,
+          trans_fat: item.trans_fat,
+          cholesterol: item.cholesterol,
+          sodium: item.sodium,
+          dietary_fiber: item.dietary_fiber,
+          total_sugar: item.total_sugar,
+          added_sugar: item.added_sugar,
+          source: item.source as MealSlotFoodInput['source'],
+          source_id: item.source_id,
+          // Manual search picks default to grocery-purchasable, matching the recipe-import path.
+          is_grocery_item: true,
+        };
+        await onAddFoodToSlot(slotId, food);
+        setAddedItems((prev) => [...prev, {
+          key: `f-${food.source_id ?? food.food_name}-${prev.length}`,
+          name: food.food_name,
+          kind: 'food',
+          detail: food.calories ? `${food.calories} kcal` : undefined,
+        }]);
+      }
+      setFoodFormKey((k) => k + 1);
+    } catch (e) {
+      Alert.alert('Failed to add food item', e instanceof Error ? e.message : 'Unknown error');
+    }
   };
 
   const handleSelectSpoonacular = async (item: SpoonacularSearchResult) => {
@@ -636,51 +630,14 @@ export function AddMealSlotModal({
               </ScrollView>
             </>
               ) : (
-            <>
-              <View style={[styles.searchBar, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
-                <TextInput
-                  style={[styles.searchInput, { color: theme.text }]}
-                  placeholder="Search foods…"
-                  placeholderTextColor={theme.textSecondary}
-                  value={foodQuery}
-                  onChangeText={setFoodQuery}
-                  autoFocus
+                <LogFoodForm
+                  key={foodFormKey}
+                  userId={userId}
+                  showLabelAndTime={false}
+                  submitLabel="Add to Slot"
+                  onSubmit={handleAddFoodItems}
+                  onCancel={() => setPlanItemKind(null)}
                 />
-                {foodQuery.length > 0 && (
-                  <Pressable onPress={() => setFoodQuery('')} hitSlop={8} style={styles.clearBtn}>
-                    <Text style={[styles.clearIcon, { color: theme.textSecondary }]}>×</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              {foodLoading && <ActivityIndicator color={Colors.accent} style={styles.spinner} />}
-              {foodError && <Text style={[styles.emptyHint, { color: theme.text }]}>{foodError}</Text>}
-
-              <ScrollView style={styles.recipeList} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                {!foodLoading && !foodError && foodResults.map((r) => (
-                  <Pressable
-                    key={r.id}
-                    style={[styles.recipeRow, { borderBottomColor: theme.border }]}
-                    onPress={() => handleSelectFood(r)}
-                  >
-                    <View style={styles.recipeRowInfo}>
-                      {r.brand_name && (
-                        <Text style={[styles.recipeRowMeta, { color: Colors.accent, fontWeight: '700' }]} numberOfLines={1}>{r.brand_name}</Text>
-                      )}
-                      <Text style={[styles.recipeRowTitle, { color: theme.text }]} numberOfLines={1}>{r.name}</Text>
-                      <Text style={[styles.recipeRowMeta, { color: theme.textSecondary }]}>
-                        {Math.round(r.caloriesPerServing ?? r.caloriesPer100g)} kcal
-                      </Text>
-                    </View>
-                    <Text style={[styles.chevron, { color: theme.textSecondary }]}>›</Text>
-                  </Pressable>
-                ))}
-                {!foodLoading && !foodError && foodQuery.trim().length > 0 && foodResults.length === 0 && (
-                  <Text style={[styles.emptyHint, { color: theme.textSecondary }]}>No results.</Text>
-                )}
-              </ScrollView>
-              <FatSecretAttribution />
-            </>
               )}
 
               <View style={styles.actions}>
