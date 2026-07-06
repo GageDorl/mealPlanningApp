@@ -11,7 +11,7 @@ import { DietaryTags } from '@/constants/dietary-tags';
 import { Colors, FontSizes, Spacing, BorderRadius, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useUserProfile } from '@/hooks/use-user-profile';
-import { updateBodyProfile, updateDietaryPreferences, updateDisplayName, deleteAccount } from '@/services/user-service';
+import { updateBodyProfile, updateDietaryPreferences, updateDisplayName, updateMealsPerDay, deleteAccount } from '@/services/user-service';
 import { signOut } from '@/services/supabase';
 import type { Sex } from '@/services/macro-planner-service';
 
@@ -77,6 +77,7 @@ export default function AccountScreen() {
   const [showDobPicker, setShowDobPicker] = useState(false);
   const [heightFt, setHeightFt] = useState('');
   const [heightIn, setHeightIn] = useState('');
+  const [mealsPerDay, setMealsPerDay] = useState(3);
 
   const { data: bodyRows } = useQuery<{
     planner_sex: string | null;
@@ -92,6 +93,7 @@ export default function AccountScreen() {
     if (!profile) return;
     setDisplayName(profile.user.display_name ?? '');
     setSelectedTags(profile.dietaryPreferences ?? []);
+    setMealsPerDay(profile.user.meals_per_day ?? 3);
   }, [profile]);
 
   useEffect(() => {
@@ -155,6 +157,7 @@ export default function AccountScreen() {
     try {
       await updateDisplayName(db, profile.user.id, displayName);
       await updateDietaryPreferences(db, profile.user.id, selectedTags);
+      await updateMealsPerDay(db, profile.user.id, mealsPerDay);
       await updateBodyProfile(db, profile.user.id, {
         sex,
         dob,
@@ -312,6 +315,33 @@ export default function AccountScreen() {
                   </Pressable>
                 );
               })}
+            </View>
+          </View>
+
+          {/* Meal planning */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Meal planning</Text>
+            <Text style={[styles.sectionHint, { color: theme.textSecondary }]}>
+              How many meals do you eat a day? Used to size the weekly planner.
+            </Text>
+            <View style={styles.chipRow}>
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <Pressable
+                  key={n}
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: mealsPerDay === n ? Colors.accent : theme.border,
+                      backgroundColor: mealsPerDay === n ? Colors.accent : theme.backgroundElement,
+                    },
+                  ]}
+                  onPress={() => setMealsPerDay(n)}
+                >
+                  <Text style={[styles.chipText, { color: mealsPerDay === n ? '#fff' : theme.text }]}>
+                    {n}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
           </View>
 

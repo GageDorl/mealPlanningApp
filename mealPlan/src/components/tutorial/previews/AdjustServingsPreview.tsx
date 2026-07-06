@@ -43,6 +43,7 @@ const FILLER_SLOT: MealSlotWithRecipe = {
     display_order: 0,
     recipe: FILLER_RECIPE,
   }],
+  foods: [],
 };
 
 export function AdjustServingsPreview() {

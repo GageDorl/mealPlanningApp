@@ -43,6 +43,7 @@ const LUNCH_SLOT: MealSlotWithRecipe = {
     display_order: 0,
     recipe: ASSIGNED,
   }],
+  foods: [],
 };
 
 const LIBRARY = [

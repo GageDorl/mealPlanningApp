@@ -16,6 +16,7 @@ import { MacroTrendChart } from '@/components/macros/macro-trend-chart';
 import { WeightSection } from '@/components/macros/weight-section';
 import { MacroAdjustmentCard } from '@/components/MacroAdjustmentCard';
 import { DatePickerModal } from '@/components/ui/date-picker-modal';
+import { FoodSuggestionsCard } from '@/components/macros/food-suggestions-card';
 import { getCachedUserId } from '@/services/supabase';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -46,6 +47,11 @@ export default function MacrosScreen() {
 
   const caloriesGoal = goalRows.find((r) => r.macro_name === 'calories');
   const macroGoals = goalRows.filter((r) => r.macro_name !== 'calories');
+
+  function remainingMacro(name: string): number {
+    const m = dailyProgress?.macros.find((x) => x.macro_name === name);
+    return m ? Math.max(0, m.goal - m.current) : 0;
+  }
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -195,6 +201,19 @@ export default function MacrosScreen() {
           {/* Adaptive macro adjustment — only visible when 7+ days of data exist */}
           {userId && (
             <MacroAdjustmentCard userId={userId} />
+          )}
+
+          {/* Food suggestions — only for today when goals are set */}
+          {userId && today && (
+            <FoodSuggestionsCard
+              userId={userId}
+              date={selectedDate}
+              remainingCalories={remainingMacro('calories')}
+              remainingProtein={remainingMacro('protein')}
+              remainingCarbs={remainingMacro('carbs')}
+              remainingFat={remainingMacro('fat')}
+              hasGoals={!!caloriesGoal}
+            />
           )}
         </ScrollView>
       )}

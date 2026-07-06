@@ -25,6 +25,7 @@ export interface UserProfile {
   notification_planning_nudges: boolean;
   notification_macro_checkins: boolean;
   notification_macro_adjustment: boolean;
+  meals_per_day: number;
 }
 
 export interface UserProfileData {
@@ -199,6 +200,13 @@ export async function updatePlannerProfile(
   await db.execute(
     'UPDATE users SET planner_activity_level = ?, updated_at = ? WHERE id = ?',
     [profile.activity_level, new Date().toISOString(), userId],
+  );
+}
+
+export async function updateMealsPerDay(db: PsDb, userId: string, mealsPerDay: number) {
+  await db.execute(
+    'UPDATE users SET meals_per_day = ?, updated_at = ? WHERE id = ?',
+    [mealsPerDay, new Date().toISOString(), userId],
   );
 }
 

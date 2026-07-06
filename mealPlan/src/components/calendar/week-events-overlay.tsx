@@ -6,7 +6,7 @@ import { ExternalEventBlock } from './external-event-block';
 import { MealSlotCard } from './meal-slot-card';
 import { FoodLogCard } from './food-log-card';
 import {
-  minutesToY, parseTimeToMinutes, formatMinutes24, clampMinutes,
+  minutesToY, parseTimeToMinutes, formatMinutes24, clampMinutes, clampSlotMinutes,
   DEFAULT_HOUR_HEIGHT, START_HOUR, END_HOUR, GRID_HEIGHT, DEFAULT_SLOT_DURATION,
 } from './day-column';
 import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
@@ -68,7 +68,7 @@ function DraggableFoodLog({
       .onUpdate((e) => {
         const rawDelta = (e.translationY / hourHeight) * 60;
         const snapped = Math.round(rawDelta / 15) * 15;
-        const newMin = clampMinutes(startMin + snapped);
+        const newMin = clampSlotMinutes(startMin + snapped);
         dragMinRef.current = newMin;
         onDragUpdate(log.id, newMin);
       })
@@ -83,6 +83,72 @@ function DraggableFoodLog({
       <GestureDetector gesture={gesture}>
         <View style={{ flex: 1 }}>
           <FoodLogCard log={log} compact={compact} onPress={onPress} onDelete={onDelete} />
+        </View>
+      </GestureDetector>
+    </View>
+  );
+}
+
+function DraggableMealSlot({
+  slot,
+  top,
+  height,
+  zIndex,
+  compact,
+  isDragging,
+  hourHeight,
+  onPress,
+  onAssignRecipe,
+  onDelete,
+  onDragStart,
+  onDragUpdate,
+  onDragEnd,
+}: {
+  slot: MealSlotWithRecipe;
+  top: number;
+  height: number;
+  zIndex: number;
+  compact: boolean;
+  isDragging: boolean;
+  hourHeight: number;
+  onPress: () => void;
+  onAssignRecipe: () => void;
+  onDelete: () => void;
+  onDragStart: (slotId: string, currentMin: number) => void;
+  onDragUpdate: (slotId: string, currentMin: number) => void;
+  onDragEnd: (slotId: string, finalMin: number | null) => void;
+}) {
+  const startMin = parseTimeToMinutes(slot.time_of_day)!;
+  const dragMinRef = useRef(startMin);
+
+  const gesture = useMemo(() =>
+    Gesture.Pan()
+      .runOnJS(true)
+      .activateAfterLongPress(350)
+      .onBegin(() => {
+        dragMinRef.current = startMin;
+      })
+      .onStart(() => {
+        onDragStart(slot.id, startMin);
+      })
+      .onUpdate((e) => {
+        const rawDelta = (e.translationY / hourHeight) * 60;
+        const snapped = Math.round(rawDelta / 15) * 15;
+        const newMin = clampSlotMinutes(startMin + snapped);
+        dragMinRef.current = newMin;
+        onDragUpdate(slot.id, newMin);
+      })
+      .onFinalize((_e, success) => {
+        onDragEnd(slot.id, success ? dragMinRef.current : null);
+      }),
+    [slot.id, startMin, hourHeight, onDragStart, onDragUpdate, onDragEnd],
+  );
+
+  return (
+    <View style={[styles.absoluteItem, { top, height, left: 30, right: 2, zIndex, opacity: isDragging ? 0.3 : 1 }]}>
+      <GestureDetector gesture={gesture}>
+        <View style={{ flex: 1 }}>
+          <MealSlotCard slot={slot} compact={compact} onPress={onPress} onAssignRecipe={onAssignRecipe} onDelete={onDelete} />
         </View>
       </GestureDetector>
     </View>
@@ -111,6 +177,7 @@ interface WeekEventsOverlayProps {
   onEventPress: (event: CalendarEvent) => void;
   onFoodLogPress: (log: FoodLogWithItems) => void;
   onUpdateFoodLogTime: (logId: string, newTime: string) => void;
+  onUpdateSlotTime: (slotId: string, newTime: string) => void;
 }
 
 /**
@@ -130,6 +197,7 @@ export function WeekEventsOverlay({
   onEventPress,
   onFoodLogPress,
   onUpdateFoodLogTime,
+  onUpdateSlotTime,
 }: WeekEventsOverlayProps) {
   const [now, setNow] = useState(() => new Date());
 
@@ -158,6 +226,7 @@ export function WeekEventsOverlay({
           onEventPress={onEventPress}
           onFoodLogPress={onFoodLogPress}
           onUpdateFoodLogTime={onUpdateFoodLogTime}
+          onUpdateSlotTime={onUpdateSlotTime}
         />
       ))}
     </View>
@@ -177,6 +246,7 @@ function DayEventsColumn({
   onEventPress,
   onFoodLogPress,
   onUpdateFoodLogTime,
+  onUpdateSlotTime,
 }: {
   day: DayData;
   nowMinutes: number | null;
@@ -190,8 +260,10 @@ function DayEventsColumn({
   onEventPress: (event: CalendarEvent) => void;
   onFoodLogPress: (log: FoodLogWithItems) => void;
   onUpdateFoodLogTime: (logId: string, newTime: string) => void;
+  onUpdateSlotTime: (slotId: string, newTime: string) => void;
 }) {
   const [dragInfo, setDragInfo] = useState<{ logId: string; currentMin: number } | null>(null);
+  const [slotDragInfo, setSlotDragInfo] = useState<{ slotId: string; currentMin: number } | null>(null);
   // ID of the Google event the user has tapped to bring to the front
   const [elevatedEventId, setElevatedEventId] = useState<string | null>(null);
 
@@ -254,10 +326,29 @@ function DayEventsColumn({
     setDragInfo(null);
   }, [onUpdateFoodLogTime]);
 
+  const handleSlotDragStart = useCallback((slotId: string, currentMin: number) => {
+    setSlotDragInfo({ slotId, currentMin });
+  }, []);
+
+  const handleSlotDragUpdate = useCallback((slotId: string, currentMin: number) => {
+    setSlotDragInfo({ slotId, currentMin });
+  }, []);
+
+  const handleSlotDragEnd = useCallback((slotId: string, finalMin: number | null) => {
+    if (finalMin !== null) {
+      onUpdateSlotTime(slotId, formatMinutes24(finalMin));
+    }
+    setSlotDragInfo(null);
+  }, [onUpdateSlotTime]);
+
   const draggingLog = dragInfo ? day.timedFoodLogs.find((l) => l.id === dragInfo.logId) ?? null : null;
   const ghostHeight = (DEFAULT_SLOT_DURATION / 60) * hourHeight;
   const ghostTop = dragInfo ? minutesToY(clampMinutes(dragInfo.currentMin), hourHeight) : 0;
   const chipTop = dragInfo ? Math.max(0, ghostTop - 20) : 0;
+
+  const draggingSlot = slotDragInfo ? day.timedSlots.find((s) => s.id === slotDragInfo.slotId) ?? null : null;
+  const slotGhostTop = slotDragInfo ? minutesToY(clampMinutes(slotDragInfo.currentMin), hourHeight) : 0;
+  const slotChipTop = slotDragInfo ? Math.max(0, slotGhostTop - 20) : 0;
 
   return (
     <View style={[styles.dayCol, { height: gridHeight }, styles.boxNonePointerEvents]}>
@@ -265,12 +356,12 @@ function DayEventsColumn({
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={(e) => {
-          if (dragInfo) return;
+          if (dragInfo || slotDragInfo) return;
           const y = Platform.OS === 'web'
             ? (e.nativeEvent as unknown as { offsetY: number }).offsetY
             : e.nativeEvent.locationY;
           const mins = Math.round((START_HOUR * 60 + (y / hourHeight) * 60) / 15) * 15;
-          onAddSlot(day.date, formatMinutes24(clampMinutes(mins)));
+          onAddSlot(day.date, formatMinutes24(clampSlotMinutes(mins)));
         }}
       />
 
@@ -312,15 +403,22 @@ function DayEventsColumn({
         const top = fanned ? baseTop + CARD_FAN_OFFSET : baseTop;
         const height = fanned ? baseHeight - CARD_FAN_OFFSET : baseHeight;
         return (
-          <View key={slot.id} style={[styles.absoluteItem, { top, height, left: 30, right: 2, zIndex: 3 }]}>
-            <MealSlotCard
-              slot={slot}
-              compact={height < 56}
-              onPress={() => onSlotPress(slot)}
-              onAssignRecipe={() => onAssignRecipe(slot.id)}
-              onDelete={() => onDeleteSlot(slot.id)}
-            />
-          </View>
+          <DraggableMealSlot
+            key={slot.id}
+            slot={slot}
+            top={top}
+            height={height}
+            zIndex={3}
+            compact={height < 56}
+            isDragging={slotDragInfo?.slotId === slot.id}
+            hourHeight={hourHeight}
+            onPress={() => onSlotPress(slot)}
+            onAssignRecipe={() => onAssignRecipe(slot.id)}
+            onDelete={() => onDeleteSlot(slot.id)}
+            onDragStart={handleSlotDragStart}
+            onDragUpdate={handleSlotDragUpdate}
+            onDragEnd={handleSlotDragEnd}
+          />
         );
       })}
 
@@ -364,6 +462,20 @@ function DayEventsColumn({
             pointerEvents="none"
           >
             <FoodLogCard log={draggingLog} compact={ghostHeight < 56} onPress={() => {}} onDelete={() => {}} />
+          </View>
+        </>
+      )}
+
+      {draggingSlot && slotDragInfo && (
+        <>
+          <View style={[styles.dragChip, { top: slotChipTop, left: 30 }]} pointerEvents="none">
+            <Text style={styles.dragChipText}>{formatDragTime(slotDragInfo.currentMin)}</Text>
+          </View>
+          <View
+            style={[styles.absoluteItem, styles.dragGhost, { top: slotGhostTop, height: ghostHeight, left: 30, right: 2 }]}
+            pointerEvents="none"
+          >
+            <MealSlotCard slot={draggingSlot} compact={ghostHeight < 56} onPress={() => {}} onAssignRecipe={() => {}} onDelete={() => {}} />
           </View>
         </>
       )}

@@ -1,18 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Modal, View, Text, Pressable, TextInput, ScrollView, StyleSheet, Platform, type ViewStyle, type TextStyle } from 'react-native';
+import { Modal, View, Text, Pressable, TextInput, ScrollView, StyleSheet, Platform, Alert, type ViewStyle, type TextStyle } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
-import type { MealSlotWithRecipe, MealSlotRecipeEntry } from '@/services/meal-plan-service';
+import type { MealSlotWithRecipe, MealSlotRecipeEntry, MealSlotFoodEntry } from '@/services/meal-plan-service';
 import { IconPicker } from '@/components/ui/icon-picker';
 
 interface MealSlotDetailModalProps {
   slot: MealSlotWithRecipe | null;
   onClose: () => void;
   onAddRecipe: () => void;
+  onAddFood?: () => void;
   onRemoveRecipe: (slotRecipeId: string) => void;
   onSaveRecipeServings: (slotRecipeId: string, servings: number | null) => void;
+  onRemoveFood?: (slotFoodId: string) => void;
   onUpdateSlot?: (slotId: string, patch: { label?: string; time_of_day?: string | null; icon?: string | null }) => void;
+  onDeleteSlot?: (slotId: string) => void;
 }
 
 function parse24to12(time24: string | null): { hour: number; min: 0 | 15 | 30 | 45 } {
@@ -81,7 +85,37 @@ function RecipeRow({
   );
 }
 
-export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe, onSaveRecipeServings, onUpdateSlot }: MealSlotDetailModalProps) {
+function FoodRow({ entry, onRemove }: { entry: MealSlotFoodEntry; onRemove: () => void }) {
+  const theme = useTheme();
+  const calories = entry.calories != null ? Math.round(entry.calories * (entry.servings_planned || 1)) : null;
+
+  return (
+    <View style={[styles.recipeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      <View style={styles.recipeCardHeader}>
+        <View style={{ flex: 1 }}>
+          <View style={styles.foodNameRow}>
+            <Ionicons
+              name={entry.source === 'fatsecret' ? 'cart-outline' : 'restaurant-outline'}
+              size={13}
+              color={theme.textSecondary}
+            />
+            <Text style={[styles.recipeTitle, { color: theme.text }]} numberOfLines={2}>
+              {entry.food_name}{entry.brand_name ? ` (${entry.brand_name})` : ''}
+            </Text>
+          </View>
+          {calories != null && (
+            <Text style={[styles.recipeCalHint, { color: theme.textSecondary }]}>≈ {calories} kcal</Text>
+          )}
+        </View>
+        <Pressable onPress={onRemove} hitSlop={8} style={styles.removeBtn}>
+          <Text style={[styles.removeIcon, { color: theme.textSecondary }]}>×</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onAddFood, onRemoveRecipe, onSaveRecipeServings, onRemoveFood, onUpdateSlot, onDeleteSlot }: MealSlotDetailModalProps) {
   const theme = useTheme();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -103,6 +137,21 @@ export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe
     setEditHour(parsed.hour);
     setEditMin(parsed.min);
     setEditing(true);
+  }
+
+  function handleDeleteSlot() {
+    if (!onDeleteSlot) return;
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete this meal slot?')) {
+        onDeleteSlot(slot!.id);
+        onClose();
+      }
+    } else {
+      Alert.alert('Delete meal slot?', 'This will remove it from your calendar.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => { onDeleteSlot(slot!.id); onClose(); } },
+      ]);
+    }
   }
 
   function commitEdit() {
@@ -186,27 +235,48 @@ export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onRemoveRecipe
                   )}
                 </View>
 
-                {slot.recipes.length === 0 ? (
-                  <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No recipes assigned</Text>
+                {slot.recipes.length === 0 && slot.foods.length === 0 ? (
+                  <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Nothing planned yet</Text>
                 ) : (
-                  slot.recipes.map((entry) => (
-                    <RecipeRow
-                      key={entry.id}
-                      entry={entry}
-                      onViewRecipe={() => { onClose(); router.push(`/recipes/${entry.recipe_id}`); }}
-                      onRemove={() => onRemoveRecipe(entry.id)}
-                      onSaveServings={(s) => onSaveRecipeServings(entry.id, s)}
-                    />
-                  ))
+                  <>
+                    {slot.recipes.map((entry) => (
+                      <RecipeRow
+                        key={entry.id}
+                        entry={entry}
+                        onViewRecipe={() => { onClose(); router.push(`/recipes/${entry.recipe_id}`); }}
+                        onRemove={() => onRemoveRecipe(entry.id)}
+                        onSaveServings={(s) => onSaveRecipeServings(entry.id, s)}
+                      />
+                    ))}
+                    {slot.foods.map((entry) => (
+                      <FoodRow
+                        key={entry.id}
+                        entry={entry}
+                        onRemove={() => onRemoveFood?.(entry.id)}
+                      />
+                    ))}
+                  </>
                 )}
 
-                <Pressable style={[styles.addBtn, { borderColor: Colors.accent }]} onPress={onAddRecipe}>
-                  <Text style={[styles.addBtnText, { color: Colors.accent }]}>+ Add Recipe</Text>
-                </Pressable>
+                <View style={styles.addBtnRow}>
+                  <Pressable style={[styles.addBtn, styles.addBtnHalf, { borderColor: Colors.accent }]} onPress={onAddRecipe}>
+                    <Text style={[styles.addBtnText, { color: Colors.accent }]}>+ Recipe</Text>
+                  </Pressable>
+                  {onAddFood && (
+                    <Pressable style={[styles.addBtn, styles.addBtnHalf, { borderColor: Colors.accent }]} onPress={onAddFood}>
+                      <Text style={[styles.addBtnText, { color: Colors.accent }]}>+ Food Item</Text>
+                    </Pressable>
+                  )}
+                </View>
               </ScrollView>
 
-              <View style={styles.footer}>
-                <Pressable style={[styles.doneBtn, { backgroundColor: Colors.accent }]} onPress={onClose}>
+              <View style={[styles.footer, styles.footerRow]}>
+                {onDeleteSlot && (
+                  <Pressable style={[styles.doneBtn, styles.deleteBtn, { flex: 1 }]} onPress={handleDeleteSlot}>
+                    <Text style={[styles.doneBtnText, styles.deleteBtnText]}>Delete Slot</Text>
+                  </Pressable>
+                )}
+                <Pressable style={[styles.doneBtn, { backgroundColor: Colors.accent, flex: 1 }]} onPress={onClose}>
                   <Text style={styles.doneBtnText}>Done</Text>
                 </Pressable>
               </View>
@@ -349,7 +419,13 @@ const styles = StyleSheet.create({
   recipeTitle: {
     fontSize: FontSizes.md,
     fontWeight: '600',
+    flexShrink: 1,
   } as TextStyle,
+  foodNameRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  } as ViewStyle,
   recipeCalHint: {
     fontSize: FontSizes.xs,
     marginTop: 2,
@@ -380,13 +456,20 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     textAlign: 'center',
   } as TextStyle,
+  addBtnRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  } as ViewStyle,
   addBtn: {
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.sm,
     alignItems: 'center',
-    marginTop: Spacing.xs,
+  } as ViewStyle,
+  addBtnHalf: {
+    flex: 1,
   } as ViewStyle,
   addBtnText: {
     fontSize: FontSizes.sm,
@@ -395,6 +478,10 @@ const styles = StyleSheet.create({
   footer: {
     padding: Spacing.lg,
     paddingTop: Spacing.sm,
+  } as ViewStyle,
+  footerRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
   } as ViewStyle,
   doneBtn: {
     borderRadius: BorderRadius.full,
@@ -405,5 +492,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: FontSizes.sm,
     fontWeight: '700',
+  } as TextStyle,
+  deleteBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#E53E3E',
+  } as ViewStyle,
+  deleteBtnText: {
+    color: '#E53E3E',
   } as TextStyle,
 });

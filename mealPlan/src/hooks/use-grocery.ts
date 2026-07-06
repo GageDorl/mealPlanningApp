@@ -21,15 +21,12 @@ const EMPTY_STATE: GroceryState = {
   totalCount: 0,
 };
 
-function getWeekStartStr(): string {
-  const today = new Date();
-  const d = new Date(today);
+function getWeekStartStr(date: Date): string {
+  const d = new Date(date);
   d.setDate(d.getDate() - d.getDay());
   d.setHours(0, 0, 0, 0);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-
-const WEEK_START_STR = getWeekStartStr();
 
 const GROCERY_QUERY = `
   SELECT
@@ -58,13 +55,14 @@ interface GroceryJoinRow {
   deficit_note: string | null;
 }
 
-export function useGrocery() {
+export function useGrocery(weekStart: Date) {
   const db = usePowerSync();
   const userId = getCachedUserId() ?? '';
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const weekStartStr = useMemo(() => getWeekStartStr(weekStart), [weekStart]);
 
-  const { data: rows } = useQuery<GroceryJoinRow>(GROCERY_QUERY, [userId, WEEK_START_STR]);
+  const { data: rows } = useQuery<GroceryJoinRow>(GROCERY_QUERY, [userId, weekStartStr]);
 
   const state = useMemo<GroceryState>(() => {
     if (rows.length === 0 || !rows[0].list_id) return EMPTY_STATE;
@@ -106,11 +104,11 @@ export function useGrocery() {
     setGenerateError(null);
     setGenerating(true);
     try {
-      await generateList(db, userId, new Date());
+      await generateList(db, userId, weekStart);
     } finally {
       setGenerating(false);
     }
-  }, [db, userId]);
+  }, [db, userId, weekStart]);
 
   const toggleItem = useCallback(async (itemId: string, checked: boolean) => {
     await toggleItemChecked(db, itemId, checked);

@@ -103,22 +103,26 @@ export function groupItemsByCategory(items: GroceryItemRow[]): GroceryDisplayGro
 
 export async function generateList(db: PsDb, userId: string, weekStart: Date): Promise<GroceryState> {
   const weekStartStr = getWeekStart(weekStart);
+  // ensureMealPlan's local-cache existence check races against sync, so a week can end up
+  // with more than one meal_plans row (see use-meal-plan.ts for the fuller explanation).
+  // Gather every matching row's slots rather than just the oldest, or a plan committed while
+  // an older empty duplicate already existed for that week would generate an empty list.
   const { data: planRows } = await supabase
     .from('meal_plans')
     .select('id')
     .eq('user_id', userId)
     .eq('week_start', weekStartStr)
-    .order('created_at', { ascending: true })
-    .limit(1);
-  const planData = (planRows as { id: string }[] | null)?.[0] ?? null;
+    .order('created_at', { ascending: true });
+  const planIds = ((planRows ?? []) as { id: string }[]).map((p) => p.id);
 
-  if (!planData) {
+  if (planIds.length === 0) {
     return { list: null, items: [], displayGroups: [], checkedCount: 0, totalCount: 0 };
   }
+  const canonicalPlanId = planIds[0];
   const { data: slotsData } = await supabase
     .from('meal_slots')
     .select('id')
-    .eq('meal_plan_id', planData.id);
+    .in('meal_plan_id', planIds);
   const slotIds = ((slotsData ?? []) as Array<{ id: string }>).map((s) => s.id);
   const recipeIds: string[] = [];
   if (slotIds.length > 0) {
@@ -179,6 +183,32 @@ export async function generateList(db: PsDb, userId: string, weekStart: Date): P
     }
   }
 
+  // Planned food items (from the weekly planner or a manual add) that are grocery-purchasable —
+  // restaurant/fast-food orders and "cook" items with no ingredient breakdown are excluded
+  // (is_grocery_item is set at the source when the slot is committed).
+  if (slotIds.length > 0) {
+    interface SlotFoodRow {
+      food_name: string;
+      brand_name: string | null;
+      servings_planned: number | null;
+    }
+    const { data: sfData } = await supabase
+      .from('meal_slot_foods')
+      .select('food_name, brand_name, servings_planned')
+      .in('meal_slot_id', slotIds)
+      .eq('is_grocery_item', true);
+
+    for (const sf of (sfData ?? []) as SlotFoodRow[]) {
+      rawInputs.push({
+        name: sf.brand_name ? `${sf.food_name} (${sf.brand_name})` : sf.food_name,
+        quantity: sf.servings_planned ?? 1,
+        unit: null,
+        category: null,
+        ingredient_id: null,
+      });
+    }
+  }
+
   const { data: staplesData } = await supabase
     .from('pantry_staples')
     .select('ingredient_name, quantity, unit')
@@ -209,7 +239,7 @@ export async function generateList(db: PsDb, userId: string, weekStart: Date): P
     .from('grocery_lists')
     .select('id')
     .eq('user_id', userId)
-    .eq('meal_plan_id', planData.id)
+    .eq('meal_plan_id', canonicalPlanId)
     .maybeSingle();
 
   let listId: string;
@@ -221,7 +251,7 @@ export async function generateList(db: PsDb, userId: string, weekStart: Date): P
     listId = randomUUID();
     await db.execute(
       'INSERT INTO grocery_lists (id, user_id, meal_plan_id, generated_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [listId, userId, planData.id, now, now, now],
+      [listId, userId, canonicalPlanId, now, now, now],
     );
   }
 
@@ -248,7 +278,7 @@ export async function generateList(db: PsDb, userId: string, weekStart: Date): P
   const list: GroceryListRow = {
     id: listId,
     user_id: userId,
-    meal_plan_id: planData.id,
+    meal_plan_id: canonicalPlanId,
     generated_at: now,
   };
 

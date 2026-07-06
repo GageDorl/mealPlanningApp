@@ -3,6 +3,7 @@ import { supabase } from '@/services/supabase';
 import { lookupPublicFoodByBarcode, searchPublicFoods, cachePublicFood } from '@/services/public-food-service';
 import { getCached, getCachedIfFresh, setCached } from './local-cache-service';
 import type { PublicFood } from '@/services/public-food-service';
+import type { MealSlotFoodInput } from '@/services/meal-plan-service';
 
 export interface FatSecretServing {
   serving_id: string;
@@ -296,4 +297,40 @@ export async function getFoodDetails(foodId: string): Promise<FoodDetails | null
   } catch {
     return getCached<FoodDetails>('cached_foods', cacheKey);
   }
+}
+
+// lookupIngredient() merges personal-library and community results ahead of raw FatSecret
+// hits, prefixing their ids with "personal:"/"public:" respectively — unprefix and relabel
+// so callers can correctly attribute where a match actually came from.
+export function classifySearchResultSource(id: string): { source: 'library' | 'community' | 'fatsecret'; source_id: string } {
+  if (id.startsWith('personal:')) return { source: 'library', source_id: id.slice('personal:'.length) };
+  if (id.startsWith('public:')) return { source: 'community', source_id: id.slice('public:'.length) };
+  return { source: 'fatsecret', source_id: id };
+}
+
+export function mapSearchResultToFoodInput(result: FoodSearchResult, servingsPlanned = 1): MealSlotFoodInput {
+  const { source, source_id } = classifySearchResultSource(result.id);
+  return {
+    food_name: result.name,
+    brand_name: result.brand_name ?? null,
+    serving_size_amount: null,
+    serving_size_unit: result.servingDescription ?? null,
+    servings_planned: servingsPlanned,
+    calories: result.caloriesPerServing ?? result.caloriesPer100g,
+    protein: result.proteinPerServing ?? result.proteinPer100g,
+    carbs: result.carbsPerServing ?? result.carbsPer100g,
+    fat: result.fatPerServing ?? result.fatPer100g,
+    saturated_fat: null,
+    trans_fat: null,
+    cholesterol: null,
+    sodium: null,
+    dietary_fiber: null,
+    total_sugar: null,
+    added_sugar: null,
+    source,
+    source_id,
+    // Manual search picks default to grocery-purchasable; the AI-suggestion path overrides
+    // this based on whether the item is a restaurant order.
+    is_grocery_item: true,
+  };
 }

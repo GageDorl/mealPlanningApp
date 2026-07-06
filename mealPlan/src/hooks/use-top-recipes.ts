@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@powersync/react-native';
-import { getCachedUserId } from '@/services/supabase';
+import { useCachedUserId } from '@/hooks/use-cached-user-id';
 import type { Recipe } from '@/models/recipe';
 
 function parseRecipeRow(row: Record<string, unknown>): Recipe {
@@ -30,7 +30,7 @@ const TOP_RECIPES_QUERY = `
 `;
 
 export function useTopRecipes(limit = 4) {
-  const userId = getCachedUserId() ?? '';
+  const userId = useCachedUserId() ?? '';
   const { data: rows } = useQuery<Record<string, unknown>>(TOP_RECIPES_QUERY, [userId, limit]);
   const recipes = useMemo<Recipe[]>(() => rows.map(parseRecipeRow), [rows]);
   return { recipes, loading: false };

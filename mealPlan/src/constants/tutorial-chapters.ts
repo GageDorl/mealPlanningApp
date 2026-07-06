@@ -67,6 +67,12 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
       },
       {
         type: 'info',
+        illustrationKey: 'food-suggestions',
+        title: 'AI food suggestions',
+        body: "When you have remaining macros for the day, Bento suggests specific foods to help you hit your targets. Tap Log on any suggestion to add it straight to your calendar — or refresh for new ideas.",
+      },
+      {
+        type: 'info',
         illustrationKey: 'recalibration',
         title: 'Adaptive recalibration',
         body: 'After 7 days of data, Bento can suggest adjustments to your targets based on your actual eating patterns.',
@@ -77,7 +83,7 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
     id: 'meal-planning',
     title: 'Meal Planning',
     icon: '📅',
-    estimatedMinutes: 2,
+    estimatedMinutes: 3,
     slides: [
       {
         type: 'info',
@@ -99,9 +105,21 @@ export const TUTORIAL_CHAPTERS: TutorialChapter[] = [
       },
       {
         type: 'info',
+        illustrationKey: 'meal-slot-foods',
+        title: 'Plan more than recipes',
+        body: "Meal slots aren't limited to recipes — plan a specific item you're going to buy too, like a protein bar or a grab-and-go shake. Bento matches it to real nutrition data so your totals stay accurate.",
+      },
+      {
+        type: 'info',
         illustrationKey: 'adjust-servings',
         title: 'Adjust servings',
         body: 'Each meal slot lets you change the serving count. Scale a recipe up or down and the macros update instantly.',
+      },
+      {
+        type: 'info',
+        illustrationKey: 'plan-week',
+        title: 'Plan your whole week',
+        body: "Tap Plan Week to pick a week and see every meal slot laid out empty. Fill them in yourself — assign a recipe or a specific food item — or tap Get Suggestions to let AI fill in the gaps for you, mixing home-cooked dishes with things you can just buy. Either way, tap the checkmark to add a meal to your calendar.",
       },
       {
         type: 'action',
