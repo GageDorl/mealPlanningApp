@@ -80,7 +80,7 @@ export function WeightLogModal({ visible, userId, onClose, onSaved, initialDate 
       <Modal transparent animationType="fade" visible={visible} statusBarTranslucent onRequestClose={handleClose}>
         <View style={surfaces.sheetOverlay}>
           <Pressable style={styles.backdrop} onPress={handleClose} />
-          <Animated.View style={[styles.sheet, { backgroundColor: theme.backgroundElement, transform: [{ translateY: keyboardSlide }] }]}>
+          <Animated.View style={[styles.sheet, { backgroundColor: theme.backgroundElement, transform: [{ translateY: keyboardSlide.translateY }] }, keyboardSlide.maxHeight != null && { maxHeight: keyboardSlide.maxHeight }]}>
             <View style={[styles.header, { borderBottomColor: theme.border }]}>
               <Pressable onPress={handleClose} hitSlop={12}>
                 <Text style={[styles.headerAction, { color: Colors.accent }]}>Cancel</Text>

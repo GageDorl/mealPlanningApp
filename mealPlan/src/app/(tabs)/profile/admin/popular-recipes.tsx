@@ -323,7 +323,7 @@ function RecipePicker({ visible, excludeIds, onSelect, onClose, theme }: RecipeP
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.pickerOverlay}>
-        <RNAnimated.View style={[styles.pickerCard, { backgroundColor: theme.background, borderColor: theme.border, transform: [{ translateY: keyboardSlide }] }]}>
+        <RNAnimated.View style={[styles.pickerCard, { backgroundColor: theme.background, borderColor: theme.border, transform: [{ translateY: keyboardSlide.translateY }] }, keyboardSlide.maxHeight != null && { maxHeight: keyboardSlide.maxHeight }]}>
           <View style={styles.pickerHeader}>
             <Text style={[styles.pickerTitle, { color: theme.text }]}>Select Recipe</Text>
             <Pressable onPress={onClose}>

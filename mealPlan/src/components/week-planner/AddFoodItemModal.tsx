@@ -66,7 +66,7 @@ export function AddFoodItemModal({ visible, onClose, onSelect }: AddFoodItemModa
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <Animated.View style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide }] }]}>
+        <Animated.View style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide.translateY }] }, keyboardSlide.maxHeight != null && { maxHeight: keyboardSlide.maxHeight }]}>
           <View style={[styles.handle, { backgroundColor: theme.border }]} />
           <Text style={[styles.title, { color: theme.text }]}>Add a Food Item</Text>
           <TextInput
