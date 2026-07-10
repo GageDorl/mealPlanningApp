@@ -151,7 +151,7 @@ export function RecipePickerModal({ visible, onClose, onSelect }: RecipePickerMo
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <Animated.View style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide }] }]}>
+        <Animated.View style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide.translateY }] }, keyboardSlide.maxHeight != null && { maxHeight: keyboardSlide.maxHeight }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.text }]}>Choose a Recipe</Text>
             <Button label="Cancel" onPress={onClose} variant="secondary" />

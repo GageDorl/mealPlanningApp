@@ -1,15 +1,19 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Keyboard, Platform } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Keyboard, Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Returns an Animated.Value representing translateY for a bottom sheet.
-// Negative when keyboard is visible (sheet slides up), 0 when hidden.
-// Uses the native driver so it stays in sync with the keyboard animation.
+// Returns translateY (an Animated.Value for a bottom sheet — negative when the keyboard is
+// visible, 0 when hidden) and maxHeight (a pixel cap for that sheet's height/maxHeight style
+// while the keyboard is visible, undefined otherwise). Sheets translate up by the keyboard
+// height, so without a cap a sheet close to full screen height would get pushed above the top
+// of the screen; maxHeight keeps it within the space still visible above the keyboard.
 export function useKeyboardSlide() {
   const translateY = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const bottomInsetRef = useRef(insets.bottom);
   bottomInsetRef.current = insets.bottom;
+  const { height: windowHeight } = useWindowDimensions();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     const show = Keyboard.addListener(
@@ -20,8 +24,10 @@ export function useKeyboardSlide() {
         // bottom padding accounts for — subtract it so the sheet doesn't slide up further than
         // the keyboard actually requires. Clamp at 0 so a smaller-than-inset keyboard height
         // (some devices/orientations) can't flip this positive and slide the sheet down instead.
+        const adjusted = Math.max(0, e.endCoordinates.height - bottomInsetRef.current);
+        setKeyboardHeight(adjusted);
         Animated.timing(translateY, {
-          toValue: -Math.max(0, e.endCoordinates.height - bottomInsetRef.current),
+          toValue: -adjusted,
           duration: Platform.OS === 'ios' ? e.duration : 150,
           useNativeDriver: true,
         }).start();
@@ -30,6 +36,7 @@ export function useKeyboardSlide() {
     const hide = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       (e) => {
+        setKeyboardHeight(0);
         Animated.timing(translateY, {
           toValue: 0,
           duration: Platform.OS === 'ios' ? e.duration : 150,
@@ -43,5 +50,8 @@ export function useKeyboardSlide() {
     };
   }, [translateY]);
 
-  return translateY;
+  return {
+    translateY,
+    maxHeight: keyboardHeight > 0 ? windowHeight - keyboardHeight : undefined,
+  };
 }
