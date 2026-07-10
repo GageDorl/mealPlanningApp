@@ -11,6 +11,7 @@ import {
   Platform,
   Modal,
   useWindowDimensions,
+  Animated as RNAnimated,
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
@@ -24,6 +25,7 @@ import Animated, {
 import type { SharedValue } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTheme } from '@/hooks/use-theme';
+import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
 import { useUserRole } from '@/hooks/use-user-role';
 import { usePopularRecipes, type PopularRecipeEntry } from '@/hooks/use-popular-recipes';
 import { triggerSync } from '@/utils/trigger-sync';
@@ -215,6 +217,7 @@ type PickerRow = SavedResult | SpoonResult;
 
 function RecipePicker({ visible, excludeIds, onSelect, onClose, theme }: RecipePickerProps) {
   const db = usePowerSync();
+  const keyboardSlide = useKeyboardSlide();
   const [query, setQuery] = useState('');
   const [rows, setRows] = useState<PickerRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -320,7 +323,7 @@ function RecipePicker({ visible, excludeIds, onSelect, onClose, theme }: RecipeP
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.pickerOverlay}>
-        <View style={[styles.pickerCard, { backgroundColor: theme.background, borderColor: theme.border }]}>
+        <RNAnimated.View style={[styles.pickerCard, { backgroundColor: theme.background, borderColor: theme.border, transform: [{ translateY: keyboardSlide }] }]}>
           <View style={styles.pickerHeader}>
             <Text style={[styles.pickerTitle, { color: theme.text }]}>Select Recipe</Text>
             <Pressable onPress={onClose}>
@@ -381,7 +384,7 @@ function RecipePicker({ visible, excludeIds, onSelect, onClose, theme }: RecipeP
               )}
             </ScrollView>
           )}
-        </View>
+        </RNAnimated.View>
       </View>
     </Modal>
   );

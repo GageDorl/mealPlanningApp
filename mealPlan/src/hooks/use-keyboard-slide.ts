@@ -1,18 +1,26 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Keyboard, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Returns an Animated.Value representing translateY for a bottom sheet.
 // Negative when keyboard is visible (sheet slides up), 0 when hidden.
 // Uses the native driver so it stays in sync with the keyboard animation.
 export function useKeyboardSlide() {
   const translateY = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const bottomInsetRef = useRef(insets.bottom);
+  bottomInsetRef.current = insets.bottom;
 
   useEffect(() => {
     const show = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
+        // e.endCoordinates.height is measured from the bottom of the screen, which already
+        // includes the bottom safe-area inset (nav bar / home indicator) that the sheet's own
+        // bottom padding accounts for — subtract it so the sheet doesn't slide up further than
+        // the keyboard actually requires.
         Animated.timing(translateY, {
-          toValue: -e.endCoordinates.height,
+          toValue: -(e.endCoordinates.height - bottomInsetRef.current),
           duration: Platform.OS === 'ios' ? e.duration : 150,
           useNativeDriver: true,
         }).start();

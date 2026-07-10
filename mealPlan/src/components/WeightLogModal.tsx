@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
+import { Alert, Animated, Modal, Pressable, StyleSheet, Text, TextInput, View, type ViewStyle, type TextStyle } from 'react-native';
 import { usePowerSync } from '@powersync/react-native';
 import { DatePickerModal } from '@/components/ui/date-picker-modal';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
 import { surfaces } from '@/styles/surfaces';
 import { upsertWeightLog, type WeightLogEntry } from '@/services/weight-log-service';
 
@@ -34,6 +35,7 @@ function formatDate(d: Date): string {
 export function WeightLogModal({ visible, userId, onClose, onSaved, initialDate }: Props) {
   const db = usePowerSync();
   const theme = useTheme();
+  const keyboardSlide = useKeyboardSlide();
   const [weightInput, setWeightInput] = useState('');
   const [logDate, setLogDate] = useState(() => toNoon(initialDate ?? new Date()));
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -76,8 +78,9 @@ export function WeightLogModal({ visible, userId, onClose, onSaved, initialDate 
   return (
     <>
       <Modal transparent animationType="fade" visible={visible} statusBarTranslucent onRequestClose={handleClose}>
-        <Pressable style={surfaces.sheetOverlay} onPress={handleClose}>
-          <Pressable style={[styles.sheet, { backgroundColor: theme.backgroundElement }]} onPress={() => {}}>
+        <View style={surfaces.sheetOverlay}>
+          <Pressable style={styles.backdrop} onPress={handleClose} />
+          <Animated.View style={[styles.sheet, { backgroundColor: theme.backgroundElement, transform: [{ translateY: keyboardSlide }] }]}>
             <View style={[styles.header, { borderBottomColor: theme.border }]}>
               <Pressable onPress={handleClose} hitSlop={12}>
                 <Text style={[styles.headerAction, { color: Colors.accent }]}>Cancel</Text>
@@ -113,8 +116,8 @@ export function WeightLogModal({ visible, userId, onClose, onSaved, initialDate 
                 <Text style={[styles.dateChevron, { color: Colors.accent }]}>›</Text>
               </Pressable>
             </View>
-          </Pressable>
-        </Pressable>
+          </Animated.View>
+        </View>
       </Modal>
 
       <DatePickerModal
@@ -129,6 +132,13 @@ export function WeightLogModal({ visible, userId, onClose, onSaved, initialDate 
 }
 
 const styles = StyleSheet.create({
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  } as ViewStyle,
   sheet: {
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
