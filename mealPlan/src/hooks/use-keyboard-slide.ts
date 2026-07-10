@@ -18,9 +18,10 @@ export function useKeyboardSlide() {
         // e.endCoordinates.height is measured from the bottom of the screen, which already
         // includes the bottom safe-area inset (nav bar / home indicator) that the sheet's own
         // bottom padding accounts for — subtract it so the sheet doesn't slide up further than
-        // the keyboard actually requires.
+        // the keyboard actually requires. Clamp at 0 so a smaller-than-inset keyboard height
+        // (some devices/orientations) can't flip this positive and slide the sheet down instead.
         Animated.timing(translateY, {
-          toValue: -(e.endCoordinates.height - bottomInsetRef.current),
+          toValue: -Math.max(0, e.endCoordinates.height - bottomInsetRef.current),
           duration: Platform.OS === 'ios' ? e.duration : 150,
           useNativeDriver: true,
         }).start();
