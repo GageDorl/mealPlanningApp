@@ -13,6 +13,8 @@ export function useKeyboardSlide() {
   const bottomInsetRef = useRef(insets.bottom);
   bottomInsetRef.current = insets.bottom;
   const { height: windowHeight } = useWindowDimensions();
+  // Adjusted height (endCoordinates.height minus the bottom safe-area inset), not the raw
+  // keyboard height — already the same value used for translateY, don't subtract the inset again.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
@@ -52,6 +54,6 @@ export function useKeyboardSlide() {
 
   return {
     translateY,
-    maxHeight: keyboardHeight > 0 ? windowHeight - keyboardHeight : undefined,
+    maxHeight: keyboardHeight > 0 ? Math.max(0, windowHeight - keyboardHeight) : undefined,
   };
 }
