@@ -1,5 +1,6 @@
 import { StyleSheet, View, Pressable, useWindowDimensions } from 'react-native';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useDispatch } from 'react-redux';
@@ -35,6 +36,7 @@ export default function TabLayout() {
   const theme = useTheme();
   const colorScheme = useColorScheme();
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={{ flex: 1 }}>
@@ -48,8 +50,8 @@ export default function TabLayout() {
             elevation: 0,
             borderTopColor: theme.border,
             borderTopWidth: StyleSheet.hairlineWidth,
-            height: 64,
-            paddingBottom: 4,
+            height: 64 + insets.bottom,
+            paddingBottom: 4 + insets.bottom,
             paddingTop: 4,
           },
           tabBarActiveTintColor: Colors.accent,

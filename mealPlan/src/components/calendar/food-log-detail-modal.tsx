@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal, View, Text, Pressable, TextInput, Switch, ScrollView, StyleSheet, Platform, Alert, type ViewStyle, type TextStyle } from 'react-native';
+import { Modal, View, Text, Pressable, TextInput, Switch, ScrollView, KeyboardAvoidingView, StyleSheet, Platform, Alert, type ViewStyle, type TextStyle } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import type { FoodLogWithItems, FoodLogItemInput } from '@/services/food-log-service';
@@ -184,6 +184,7 @@ function ItemRow({
       </View>
 
       <Modal visible={flagModalVisible} transparent animationType="fade" onRequestClose={() => setFlagModalVisible(false)}>
+        <KeyboardAvoidingView behavior="padding" style={styles.kbAvoid}>
         <Pressable style={styles.flagOverlay} onPress={() => setFlagModalVisible(false)}>
           <Pressable style={[styles.flagCard, { backgroundColor: theme.background }]} onPress={() => {}}>
             <Text style={[styles.flagTitle, { color: theme.text }]}>Flag this food</Text>
@@ -212,6 +213,7 @@ function ItemRow({
             </View>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -302,6 +304,7 @@ export function FoodLogDetailModal({ log, userId, onClose, onDeleteLog, onDelete
 
   return (
     <Modal visible={!!log} transparent animationType="fade" onRequestClose={subView !== 'main' ? () => { setAddingItems(false); setEditingLog(false); } : onClose}>
+      <KeyboardAvoidingView behavior="padding" style={styles.kbAvoid}>
       <Pressable style={styles.overlay} onPress={handleBackdropPress}>
         <Pressable style={[styles.card, { backgroundColor: theme.background }]} onPress={() => {}}>
           <View style={styles.strip} />
@@ -439,11 +442,15 @@ export function FoodLogDetailModal({ log, userId, onClose, onDeleteLog, onDelete
           )}
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kbAvoid: {
+    flex: 1,
+  } as ViewStyle,
   overlay: {
     flex: 1,
     justifyContent: 'center',

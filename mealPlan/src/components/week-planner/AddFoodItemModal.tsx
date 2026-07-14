@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextStyle, type ViewStyle } from 'react-native';
 import { usePowerSync } from '@powersync/react-native';
 import { useTheme } from '@/hooks/use-theme';
+import { useKeyboardSlide } from '@/hooks/use-keyboard-slide';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
 import { lookupIngredient, mapSearchResultToFoodInput } from '@/services/fatsecret';
 import type { FoodSearchResult } from '@/services/fatsecret';
@@ -17,6 +18,7 @@ interface AddFoodItemModalProps {
 export function AddFoodItemModal({ visible, onClose, onSelect }: AddFoodItemModalProps) {
   const theme = useTheme();
   const db = usePowerSync();
+  const keyboardSlide = useKeyboardSlide();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,8 +64,9 @@ export function AddFoodItemModal({ visible, onClose, onSelect }: AddFoodItemModa
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: theme.background }]} onPress={() => {}}>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Animated.View style={[styles.sheet, { backgroundColor: theme.background, transform: [{ translateY: keyboardSlide.translateY }] }, keyboardSlide.maxHeight != null && { maxHeight: keyboardSlide.maxHeight }]}>
           <View style={[styles.handle, { backgroundColor: theme.border }]} />
           <Text style={[styles.title, { color: theme.text }]}>Add a Food Item</Text>
           <TextInput
@@ -99,8 +102,8 @@ export function AddFoodItemModal({ visible, onClose, onSelect }: AddFoodItemModa
             )}
           </ScrollView>
           <FatSecretAttribution />
-        </Pressable>
-      </Pressable>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
@@ -110,6 +113,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.4)',
+  } as ViewStyle,
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   } as ViewStyle,
   sheet: {
     borderTopLeftRadius: BorderRadius.xl,

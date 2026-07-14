@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Modal, View, Text, Pressable, TextInput, ScrollView, StyleSheet, Platform, Alert, type ViewStyle, type TextStyle } from 'react-native';
+import { Modal, View, Text, Pressable, TextInput, ScrollView, KeyboardAvoidingView, StyleSheet, Platform, Alert, type ViewStyle, type TextStyle } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
@@ -169,8 +169,12 @@ export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onAddFood, onR
 
   return (
     <Modal visible={!!slot} transparent animationType="fade" onRequestClose={editing ? () => setEditing(false) : onClose}>
-      <Pressable style={styles.overlay} onPress={editing ? () => setEditing(false) : onClose}>
-        <Pressable style={[styles.card, { backgroundColor: theme.background }]} onPress={() => {}}>
+      {/* This card is vertically centered rather than anchored to the bottom, so a
+          translateY slide (used for bottom sheets elsewhere) would miscenter it —
+          KeyboardAvoidingView instead shrinks the flex area so centering recalculates. */}
+      <KeyboardAvoidingView behavior="padding" style={styles.kbAvoid}>
+        <Pressable style={styles.overlay} onPress={editing ? () => setEditing(false) : onClose}>
+          <Pressable style={[styles.card, { backgroundColor: theme.background }]} onPress={() => {}}>
           <View style={styles.strip} />
 
           {editing ? (
@@ -283,12 +287,16 @@ export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onAddFood, onR
             </>
           )}
         </Pressable>
-      </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kbAvoid: {
+    flex: 1,
+  } as ViewStyle,
   overlay: {
     flex: 1,
     justifyContent: 'center',
