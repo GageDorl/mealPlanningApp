@@ -16,6 +16,9 @@ export function useKeyboardSlide() {
   // Adjusted height (endCoordinates.height minus the bottom safe-area inset), not the raw
   // keyboard height — already the same value used for translateY, don't subtract the inset again.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // Bumped on every keyboard event so a hide animation's completion callback can tell
+  // whether it's still the latest transition before releasing the height cap.
+  const transitionEpoch = useRef(0);
 
   useEffect(() => {
     const show = Keyboard.addListener(
@@ -27,6 +30,7 @@ export function useKeyboardSlide() {
         // the keyboard actually requires. Clamp at 0 so a smaller-than-inset keyboard height
         // (some devices/orientations) can't flip this positive and slide the sheet down instead.
         const adjusted = Math.max(0, e.endCoordinates.height - bottomInsetRef.current);
+        transitionEpoch.current++;
         setKeyboardHeight(adjusted);
         Animated.timing(translateY, {
           toValue: -adjusted,
@@ -38,12 +42,18 @@ export function useKeyboardSlide() {
     const hide = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       (e) => {
-        setKeyboardHeight(0);
+        // Keep the height cap in place until the slide-down finishes — releasing it
+        // immediately makes the sheet snap to its full height while the translate is
+        // still animating, which reads as a jitter. Only release if no newer keyboard
+        // transition (e.g. focus moved to another input) started in the meantime.
+        const epoch = ++transitionEpoch.current;
         Animated.timing(translateY, {
           toValue: 0,
           duration: Platform.OS === 'ios' ? e.duration : 150,
           useNativeDriver: true,
-        }).start();
+        }).start(() => {
+          if (transitionEpoch.current === epoch) setKeyboardHeight(0);
+        });
       }
     );
     return () => {
