@@ -1,6 +1,6 @@
 <div align="center">
 
-# Prepd — Meal Planning App
+# Bento — Meal Planning App
 
 **Plan meals. Shop smarter. Eat better.**
 
@@ -13,11 +13,11 @@
 
 ---
 
-Cross-platform meal planning app built with Expo (Android / Web), Supabase, and PowerSync for offline-first sync.
+Cross-platform meal planning app built with Expo (Android / Web), Supabase, and PowerSync for offline-first sync. AI features (weekly meal planning, food suggestions, recipe import parsing, grocery list generation) are powered by Claude via Supabase Edge Functions.
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) 18+
+- [Node.js](https://nodejs.org/) 22+
 - [Supabase CLI](https://supabase.com/docs/guides/cli) — `npm install -g supabase` (or use `npx supabase`)
 - A [Supabase](https://supabase.com/) account
 - A [PowerSync](https://www.powersync.com/) account (for offline sync)
@@ -37,7 +37,7 @@ npm install
 
 ### 2. Configure environment variables
 
-Get the `.env` file from your team lead and place it at `mealPlan/.env`. It contains these variables:
+Get the `.env` file from your team lead and place it at `mealPlan/.env` (template at `mealPlan/.env.example`). It contains these variables:
 
 | Variable | What it's for |
 |---|---|
@@ -45,9 +45,8 @@ Get the `.env` file from your team lead and place it at `mealPlan/.env`. It cont
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `EXPO_PUBLIC_POWERSYNC_URL` | PowerSync instance URL (offline sync) |
 | `EXPO_PUBLIC_SPOONACULAR_API_KEY` | Spoonacular recipe API (optional) |
-| `EXPO_PUBLIC_USDA_API_KEY` | USDA nutrition data API (optional) |
 
-FatSecret and Google Calendar API credentials are **Edge Function secrets only** — never bundled into the app. Already set in the deployed Edge Functions; teammates don't need to `supabase secrets set`.
+FatSecret, Google OAuth, and Anthropic (Claude) credentials are **Edge Function secrets only** — never bundled into the app. Already set in the deployed Edge Functions; teammates don't need to `supabase secrets set`.
 
 ### 3. Link Supabase and apply migrations
 
@@ -76,19 +75,25 @@ npx expo start     # Interactive — choose platform at runtime
 
 ## Features
 
+### Onboarding & Tutorial
+- Guided post-signup flow: body details (height, birthday, biological sex) → 5-chapter interactive tutorial (Welcome, Macros & Nutrition, Meal Planning, Recipes, Grocery List) with animated feature previews
+- Setup steps embedded directly in the tutorial: macro goals, dietary preferences, calendar connect
+- Per-chapter progress saved; the tutorial can be revisited any time from the profile
+
 ### Meal Planning
-- Weekly calendar view with drag-to-reschedule meal slots
-- Recipe browsing with per-serving macro scaling
-- Calendar export for planned meals (Android: native device calendar; Web: Google Calendar)
+- Weekly calendar with 2D pan and drag-to-reschedule meal slots (including dragging untimed entries from the all-day row into the timed grid)
+- Meal slots hold recipes and/or standalone food items, with per-serving adjustment
+- **AI Week Planner** — answer a short questionnaire (cook time, fresh vs. meal-prep style, budget, meals per day, what's in your pantry) and Claude drafts a full week of meals you can edit and commit to the calendar
+- **Google Calendar integration (OAuth)** — planned meals sync to a dedicated calendar; your existing Google Calendar events overlay on the week grid, with per-calendar visibility toggles
 
 ### Macro Tracking
 - **Daily Macro Progress** — planned meals and logged food summed into a single daily total with progress rings and per-macro bars
 - **Food Log** — log what you actually ate alongside planned meals
   - Manual entry with full nutrition label fields (calories, protein, carbs, fat, saturated fat, sodium, fiber, sugar, and more)
-  - Meal labels (Breakfast / Lunch / Dinner / Snack), time-of-day picker
+  - Meal labels (Breakfast / Lunch / Dinner / Snack), icons, time-of-day picker
   - Untimed entries appear in the calendar's all-day row
 - **FatSecret Search** — search millions of generic and branded foods
-  - Serving size picker populated from FatSecret's own serving options
+  - Serving size picker populated from FatSecret's own serving options, plus weight-based conversion ("my amount" in g/oz)
   - "Powered by FatSecret" attribution required on all FatSecret data
 - **Barcode Scanner** — scan a product barcode to auto-fill nutrition details
 - **Personal Food Library** — save frequently used foods for one-tap re-logging
@@ -99,7 +104,8 @@ npx expo start     # Interactive — choose platform at runtime
   - Manual submissions enter a moderation queue
   - Unified search order: Personal Library → Community → FatSecret, deduplicated by FatSecret ID
   - Source badges on every search result (My Library / Community / FatSecret)
-- **Macro Trend Chart** — 7 / 30 / 90-day historical view of daily macro intake with pinch-to-zoom and pan
+- **AI Food Suggestions** — Claude suggests specific foods to fill your remaining macros for the day
+- **Macro Trend Chart** — 7 / 30-day history of calories, protein, carbs, fat, and weight; bar or line view, drag-to-pan on the 30-day range, goal reference lines
 - **Flag food** — report inaccurate community entries with an optional reason
 
 ### Adaptive Macro Goals
@@ -114,14 +120,40 @@ npx expo start     # Interactive — choose platform at runtime
 - **Profile completeness check** — if height / DOB / sex aren't set, a banner redirects to Account settings before entering the planner
 
 ### Weight Logging
-- Log daily weight readings with timestamps
-- Running history used to pre-populate current weight in the Macro Planner
-- Weight section on the macros screen shows latest entry and goal progress
+- Log daily weight readings, with a dashboard banner prompting a daily check-in when a goal is active
+- Weight trend on the macro chart with goal line overlay
+- Running history pre-populates current weight in the Macro Planner
+
+### Recipes
+- **Spoonacular search** with cuisine, diet (vegetarian / vegan / gluten-free / dairy-free), and max-cook-time filters
+- Manual recipe builder with per-ingredient macro lookup
+- **AI URL import** — paste a recipe URL; the app fetches it, reads schema.org data, and uses Claude to parse ingredients into structured quantities (with a local-parser fallback)
+- Saved / favorited recipes, most-used recipes surfaced when planning
+- **Popular recipes** — admin-curated list shown to all users, with drag-to-reorder and a configurable display limit
+
+### Grocery List
+- Auto-generated shopping list from the week's planned meals, grouped by category, with check-off
+- **AI generation & pantry matching** — Claude consolidates ingredients across recipes and skips things you already have
+- **Pantry staples** — maintain a list of always-on-hand items that are excluded from generated lists
+
+### Notifications (Android)
+- Per-meal-slot reminders, weekly planning nudge, daily macro check-in, and adaptive-macro adjustment reminders — each individually toggleable in Profile → Notifications
+
+### Offline-First Sync
+- PowerSync wraps Supabase so recipes, meal plans, food logs, and personal foods work fully offline and sync when back online
+- Platform-split connectors (native SQLite / web), offline detection, and pull-to-refresh throughout
+
+### Account & App
+- Light / dark / system theme, persisted to your profile
+- Dashboard with preview cards (calendar, macros, grocery, recipes) and a contextual nudge banner for unfinished setup
+- Password reset flow, display-name editing, and full account deletion
+- About, privacy policy, and terms-of-service pages
 
 ### Moderation & Administration
 - **Pending Foods** *(moderator + admin)* — review manually submitted community foods; approve or reject with optional moderator notes
 - **Flagged Foods** *(moderator + admin)* — review flagged entries; see each flag (who flagged, reason, date); clear flags, re-pend for full re-review, or hard-remove
 - **User Roles** *(admin only)* — paginated user list with email search; tap any user to assign `user`, `moderator`, or `admin` role
+- **Popular Recipes** *(admin only)* — curate and reorder the recipe list shown to all users
 - Admin section is hidden entirely for standard users; role is fetched from the `profiles` table
 
 ### Role System
@@ -130,7 +162,7 @@ npx expo start     # Interactive — choose platform at runtime
 |------|--------|
 | `user` | Log food, search, use personal library, flag community entries |
 | `moderator` | All user access + approve/reject submissions + manage flags |
-| `admin` | All moderator access + assign roles to any user |
+| `admin` | All moderator access + assign roles + curate popular recipes |
 
 ---
 
@@ -141,50 +173,62 @@ mealPlanningApp/
 ├── mealPlan/                        # Expo app
 │   ├── src/
 │   │   ├── app/                     # File-based routes (Expo Router)
-│   │   │   ├── (auth)/              # Sign-in, sign-up
-│   │   │   ├── (onboarding)/        # Dietary prefs, macro goals, calendar connect
+│   │   │   ├── (auth)/              # Sign-in, sign-up, forgot password
+│   │   │   ├── (tutorial)/          # 5-chapter onboarding tutorial
+│   │   │   ├── auth/                # OAuth/email callbacks, profile details, reset password
 │   │   │   └── (tabs)/              # Main tab screens
-│   │   │       ├── index.tsx        # Dashboard
+│   │   │       ├── index.tsx        # Dashboard (preview cards + nudges)
 │   │   │       ├── calendar.tsx     # Weekly meal planner + food log
-│   │   │       ├── search.tsx       # Recipe / food search
-│   │   │       ├── macros/          # Daily macro tracking
-│   │   │       │   ├── index.tsx            # Macro dashboard (progress, food log, weight)
-│   │   │       │   ├── macro-planner.tsx    # Goal input (weight, activity, direction/target)
-│   │   │       │   └── macro-recommendation.tsx  # BMR recommendation + editable goals
+│   │   │       ├── plan-week.tsx    # AI week planner
+│   │   │       ├── search.tsx       # Spoonacular recipe search
+│   │   │       ├── macros/          # Macro dashboard, planner, recommendations
 │   │   │       ├── grocery/         # Grocery list + pantry staples
 │   │   │       ├── recipes/         # Recipe detail, create, import, saved
-│   │   │       └── profile/
-│   │   │           ├── food-library.tsx        # Personal food library
-│   │   │           └── admin/                  # Moderation screens (mod + admin only)
-│   │   │               ├── pending-foods.tsx
-│   │   │               ├── flagged-foods.tsx
-│   │   │               └── user-roles.tsx
-│   │   ├── components/              # Shared UI components
-│   │   │   ├── calendar/            # Calendar grid, food log form, modals
-│   │   │   ├── food/                # Barcode scanner, FatSecret attribution
-│   │   │   ├── macros/              # Progress bars, rings, macro breakdown
-│   │   │   ├── dashboard/           # Dashboard preview cards
-│   │   │   └── ui/                  # Primitives: Button, Input, Screen, LoadingModal
-│   │   ├── hooks/                   # useUserProfile, useUserRole, useFoodLog, useMacros, …
-│   │   ├── services/                # Supabase queries, FatSecret, calendar, service layer
+│   │   │       └── profile/         # Account, appearance, notifications,
+│   │   │           └── admin/       #   food library, admin/moderation screens
+│   │   ├── components/              # Shared UI (calendar/, macros/, food/, tutorial/,
+│   │   │                            #   week-planner/, dashboard/, ui/)
+│   │   ├── hooks/                   # useUserProfile, useMacros, useGrocery, …
+│   │   ├── services/                # Supabase, PowerSync, FatSecret, Spoonacular,
+│   │   │                            #   Google Calendar, Claude AI, notifications
 │   │   ├── models/                  # PowerSync table schemas + TypeScript interfaces
 │   │   ├── utils/                   # Pure utilities
-│   │   └── constants/               # Theme, macros, dietary tags, env
+│   │   └── constants/               # Theme, macros, dietary tags, tutorial chapters, env
+│   ├── cypress/                     # End-to-end tests (auth, calendar, food log)
 │   ├── .env                         # Local env vars (gitignored)
 │   └── .env.example                 # Template — copy this to .env
 ├── supabase/
 │   ├── functions/                   # Edge Functions (Deno/TypeScript)
-│   │   ├── search-food/             # FatSecret proxy: text search, barcode lookup, food detail
+│   │   ├── search-food/             # FatSecret proxy: text search, barcode lookup, detail
+│   │   ├── suggest-weekly-meals/    # Claude: AI week planner
+│   │   ├── suggest-foods/           # Claude: macro-filling food suggestions
+│   │   ├── parse-ingredients/       # Claude: ingredient parsing for recipe import
+│   │   ├── generate-grocery-list/   # Claude: grocery list consolidation
+│   │   ├── pantry-check/            # Claude: match list items against pantry staples
+│   │   ├── fetch-recipe-html/       # Fetch raw HTML for URL-based recipe import
+│   │   ├── google-oauth-*/          # Google Calendar OAuth (link, verify, mobile callback)
+│   │   ├── google-calendar/         # Calendar CRUD + prep-calendar management
 │   │   ├── submit-public-food/      # Cache / share a food to the community DB
 │   │   ├── flag-food/               # Flag a community food entry
 │   │   ├── moderate-food/           # Approve / reject / manage flags (mod + admin)
 │   │   ├── set-user-role/           # List users and assign roles (admin only)
-│   │   └── fetch-recipe-html/       # Fetch raw HTML for URL-based recipe import
+│   │   └── delete-account/          # Full account deletion
 │   └── migrations/                  # SQL migrations — applied with `db push`
-└── specs/                           # Feature specs, data model, and task tracking
+├── powersync/                       # PowerSync sync rules (sync.yaml)
+├── specs/                           # Feature specs, data model, and task tracking
+└── ARCHITECTURE.md                  # Architecture deep-dive
 ```
 
 ---
+
+## Testing
+
+```bash
+cd mealPlan
+npm run lint       # ESLint
+npm run cy:open    # Cypress e2e — interactive (exports web build, serves it, opens Cypress)
+npm run cy:run     # Cypress e2e — headless
+```
 
 ## Common Supabase CLI commands
 
@@ -201,7 +245,3 @@ npx supabase db push --linked --dry-run
 # Run an ad-hoc query against the remote DB
 npx supabase db query --linked "SELECT * FROM public_foods LIMIT 5;"
 ```
-
-## License
-
-See [LICENSE](./mealPlan/LICENSE).
