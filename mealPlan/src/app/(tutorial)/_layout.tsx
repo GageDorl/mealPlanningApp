@@ -1,26 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
+import { Stack, Redirect } from 'expo-router';
 import { supabase } from '@/services/supabase';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function TutorialLayout() {
-  const router = useRouter();
-  const [authorized, setAuthorized] = useState(false);
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const theme = useTheme();
 
   useEffect(() => {
-    const verify = async () => {
-      const result = await supabase.auth.getSession();
-      if (!result.data.session?.user?.id) {
-        router.replace('/sign-in');
-      } else {
-        setAuthorized(true);
-      }
-    };
-    verify();
-  }, [router]);
+    supabase.auth.getSession().then(({ data }) => {
+      setAuthorized(!!data.session?.user?.id);
+    });
+  }, []);
 
-  if (!authorized) return null;
+  if (authorized === false) return <Redirect href="/sign-in" />;
 
   return (
-    <Stack screenOptions={{ headerShown: false }} />
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      {authorized === null && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background }]} />
+      )}
+    </>
   );
 }

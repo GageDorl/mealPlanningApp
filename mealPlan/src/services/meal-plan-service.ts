@@ -19,8 +19,38 @@ export interface MealSlotRecipeEntry {
   recipe: Recipe;
 }
 
+export interface MealSlotFoodEntry {
+  id: string;
+  meal_slot_id: string;
+  food_name: string;
+  brand_name?: string | null;
+  serving_size_amount?: number | null;
+  serving_size_unit?: string | null;
+  servings_planned: number;
+  calories?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  saturated_fat?: number | null;
+  trans_fat?: number | null;
+  cholesterol?: number | null;
+  sodium?: number | null;
+  dietary_fiber?: number | null;
+  total_sugar?: number | null;
+  added_sugar?: number | null;
+  source: 'manual' | 'fatsecret' | 'library' | 'community' | 'ai_estimate';
+  source_id?: string | null;
+  is_grocery_item: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MealSlotFoodInput = Omit<MealSlotFoodEntry, 'id' | 'meal_slot_id' | 'display_order' | 'created_at' | 'updated_at'>;
+
 export interface MealSlotWithRecipe extends MealSlot {
   recipes: MealSlotRecipeEntry[];
+  foods: MealSlotFoodEntry[];
 }
 
 export interface WeekPlan {
@@ -119,9 +149,29 @@ export async function getWeek(db: PsDb, weekStart: Date): Promise<WeekPlan> {
     recipesBySlot.set(row.meal_slot_id, list);
   }
 
+  let slotFoodRows: MealSlotFoodEntry[] = [];
+  if (slots.length > 0) {
+    const slotIds = slots.map((s) => s.id);
+    const { data: sfData, error: sfErr } = await supabase
+      .from('meal_slot_foods')
+      .select('*')
+      .in('meal_slot_id', slotIds)
+      .order('display_order');
+    console.log(`[getWeek] +${Date.now() - t0}ms meal_slot_foods: ${(sfData ?? []).length} rows${sfErr ? ' err=' + sfErr.message : ''}`);
+    slotFoodRows = (sfData ?? []) as MealSlotFoodEntry[];
+  }
+
+  const foodsBySlot = new Map<string, MealSlotFoodEntry[]>();
+  for (const row of slotFoodRows) {
+    const list = foodsBySlot.get(row.meal_slot_id) ?? [];
+    list.push(row);
+    foodsBySlot.set(row.meal_slot_id, list);
+  }
+
   const slotsWithRecipes: MealSlotWithRecipe[] = slots.map((slot) => ({
     ...slot,
     recipes: recipesBySlot.get(slot.id) ?? [],
+    foods: foodsBySlot.get(slot.id) ?? [],
   }));
 
   console.log(`[getWeek] +${Date.now() - t0}ms done`);
@@ -193,6 +243,34 @@ export async function removeRecipeFromSlot(db: PsDb, slotRecipeId: string): Prom
   await db.execute('DELETE FROM meal_slot_recipes WHERE id = ?', [slotRecipeId]);
 }
 
+export async function addFoodToSlot(db: PsDb, slotId: string, food: MealSlotFoodInput): Promise<MealSlotFoodEntry> {
+  const existing = await db.getAll<{ display_order: number }>(
+    'SELECT display_order FROM meal_slot_foods WHERE meal_slot_id = ? ORDER BY display_order DESC LIMIT 1',
+    [slotId],
+  );
+  const nextOrder = existing[0]?.display_order ?? -1;
+  const now = nowIso();
+  const id = generateId();
+  await db.execute(
+    `INSERT INTO meal_slot_foods (
+      id, meal_slot_id, food_name, brand_name, serving_size_amount, serving_size_unit, servings_planned,
+      calories, protein, carbs, fat, saturated_fat, trans_fat, cholesterol, sodium,
+      dietary_fiber, total_sugar, added_sugar, source, source_id, is_grocery_item, display_order, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id, slotId, food.food_name, food.brand_name ?? null, food.serving_size_amount ?? null, food.serving_size_unit ?? null, food.servings_planned,
+      food.calories ?? null, food.protein ?? null, food.carbs ?? null, food.fat ?? null, food.saturated_fat ?? null, food.trans_fat ?? null,
+      food.cholesterol ?? null, food.sodium ?? null, food.dietary_fiber ?? null, food.total_sugar ?? null, food.added_sugar ?? null,
+      food.source, food.source_id ?? null, food.is_grocery_item ? 1 : 0, nextOrder + 1, now, now,
+    ],
+  );
+  return { ...food, id, meal_slot_id: slotId, display_order: nextOrder + 1, created_at: now, updated_at: now };
+}
+
+export async function removeFoodFromSlot(db: PsDb, slotFoodId: string): Promise<void> {
+  await db.execute('DELETE FROM meal_slot_foods WHERE id = ?', [slotFoodId]);
+}
+
 export async function updateSlotRecipeServings(db: PsDb, slotRecipeId: string, servings: number | null): Promise<void> {
   await db.execute(
     'UPDATE meal_slot_recipes SET servings_eaten = ?, updated_at = ? WHERE id = ?',
@@ -229,6 +307,7 @@ export async function updateExternalEventId(db: PsDb, slotId: string, eventId: s
 export async function deleteSlot(db: PsDb, slotId: string): Promise<void> {
   await cancelMealReminder(slotId).catch(() => {});
   await db.execute('DELETE FROM meal_slot_recipes WHERE meal_slot_id = ?', [slotId]);
+  await db.execute('DELETE FROM meal_slot_foods WHERE meal_slot_id = ?', [slotId]);
   await db.execute('DELETE FROM meal_slots WHERE id = ?', [slotId]);
 }
 

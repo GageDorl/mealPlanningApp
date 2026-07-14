@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+﻿import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase, getCachedUserId } from './supabase';
@@ -12,11 +12,11 @@ interface PsDb {
 
 export type { CalendarEvent, CalendarInfo, CachedEventData, MealEventInput };
 
-const CONNECTED_KEY = '@prepd/calendar_connected';
-const EXPORT_ENABLED_KEY = '@prepd/calendar_export_enabled';
-const SELECTED_CALENDARS_KEY = '@prepd/calendar_selected_ids';
-const PREPD_CALENDAR_KEY = '@prepd/prepd_calendar_id';
-const EVENTS_CACHE_PREFIX = 'prepd_gcal_';
+const CONNECTED_KEY = '@bento/calendar_connected';
+const EXPORT_ENABLED_KEY = '@bento/calendar_export_enabled';
+const SELECTED_CALENDARS_KEY = '@bento/calendar_selected_ids';
+const BENTO_CALENDAR_KEY = '@bento/bento_calendar_id';
+const EVENTS_CACHE_PREFIX = 'bento_gcal_';
 
 let _connected = false;
 
@@ -31,15 +31,15 @@ async function callFunction(name: string, body: object) {
   return data;
 }
 
-// --- Prepd export calendar ---
+// --- Bento export calendar ---
 
 async function getPrepCalendarId(): Promise<string> {
   try {
-    const cached = await AsyncStorage.getItem(PREPD_CALENDAR_KEY);
+    const cached = await AsyncStorage.getItem(BENTO_CALENDAR_KEY);
     if (cached) return cached;
     const result = await callFunction('google-calendar', { action: 'ensurePrepCalendar' });
     const id: string = result?.calendarId ?? 'primary';
-    if (id !== 'primary') await AsyncStorage.setItem(PREPD_CALENDAR_KEY, id);
+    if (id !== 'primary') await AsyncStorage.setItem(BENTO_CALENDAR_KEY, id);
     return id;
   } catch {
     return 'primary';
@@ -54,12 +54,16 @@ export function isConnected(): boolean {
 
 export async function restoreSession(): Promise<boolean> {
   try {
+    // Use getSession() instead of getCachedUserId() — the cached ID is set via
+    // onAuthStateChange which fires asynchronously; getSession() reads storage
+    // directly and is safe to call before the first auth event fires.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id ?? null;
+
     const stored = await AsyncStorage.getItem(CONNECTED_KEY);
 
     if (stored === 'true') {
-      // Verify there's an active session — stale flag from a previous sign-out
-      // would otherwise mark a new (or no) session as connected.
-      if (!getCachedUserId()) {
+      if (!userId) {
         await AsyncStorage.removeItem(CONNECTED_KEY);
         return false;
       }
@@ -69,7 +73,6 @@ export async function restoreSession(): Promise<boolean> {
 
     // No local cache — check calendar_tokens DB. Covers first login after connecting
     // on another device (DB is the cross-device source of truth).
-    const userId = getCachedUserId();
     if (userId) {
       const { data } = await supabase
         .from('calendar_tokens')
@@ -105,7 +108,7 @@ export async function connect(): Promise<{ granted: boolean }> {
     const { url } = await callFunction('google-oauth-link', { redirectUrl: MOBILE_CALLBACK_URL });
     if (!url) return { granted: false };
 
-    const result = await WebBrowser.openAuthSessionAsync(url, 'prepd://auth/calendar-callback');
+    const result = await WebBrowser.openAuthSessionAsync(url, 'bento://auth/calendar-callback');
     if (result.type !== 'success' || !result.url) return { granted: false };
 
     const params = new URL(result.url).searchParams;
@@ -128,7 +131,7 @@ export async function disconnect(): Promise<void> {
     const keysToRemove = [
       CONNECTED_KEY,
       SELECTED_CALENDARS_KEY,
-      PREPD_CALENDAR_KEY,
+      BENTO_CALENDAR_KEY,
       ...allKeys.filter((k) => k.startsWith(EVENTS_CACHE_PREFIX)),
     ];
     await Promise.all(keysToRemove.map((k) => AsyncStorage.removeItem(k)));
@@ -288,7 +291,7 @@ export async function createMealEvent(input: MealEventInput): Promise<string | n
     const result = await callFunction('google-calendar', {
       action: 'createEvent',
       calendarId,
-      title: `Prepd: ${input.title}`,
+      title: `Bento: ${input.title}`,
       start: startDate.toISOString(),
       end: endDate.toISOString(),
       slotId: input.slotId,

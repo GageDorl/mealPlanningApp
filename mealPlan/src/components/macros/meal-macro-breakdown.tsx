@@ -31,8 +31,8 @@ export function MealMacroBreakdown({ entries, onDeletePlannedMeal }: MealMacroBr
 
       {entries.map((entry) => {
         const isPlanned = entry.entry_type === 'planned';
-        const hasData = isPlanned ? !!entry.recipe_title : true;
-        const primaryName = isPlanned ? entry.recipe_title : entry.food_name;
+        const hasData = isPlanned ? !!(entry.recipe_title || entry.food_name) : true;
+        const primaryName = isPlanned ? entry.recipe_title ?? entry.food_name : entry.food_name;
 
 
         return (
@@ -48,12 +48,12 @@ export function MealMacroBreakdown({ entries, onDeletePlannedMeal }: MealMacroBr
                   </Text>
                 ) : null}
               </View>
-              {!isPlanned && entry.brand_name ? (
+              {entry.brand_name && hasData ? (
                 <Text style={[styles.brandName, { color: theme.textSecondary }]} numberOfLines={1}>
                   {entry.brand_name}
                 </Text>
               ) : (
-                isPlanned && (
+                isPlanned && !hasData && (
                   <Text style={[styles.emptySlot, { color: theme.border }]}>Empty slot</Text>
                 )
               )}

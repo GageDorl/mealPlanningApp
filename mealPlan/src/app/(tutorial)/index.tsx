@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
-import { ScrollView, View, Text, Pressable, StyleSheet, BackHandler, type ViewStyle, type TextStyle } from 'react-native';
+﻿import { useCallback } from 'react';
+import { ScrollView, View, Text, Pressable, StyleSheet, BackHandler, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
+import { WoodTexture } from '@/components/WoodTexture';
 import { Colors, FontSizes, Spacing, BorderRadius, MaxContentWidth } from '@/constants/theme';
 import { useTutorial } from '@/hooks/use-tutorial';
 import { TUTORIAL_CHAPTERS } from '@/constants/tutorial-chapters';
@@ -9,6 +10,7 @@ import { TUTORIAL_CHAPTERS } from '@/constants/tutorial-chapters';
 export default function TutorialIndexScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const { tutorialCompleted, isChapterComplete, nextIncompleteChapter, skipTutorial } = useTutorial();
 
   const revisit = tutorialCompleted;
@@ -31,16 +33,18 @@ export default function TutorialIndexScreen() {
   );
 
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.background }}
-      contentContainerStyle={styles.scroll}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+      <ScrollView
+        style={{ backgroundColor: 'transparent' }}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={[styles.content, { maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' }]}>
 
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.text }]}>
-            {revisit ? 'Review the tutorial' : 'Get started with Prepd'}
+            {revisit ? 'Review the tutorial' : 'Get started with Bento'}
           </Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             {revisit
@@ -111,6 +115,7 @@ export default function TutorialIndexScreen() {
 
       </View>
     </ScrollView>
+    </View>
   );
 }
 

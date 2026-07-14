@@ -15,6 +15,7 @@ interface UserRow {
   notification_planning_nudges: number;
   notification_macro_checkins: number;
   notification_macro_adjustment: number;
+  meals_per_day: number | null;
 }
 
 interface MacroGoalRow {
@@ -71,6 +72,7 @@ export function useUserProfile() {
         notification_planning_nudges: Boolean(userRow.notification_planning_nudges),
         notification_macro_checkins: Boolean(userRow.notification_macro_checkins),
         notification_macro_adjustment: Boolean(userRow.notification_macro_adjustment),
+        meals_per_day: userRow.meals_per_day ?? 3,
       },
       macroGoals: macroGoalRows.map((g) => ({
         macro_name: g.macro_name,
@@ -83,10 +85,12 @@ export function useUserProfile() {
     };
   }, [userId, userRow, macroGoalRows, dietRows]);
 
+  const profileLoading = !!userId && !authLoading && !userRow;
+
   return {
     profile,
-    authLoading,
-    loading: false,
+    profileLoading,
+    loading: authLoading || profileLoading,
     reload: useCallback(() => {}, []),
   };
 }

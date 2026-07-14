@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { Colors } from '@/constants/theme';
+import type { RootState } from '@/store';
 
 const webTheme = {
   text: 'var(--color-text)',
@@ -13,5 +16,15 @@ const webTheme = {
 } satisfies Record<keyof typeof Colors.light, string>;
 
 export function useTheme() {
+  const themeMode = useSelector((state: RootState) => state.preferences.themeMode);
+
+  useEffect(() => {
+    if (themeMode === null) {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', themeMode);
+    }
+  }, [themeMode]);
+
   return webTheme;
 }

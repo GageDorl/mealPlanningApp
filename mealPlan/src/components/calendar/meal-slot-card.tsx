@@ -4,39 +4,57 @@ import { useTheme } from '@/hooks/use-theme';
 import type { MealSlotWithRecipe } from '@/services/meal-plan-service';
 import { ICON_COMPONENTS } from '@/components/ui/icon-picker';
 
-const ACCENT = '#4A90D9';
+const ACCENT = '#6A9EC8';
+const ICON_COLOR = '#FFFFFF';
 
 interface MealSlotCardProps {
   slot: MealSlotWithRecipe;
   compact?: boolean;
+  // true (default) fills an ancestor with a definite height — the absolutely-positioned
+  // wrapper WeekEventsOverlay uses for the timed grid. Set false inside an auto-height
+  // column stack (the all-day row) — flex:1 there is ambiguous and Android's Yoga can
+  // resolve it by not growing the row to fit multiple stacked slots.
+  growToFill?: boolean;
   onPress: () => void;
   onAssignRecipe: () => void;
   onDelete: () => void;
 }
 
-export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, onDelete }: MealSlotCardProps) {
+export function MealSlotCard({ slot, compact = false, growToFill = true, onPress, onAssignRecipe, onDelete }: MealSlotCardProps) {
   const theme = useTheme();
   const hasRecipes = slot.recipes.length > 0;
+  const hasFoods = slot.foods.length > 0;
+  const hasContent = hasRecipes || hasFoods;
   const primary = slot.recipes[0]?.recipe ?? null;
-  const extraCount = slot.recipes.length - 1;
+  const primaryFood = slot.foods[0] ?? null;
+  const primaryName = primary?.title ?? primaryFood?.food_name ?? '';
+  const extraCount = slot.recipes.length + slot.foods.length - 1;
+  const knownCalories = [
+    ...slot.recipes.filter((r) => r.recipe.calories_per_serving != null).map((r) => r.recipe.calories_per_serving as number),
+    ...slot.foods.filter((f) => f.calories != null).map((f) => (f.calories as number) * (f.servings_planned || 1)),
+  ];
+  const totalCalories = knownCalories.length > 0 ? knownCalories.reduce((sum, c) => sum + c, 0) : null;
   const IconComp = slot.icon ? ICON_COMPONENTS[slot.icon] : null;
 
   if (compact) {
     return (
       <Pressable
-        style={[styles.block, styles.blockCompact, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
-        onPress={hasRecipes ? onPress : onAssignRecipe}
+        style={[styles.block, styles.blockCompact, !growToFill && styles.blockAuto, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
+        onPress={hasContent ? onPress : onAssignRecipe}
       >
         <View style={styles.compactRow}>
-          {IconComp && <IconComp size={12} color={ACCENT} />}
-          <Text style={[styles.compactLabel, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
+          {IconComp && <IconComp size={12} color={ICON_COLOR} />}
+          <Text style={[styles.compactLabel, { color: '#FFFFFF' }]} numberOfLines={1} ellipsizeMode="tail">
             {slot.label}
           </Text>
-          {hasRecipes && (
-            <Text style={[styles.compactName, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
-              {primary!.title}
+          {hasContent && (
+            <Text style={[styles.compactName, { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1} ellipsizeMode="tail">
+              {primaryName}
             </Text>
           )}
+          <Pressable onPress={onDelete} hitSlop={8} style={styles.deleteButtonCompact}>
+            <Text style={[styles.deleteIcon, { color: 'rgba(255,255,255,0.70)' }]}>×</Text>
+          </Pressable>
         </View>
       </Pressable>
     );
@@ -44,38 +62,38 @@ export function MealSlotCard({ slot, compact = false, onPress, onAssignRecipe, o
 
   return (
     <Pressable
-      style={[styles.block, { backgroundColor: `${ACCENT}66`, borderLeftColor: ACCENT }]}
-      onPress={hasRecipes ? onPress : onAssignRecipe}
+      style={[styles.block, { backgroundColor: `${ACCENT}BB`, borderLeftColor: ACCENT }]}
+      onPress={hasContent ? onPress : onAssignRecipe}
     >
       <View style={styles.headerRow}>
-        {IconComp && <IconComp size={14} color={ACCENT} />}
-        <Text style={[styles.label, { color: ACCENT }]} numberOfLines={1} ellipsizeMode="tail">
+        {IconComp && <IconComp size={14} color={ICON_COLOR} />}
+        <Text style={[styles.label, { color: '#FFFFFF' }]} numberOfLines={1} ellipsizeMode="tail">
           {slot.label}
         </Text>
         <Pressable onPress={onDelete} hitSlop={8} style={styles.deleteButton}>
-          <Text style={[styles.deleteIcon, { color: theme.textSecondary }]}>×</Text>
+          <Text style={[styles.deleteIcon, { color: 'rgba(255,255,255,0.70)' }]}>×</Text>
         </Pressable>
       </View>
 
-      {hasRecipes ? (
+      {hasContent ? (
         <>
           <View style={styles.recipeRow}>
-            <Text style={[styles.recipeName, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
-              {primary!.title}
+            <Text style={[styles.recipeName, { color: 'rgba(255,255,255,0.92)' }]} numberOfLines={2} ellipsizeMode="tail">
+              {primaryName}
             </Text>
             {extraCount > 0 && (
-              <Text style={[styles.extraBadge, { color: ACCENT }]}>+{extraCount}</Text>
+              <Text style={[styles.extraBadge, { color: 'rgba(255,255,255,0.75)' }]}>+{extraCount}</Text>
             )}
           </View>
-          {primary!.calories_per_serving != null && (
-            <Text style={[styles.calHint, { color: theme.textSecondary }]}>
-              {Math.round(primary!.calories_per_serving)} kcal
+          {totalCalories != null && (
+            <Text style={[styles.calHint, { color: 'rgba(255,255,255,0.80)' }]}>
+              {Math.round(totalCalories)} kcal
             </Text>
           )}
         </>
       ) : (
         <Pressable onPress={onAssignRecipe}>
-          <Text style={[styles.emptyState, { color: ACCENT }]}>+ Add recipe</Text>
+          <Text style={[styles.emptyState, { color: 'rgba(255,255,255,0.80)' }]}>+ Add recipe</Text>
         </Pressable>
       )}
     </Pressable>
@@ -89,6 +107,11 @@ const styles = StyleSheet.create({
     padding: Spacing.xs,
     flex: 1,
     minHeight: 36,
+  } as ViewStyle,
+  blockAuto: {
+    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
   } as ViewStyle,
   blockCompact: {
     justifyContent: 'center',
@@ -121,6 +144,9 @@ const styles = StyleSheet.create({
   deleteButton: {
     flexShrink: 0,
     marginLeft: 2,
+  } as ViewStyle,
+  deleteButtonCompact: {
+    flexShrink: 0,
   } as ViewStyle,
   deleteIcon: {
     fontSize: 14,

@@ -3,7 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "engines": {
-    "node": ">=20.1"
+    "node": ">=22"
   },
   "dependencies": {
     "@azure/core-asynciterator-polyfill": "^1.0.2",
@@ -58,6 +58,8 @@
     "cypress": "^15.18.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~56.0.4",
+    "serve": "^14.2.6",
+    "start-server-and-test": "^3.0.11",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -68,8 +70,10 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "export:web": "expo export --platform web --clear && node scripts/patch-web-dist.js",
-    "cy:open": "cypress open",
-    "cy:run": "cypress run"
+    "export:web:test": "node scripts/export-web-test.js",
+    "cy:serve": "serve dist -l 3000 -s",
+    "cy:open": "npm run export:web:test && start-server-and-test cy:serve http://localhost:3000 'cypress open'",
+    "cy:run": "npm run export:web:test && start-server-and-test cy:serve http://localhost:3000 'cypress run'"
   },
   "private": true,
   "overrides": {

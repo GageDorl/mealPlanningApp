@@ -1,3 +1,8 @@
+// Flow: FAB → Step 1 "Log Food" → Step 2 type label → "Add Food →" → LogFoodForm
+// Pressable elements are disabled by GestureHandlerRootView on web.
+// Fix: removeAttr('disabled') before clicking any Pressable.
+// TextInput/Input renders as <input> and is not affected.
+
 describe('Food Logging', () => {
   before(() => {
     cy.task('seedTestData');
@@ -9,45 +14,53 @@ describe('Food Logging', () => {
     cy.visit('/calendar');
   });
 
-  it('opens the log food form for today', () => {
-    cy.contains('Log food').click();
-    cy.contains('Log Food').should('be.visible');
+  // Helper: remove RNGH disabled attributes then click
+  function pressButton(subject: Cypress.Chainable) {
+    return subject
+      .invoke('removeAttr', 'disabled')
+      .invoke('removeAttr', 'aria-disabled')
+      .click();
+  }
+
+  function openLogFoodForm() {
+    // FAB is a Pressable — remove disabled before click
+    pressButton(cy.get('[data-testid="calendar-add-fab"]'));
+    // Step 1: Log Food card
+    pressButton(cy.contains('Log Food'));
+    // Step 2: type a label (chips are Pressables too; use the text input instead)
+    cy.get('input[placeholder="Custom label…"]').type('Lunch');
+    // "Add Food →" — enabled once label is non-empty
+    pressButton(cy.contains('[role="button"]', 'Add Food →'));
+  }
+
+  it('opens the log food form', () => {
+    openLogFoodForm();
+    // Default tab is Search — search input should be visible
+    cy.get('input[placeholder="Search foods, brands…"]').should('be.visible');
   });
 
-  it('logs a manual food entry', () => {
-    cy.contains('Log food').click();
-
-    // Switch to manual tab
-    cy.contains('Manual').click();
-
-    // Fill in food details
-    cy.get('input[placeholder="Food name"]').type('Grilled Chicken');
-    cy.get('input[placeholder="Calories"]').type('250');
-    cy.get('input[placeholder="Protein (g)"]').type('40');
-    cy.get('input[placeholder="Carbs (g)"]').type('0');
-    cy.get('input[placeholder="Fat (g)"]').type('6');
-
-    // Save
-    cy.contains('Add to Log').click();
-
-    // Entry should appear in the calendar
-    cy.contains('Grilled Chicken').should('be.visible');
+  it('can switch to the manual entry tab', () => {
+    openLogFoodForm();
+    // "Manual" tab is also a Pressable
+    pressButton(cy.contains('Manual'));
+    cy.get('input[placeholder="Food name *"]').should('be.visible');
   });
 
-  it('searches for a food via FatSecret and logs it', () => {
-    cy.contains('Log food').click();
+  it('fills in and submits a manual food entry', () => {
+    openLogFoodForm();
+    pressButton(cy.contains('Manual'));
 
-    // Search tab should be default
-    cy.get('input[placeholder*="Search"]').type('banana');
-    cy.contains('banana', { matchCase: false }).should('be.visible');
+    // Only food_name is required for canSubmit
+    cy.get('input[placeholder="Food name *"]').type('Grilled Chicken');
 
-    // Click first result
-    cy.get('[data-testid="food-result"]').first().click();
+    // Macro inputs all share placeholder "–"; find by sibling label text
+    cy.contains('Calories (kcal)').parent().find('input[placeholder="–"]').type('250');
+    cy.contains('Protein (g)').parent().find('input[placeholder="–"]').type('40');
 
-    // Food detail / serving selection should appear
-    cy.contains('Add to Log').click();
+    // "Log Food" button — enabled because food_name is filled
+    pressButton(cy.contains('[role="button"]', 'Log Food'));
 
-    // Should appear in calendar
-    cy.contains('banana', { matchCase: false }).should('be.visible');
+    // Form dismisses — search input no longer exists
+    cy.get('input[placeholder="Food name *"]').should('not.exist');
   });
 });

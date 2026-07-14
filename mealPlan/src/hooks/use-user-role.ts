@@ -1,29 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@powersync/react-native';
 import { supabase } from '@/services/supabase';
 
 export type UserRole = 'user' | 'moderator' | 'admin';
 
 export function useUserRole() {
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setRole(null);
-        setLoading(false);
-        return;
-      }
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      setRole((data?.role as UserRole) ?? 'user');
-      setLoading(false);
-    })();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  return { role, loading };
+  const { data, isLoading } = useQuery<{ role: string }>(
+    'SELECT role FROM profiles WHERE user_id = ?',
+    [userId ?? ''],
+  );
+
+  const role = useMemo<UserRole | null>(() => {
+    if (!userId || isLoading) return null;
+    return (data[0]?.role as UserRole) ?? 'user';
+  }, [userId, data, isLoading]);
+
+  return { role, loading: isLoading };
 }

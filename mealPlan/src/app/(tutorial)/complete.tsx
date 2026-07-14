@@ -1,5 +1,6 @@
-import { ScrollView, View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+﻿import { ScrollView, View, Text, Pressable, StyleSheet, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
 import { Stack } from 'expo-router';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, FontSizes, Spacing, BorderRadius, MaxContentWidth } from '@/constants/theme';
 import { useTutorial } from '@/hooks/use-tutorial';
@@ -7,13 +8,15 @@ import { TUTORIAL_CHAPTERS } from '@/constants/tutorial-chapters';
 
 export default function TutorialCompleteScreen() {
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const { completeTutorial } = useTutorial();
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <Stack.Screen options={{ headerRight: () => null, headerLeft: () => null }} />
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       <ScrollView
-        style={{ backgroundColor: theme.background }}
+        style={{ backgroundColor: 'transparent' }}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
@@ -23,7 +26,7 @@ export default function TutorialCompleteScreen() {
             <Text style={styles.emoji}>🎉</Text>
             <Text style={[styles.title, { color: theme.text }]}>{"You're all set!"}</Text>
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              {"You've completed all five chapters. Prepd is ready when you are."}
+              {"You've completed all five chapters. Bento is ready when you are."}
             </Text>
           </View>
 
@@ -45,7 +48,7 @@ export default function TutorialCompleteScreen() {
 
         </View>
       </ScrollView>
-    </>
+    </View>
   );
 }
 

@@ -1,4 +1,4 @@
-import { Image, View, Text, StyleSheet, type ViewStyle, type TextStyle, type ImageStyle } from 'react-native';
+﻿import { Image, View, Text, StyleSheet, type ViewStyle, type TextStyle, type ImageStyle } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
 
@@ -11,7 +11,7 @@ export function WelcomeSplashPreview() {
         style={styles.appIcon}
         resizeMode="contain"
       />
-      <Text style={[styles.appName, { color: Colors.accent }]}>Prepd</Text>
+      <Text style={[styles.appName, { color: Colors.accent }]}>Bento</Text>
       <Text style={[styles.tagline, { color: theme.textSecondary }]}>Your complete food toolkit</Text>
     </View>
   );

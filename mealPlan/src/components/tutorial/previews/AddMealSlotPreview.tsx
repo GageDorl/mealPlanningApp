@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+﻿import { useState, useCallback, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/hooks/use-theme';
@@ -32,7 +32,7 @@ const TOOLTIPS = [
   },
   {
     title: 'Log Food',
-    body: "Try searching for something — results come from your food library, the Prepd community, and FatSecret's database. Switch to Manual to enter nutrition info yourself.",
+    body: "Try searching for something — results come from your food library, the Bento community, and FatSecret's database. Switch to Manual to enter nutrition info yourself.",
   },
 ];
 

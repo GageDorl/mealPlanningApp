@@ -1,6 +1,7 @@
 
-import { useCallback, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import { triggerSync } from '@/utils/trigger-sync';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
@@ -11,11 +12,36 @@ import { typography } from '@/styles/typography';
 import { useGrocery } from '@/hooks/use-grocery';
 import { GroceryCategoryGroup } from '@/components/grocery/grocery-category-group';
 import { Button } from '@/components/ui/button';
+import { WeekPickerModal } from '@/components/calendar/week-picker-modal';
+
+function getSunday(date: Date): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() - d.getDay());
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function formatWeekRange(weekStart: Date): string {
+  const end = addDays(weekStart, 6);
+  const s = weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const e = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return `${s} – ${e}`;
+}
 
 export default function GroceryScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { state, generating, error, generate, toggleItem } = useGrocery();
+  const { width, height } = useWindowDimensions();
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekPickerVisible, setWeekPickerVisible] = useState(false);
+  const weekStart = useMemo(() => getSunday(addDays(new Date(), weekOffset * 7)), [weekOffset]);
+  const { state, generating, error, generate, toggleItem } = useGrocery(weekStart);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -28,7 +54,9 @@ export default function GroceryScreen() {
   const progressPercent = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
 
   return (
-    <View style={[layout.screenContainer, { backgroundColor: theme.background }]}>
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[layout.rowSpaceBetween, { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }]}>
         <Text style={[typography.headingXl, { color: theme.text }]}>Grocery List</Text>
@@ -36,6 +64,13 @@ export default function GroceryScreen() {
           <Text style={[styles.staplesLabel, { color: Colors.accent }]}>Pantry</Text>
         </Pressable>
       </View>
+
+      {/* Week selector */}
+      <Pressable style={styles.weekRow} onPress={() => setWeekPickerVisible(true)}>
+        <Text style={[styles.weekLabel, { color: Colors.accent }]}>
+          {weekOffset === 0 ? 'This week' : formatWeekRange(weekStart)} ▾
+        </Text>
+      </Pressable>
 
       {/* Info tooltip */}
       <View style={[styles.infoBanner, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
@@ -111,6 +146,14 @@ export default function GroceryScreen() {
         </>
       )}
     </View>
+
+      <WeekPickerModal
+        visible={weekPickerVisible}
+        weekOffset={weekOffset}
+        onSelect={setWeekOffset}
+        onClose={() => setWeekPickerVisible(false)}
+      />
+    </View>
   );
 }
 
@@ -121,6 +164,14 @@ const styles = StyleSheet.create({
   staplesLabel: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
+  } as TextStyle,
+  weekRow: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+  } as ViewStyle,
+  weekLabel: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
   } as TextStyle,
   progressCard: {
     marginHorizontal: Spacing.lg,

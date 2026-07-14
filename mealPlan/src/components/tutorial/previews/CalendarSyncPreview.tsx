@@ -52,6 +52,7 @@ const mkSlot = (id: string, label: string, timeH: number, timeM: number, recipe:
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
   recipes: [{ id: `${id}-r`, meal_slot_id: id, recipe_id: recipe.id, servings_eaten: null, display_order: 0, recipe }],
+  foods: [],
   _top: minutesToTop(timeH, timeM),
 });
 

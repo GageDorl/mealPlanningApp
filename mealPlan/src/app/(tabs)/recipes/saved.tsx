@@ -8,9 +8,11 @@ import {
   Pressable,
   Alert,
   StyleSheet,
+  useWindowDimensions,
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { triggerSync } from '@/utils/trigger-sync';
 import { LoadingModal } from '@/components/ui/loading-modal';
 import { useRouter } from 'expo-router';
@@ -23,6 +25,7 @@ import { useOffline } from '@/hooks/use-offline';
 export default function SavedRecipesScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
   const { recipes, loading, error, favorite, remove, refresh } = useRecipes();
   const isOffline = useOffline();
 
@@ -58,7 +61,9 @@ export default function SavedRecipesScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
@@ -161,6 +166,7 @@ export default function SavedRecipesScreen() {
           ))}
         </ScrollView>
       )}
+    </View>
     </View>
   );
 }

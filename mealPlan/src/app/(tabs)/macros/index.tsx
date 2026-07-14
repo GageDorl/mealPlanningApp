@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { triggerSync } from '@/utils/trigger-sync';
 import { Colors, FontSizes, Spacing, BorderRadius } from '@/constants/theme';
@@ -15,6 +16,7 @@ import { MacroTrendChart } from '@/components/macros/macro-trend-chart';
 import { WeightSection } from '@/components/macros/weight-section';
 import { MacroAdjustmentCard } from '@/components/MacroAdjustmentCard';
 import { DatePickerModal } from '@/components/ui/date-picker-modal';
+import { FoodSuggestionsCard } from '@/components/macros/food-suggestions-card';
 import { getCachedUserId } from '@/services/supabase';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -36,6 +38,7 @@ function isToday(date: Date): boolean {
 export default function MacrosScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
   const { selectedDate, dailyProgress, goalRows, error, goToPrevDay, goToNextDay, goToToday, goToDate, refresh, deleteMealSlot } = useMacros();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,6 +47,11 @@ export default function MacrosScreen() {
 
   const caloriesGoal = goalRows.find((r) => r.macro_name === 'calories');
   const macroGoals = goalRows.filter((r) => r.macro_name !== 'calories');
+
+  function remainingMacro(name: string): number {
+    const m = dailyProgress?.macros.find((x) => x.macro_name === name);
+    return m ? Math.max(0, m.goal - m.current) : 0;
+  }
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -62,7 +70,9 @@ export default function MacrosScreen() {
   const today = isToday(selectedDate);
 
   return (
-    <View style={[layout.screenContainer, { backgroundColor: theme.background }]}>
+    <View style={{ flex: 1 }}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
+    <View style={[layout.screenContainer, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[layout.rowSpaceBetween, { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md }]}>
         <Pressable onPress={goToPrevDay} style={styles.navButton}>
@@ -192,6 +202,19 @@ export default function MacrosScreen() {
           {userId && (
             <MacroAdjustmentCard userId={userId} />
           )}
+
+          {/* Food suggestions — only for today when goals are set */}
+          {userId && today && (
+            <FoodSuggestionsCard
+              userId={userId}
+              date={selectedDate}
+              remainingCalories={remainingMacro('calories')}
+              remainingProtein={remainingMacro('protein')}
+              remainingCarbs={remainingMacro('carbs')}
+              remainingFat={remainingMacro('fat')}
+              hasGoals={!!caloriesGoal}
+            />
+          )}
         </ScrollView>
       )}
 
@@ -201,6 +224,7 @@ export default function MacrosScreen() {
         onSelect={goToDate}
         onClose={() => setPickerVisible(false)}
       />
+    </View>
     </View>
   );
 }

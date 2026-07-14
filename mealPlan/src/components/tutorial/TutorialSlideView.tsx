@@ -14,7 +14,9 @@ import { RecalibrationPreview } from './previews/RecalibrationPreview';
 import { WeeklyCalendarPreview } from './previews/WeeklyCalendarPreview';
 import { AddMealSlotPreview } from './previews/AddMealSlotPreview';
 import { AssignRecipePreview } from './previews/AssignRecipePreview';
+import { MealSlotFoodsPreview } from './previews/MealSlotFoodsPreview';
 import { AdjustServingsPreview } from './previews/AdjustServingsPreview';
+import { PlanWeekPreview } from './previews/PlanWeekPreview';
 import { CalendarSyncPreview } from './previews/CalendarSyncPreview';
 import { RecipeLibraryPreview } from './previews/RecipeLibraryPreview';
 import { RecipeSearchPreview } from './previews/RecipeSearchPreview';
@@ -24,6 +26,7 @@ import { GroceryGeneratedPreview } from './previews/GroceryGeneratedPreview';
 import { GroceryPantryPreview } from './previews/GroceryPantryPreview';
 import { GroceryChecklistPreview } from './previews/GroceryChecklistPreview';
 import { GroceryRegeneratePreview } from './previews/GroceryRegeneratePreview';
+import { FoodSuggestionsPreview } from './previews/FoodSuggestionsPreview';
 
 interface Props {
   slide: InfoSlide;
@@ -44,7 +47,9 @@ function resolveIllustration(
     case 'weekly-calendar': return <WeeklyCalendarPreview />;
     case 'add-meal-slot': return <AddMealSlotPreview onTooltipChange={onTooltipChange} />;
     case 'assign-recipe': return <AssignRecipePreview />;
+    case 'meal-slot-foods': return <MealSlotFoodsPreview />;
     case 'adjust-servings': return <AdjustServingsPreview />;
+    case 'plan-week': return <PlanWeekPreview />;
     case 'calendar-sync': return <CalendarSyncPreview />;
     case 'recipe-library': return <RecipeLibraryPreview />;
     case 'recipe-search': return <RecipeSearchPreview />;
@@ -54,6 +59,7 @@ function resolveIllustration(
     case 'grocery-pantry': return <GroceryPantryPreview />;
     case 'grocery-checklist': return <GroceryChecklistPreview />;
     case 'grocery-regenerate': return <GroceryRegeneratePreview />;
+    case 'food-suggestions': return <FoodSuggestionsPreview />;
     default: return null;
   }
 }

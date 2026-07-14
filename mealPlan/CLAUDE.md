@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# Prepd — Developer Guide
+# Bento — Developer Guide
 
 ## Current state
 
@@ -81,6 +81,9 @@ Use `useUserRole()` to check role. Admin-gated screens live in `(tabs)/profile/a
 
 ### FatSecret attribution
 `<FatSecretAttribution />` (`src/components/food/fatsecret-attribution.tsx`) must appear on every screen displaying FatSecret data. This is a contractual requirement.
+
+### Following instructions
+When given explicit instructions (what to build, where to put it, how to implement it), execute them directly. If something is ambiguous or has multiple reasonable interpretations, ask rather than deciding alone. The user will say "you decide" when they want input on approach.
 
 ### Schema / field naming
 All DB columns and TypeScript model fields use **snake_case**.

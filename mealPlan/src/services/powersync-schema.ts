@@ -38,6 +38,7 @@ const users = new Table({
   planner_height_ft: column.integer,
   planner_height_in: column.integer,
   planner_activity_level: column.text,
+  meals_per_day: column.integer,
   created_at: column.text,
   updated_at: column.text,
 });
@@ -123,6 +124,32 @@ const meal_slot_recipes = new Table({
   meal_slot_id: column.text,
   recipe_id: column.text,
   servings_eaten: column.real,
+  display_order: column.integer,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
+const meal_slot_foods = new Table({
+  meal_slot_id: column.text,
+  food_name: column.text,
+  brand_name: column.text,
+  serving_size_amount: column.real,
+  serving_size_unit: column.text,
+  servings_planned: column.real,
+  calories: column.real,
+  protein: column.real,
+  carbs: column.real,
+  fat: column.real,
+  saturated_fat: column.real,
+  trans_fat: column.real,
+  cholesterol: column.real,
+  sodium: column.real,
+  dietary_fiber: column.real,
+  total_sugar: column.real,
+  added_sugar: column.real,
+  source: column.text,
+  source_id: column.text,
+  is_grocery_item: column.integer,
   display_order: column.integer,
   created_at: column.text,
   updated_at: column.text,
@@ -238,6 +265,13 @@ const popular_recipes = new Table({
   created_at: column.text,
 });
 
+const profiles = new Table({
+  user_id: column.text,
+  role: column.text,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
 export const AppSchema = new Schema({
   users,
   recipes,
@@ -246,6 +280,7 @@ export const AppSchema = new Schema({
   meal_plans,
   meal_slots,
   meal_slot_recipes,
+  meal_slot_foods,
   macro_goals,
   dietary_preferences,
   food_logs,
@@ -255,6 +290,7 @@ export const AppSchema = new Schema({
   grocery_lists,
   grocery_items,
   popular_recipes,
+  profiles,
   cached_recipes,
   cached_foods,
   cached_calendar_events,

@@ -5,7 +5,9 @@ const PLANNING_NUDGE_ID = 'planning-nudge-weekly';
 const MACRO_CHECKIN_ID = 'macro-checkin-daily';
 const MACRO_ADJUSTMENT_ID = 'macro-adjustment-weekly';
 
-if (Platform.OS !== 'web') {
+// Called once from the root layout after native modules are ready.
+export function initNotificationHandler(): void {
+  if (Platform.OS === 'web') return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,

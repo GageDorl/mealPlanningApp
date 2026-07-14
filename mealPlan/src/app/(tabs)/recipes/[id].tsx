@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useState } from 'react';
 import { usePowerSync } from '@powersync/react-native';
-import { View, Text, Pressable, ActivityIndicator, Alert, RefreshControl, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, Alert, RefreshControl, StyleSheet, useWindowDimensions, type ViewStyle, type TextStyle } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { triggerSync } from '@/utils/trigger-sync';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors, MaxContentWidth, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
@@ -90,6 +91,7 @@ function savedRecipeToDetailData(recipe: Recipe, ingredients: import('@/services
 
 export default function RecipeDetailScreen() {
   const theme = useTheme();
+  const { width, height } = useWindowDimensions();
   const router = useRouter();
   const db = usePowerSync();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -344,7 +346,8 @@ export default function RecipeDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+      <View style={[styles.centered, { backgroundColor: 'transparent' }]}>
+        <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
         <ActivityIndicator size="large" color={Colors.accent} />
       </View>
     );
@@ -352,7 +355,8 @@ export default function RecipeDetailScreen() {
 
   if (error || !detailData) {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+      <View style={[styles.centered, { backgroundColor: 'transparent' }]}>
+        <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
         <Text style={[styles.errorText, { color: theme.textSecondary }]}>{error ?? 'Recipe not found'}</Text>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Text style={[styles.backBtnText, { color: Colors.accent }]}>Go back</Text>
@@ -362,7 +366,8 @@ export default function RecipeDetailScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       {/* Sticky header with title and save button */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} style={styles.backIconBtn} hitSlop={8}>

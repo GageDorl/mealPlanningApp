@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, ScrollView, Pressable, TextInput, Switch, StyleSheet, Platform, Alert,
+  View, Text, ScrollView, Pressable, TextInput, Switch, StyleSheet, Platform, Alert, useWindowDimensions,
   type ViewStyle, type TextStyle,
 } from 'react-native';
+import { WoodTexture } from '@/components/WoodTexture';
 import { useRouter } from 'expo-router';
 import { usePowerSync } from '@powersync/react-native';
 import { useTheme } from '@/hooks/use-theme';
@@ -241,6 +242,7 @@ export default function FoodLibraryScreen() {
   const db = usePowerSync();
   const theme = useTheme();
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
   const { profile } = useUserProfile();
   const [foods, setFoods] = useState<PersonalFood[]>([]);
   const [publicFoods, setPublicFoods] = useState<PublicFood[]>([]);
@@ -316,7 +318,8 @@ export default function FoodLibraryScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <WoodTexture width={width} height={height} style={StyleSheet.absoluteFill} />
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
           <Text style={[styles.backText, { color: Colors.accent }]}>← Back</Text>
