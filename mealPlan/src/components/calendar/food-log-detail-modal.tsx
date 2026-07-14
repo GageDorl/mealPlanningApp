@@ -184,7 +184,7 @@ function ItemRow({
       </View>
 
       <Modal visible={flagModalVisible} transparent animationType="fade" onRequestClose={() => setFlagModalVisible(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.kbAvoid}>
+        <KeyboardAvoidingView behavior="padding" style={styles.kbAvoid}>
         <Pressable style={styles.flagOverlay} onPress={() => setFlagModalVisible(false)}>
           <Pressable style={[styles.flagCard, { backgroundColor: theme.background }]} onPress={() => {}}>
             <Text style={[styles.flagTitle, { color: theme.text }]}>Flag this food</Text>
@@ -304,7 +304,7 @@ export function FoodLogDetailModal({ log, userId, onClose, onDeleteLog, onDelete
 
   return (
     <Modal visible={!!log} transparent animationType="fade" onRequestClose={subView !== 'main' ? () => { setAddingItems(false); setEditingLog(false); } : onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.kbAvoid}>
+      <KeyboardAvoidingView behavior="padding" style={styles.kbAvoid}>
       <Pressable style={styles.overlay} onPress={handleBackdropPress}>
         <Pressable style={[styles.card, { backgroundColor: theme.background }]} onPress={() => {}}>
           <View style={styles.strip} />
