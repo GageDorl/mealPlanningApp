@@ -172,7 +172,7 @@ export function MealSlotDetailModal({ slot, onClose, onAddRecipe, onAddFood, onR
       {/* This card is vertically centered rather than anchored to the bottom, so a
           translateY slide (used for bottom sheets elsewhere) would miscenter it —
           KeyboardAvoidingView instead shrinks the flex area so centering recalculates. */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.kbAvoid}>
+      <KeyboardAvoidingView behavior="padding" style={styles.kbAvoid}>
         <Pressable style={styles.overlay} onPress={editing ? () => setEditing(false) : onClose}>
           <Pressable style={[styles.card, { backgroundColor: theme.background }]} onPress={() => {}}>
           <View style={styles.strip} />
